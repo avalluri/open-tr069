@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap-enc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:cwmp="urn:dslforum-org:cwmp-1-0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <soap:Header>
+          <cwmp:ID soap:mustUnderstand="1" xsi:type="xsd:string">1234</cwmp:ID>
+      </soap:Header>
+      <soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+          <cwmp:GetParameterValuesResponse>
+              <ParameterList xsi:type="soap-enc:Array" soap-enc:arrayType="cwmp:ParameterValueStruct[4]">
+                  <ParameterValueStruct xsi:type="cwmp:ParameterValueStruct">
+                      <Name xsi:type="xsd:string">.a.d</Name>
+                      <Value xsi:type="xsd:string">a string</Value>
+                  </ParameterValueStruct>
+                  <ParameterValueStruct xsi:type="cwmp:ParameterValueStruct">
+                      <Name xsi:type="xsd:string">.a.b.a</Name>
+                      <Value xsi:type="xsd:int">12345</Value>
+                  </ParameterValueStruct>
+                  <ParameterValueStruct xsi:type="cwmp:ParameterValueStruct">
+                      <Name xsi:type="xsd:string">.a.b.b</Name>
+                      <Value xsi:type="xsd:base64">EjRWeJq83vA=</Value>
+                  </ParameterValueStruct>
+                  <ParameterValueStruct xsi:type="cwmp:ParameterValueStruct">
+                      <Name xsi:type="xsd:string">.a.b.c</Name>
+                      <Value xsi:type="xsd:int">12345</Value>
+                  </ParameterValueStruct>
+              </ParameterList>
+          </cwmp:GetParameterValuesResponse>
+      </soap:Body>
+  </soap:Envelope>

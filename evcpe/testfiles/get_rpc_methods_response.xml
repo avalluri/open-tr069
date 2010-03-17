@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope 
+		xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" 
+		xmlns:soap-enc="http://schemas.xmlsoap.org/soap/encoding/" 
+		xmlns:cwmp="urn:dslforum-org:cwmp-1-0" 
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+		xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<soap:Header>
+		<cwmp:ID soap:mustUnderstand="1" xsi:type="xsd:string">1234</cwmp:ID>
+	</soap:Header>
+	<soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+		<cwmp:GetRPCMethodsResponse>
+			<MethodList xsi:type="soap-enc:Array" soap-enc:arrayType="xsd:string[8]">
+				<xsd:string xsi:type="xsd:string">GetRPCMethods</xsd:string>
+				<xsd:string xsi:type="xsd:string">GetParameterNames</xsd:string>
+				<xsd:string xsi:type="xsd:string">GetParameterValues</xsd:string>
+				<xsd:string xsi:type="xsd:string">SetParameterValues</xsd:string>
+				<xsd:string xsi:type="xsd:string">SetParameterAttributes</xsd:string>
+				<xsd:string xsi:type="xsd:string">GetParameterAttributes</xsd:string>
+				<xsd:string xsi:type="xsd:string">AddObject</xsd:string>
+				<xsd:string xsi:type="xsd:string">DeleteObject</xsd:string>
+			</MethodList>
+		</cwmp:GetRPCMethodsResponse>
+	</soap:Body>
+</soap:Envelope>

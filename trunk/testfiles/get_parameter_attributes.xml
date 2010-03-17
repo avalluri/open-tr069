@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<soap:Envelope
+    xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+    soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+    xmlns:cwmp="urn:dslforum-org:cwmp-1-0">
+      <soap:Header>
+        <cwmp:ID soap:mustUnderstand="1">1234</cwmp:ID>
+      </soap:Header>
+      <soap:Body>
+        <cwmp:GetParameterAttributes>
+  	<cwmp:ParameterNames>
+  	  <xsd:string>.a.d</xsd:string>
+  	  <xsd:string>.a.b.a</xsd:string>
+  	  <xsd:string>.a.c.2.d</xsd:string>
+  	</cwmp:ParameterNames>
+        </cwmp:GetParameterAttributes>
+      </soap:Body>
+  </soap:Envelope>

@@ -1,0 +1,176 @@
+<?xml version="1.0"?>
+<model>
+  <schema name="InternetGatewayDevice" type="object">
+    <extension name="Event" type="multipleObject">
+      <extension name="EventCode" type="string"/>
+      <extension name="CommandKey" type="string"/>
+    </extension>
+    <schema name="DeviceSummary" type="string" constraint="1024" inform="true"/>
+    <schema name="LANDeviceNumberOfEntries" type="unsignedInt"/>
+    <schema name="WANDeviceNumberOfEntries" type="unsignedInt"/>
+    <schema name="DeviceInfo" type="object">
+      <schema name="Manufacturer" type="string" constraint="64"/>
+      <schema name="ManufacturerOUI" type="string" constraint="6"/>
+      <schema name="ModelName" type="string" constraint="64"/>
+      <schema name="Description" type="string" constraint="256"/>
+      <schema name="ProductClass" type="string" constraint="64"/>
+      <schema name="SerialNumber" type="string" constraint="64"/>
+      <schema name="HardwareVersion" type="string" constraint="64" inform="true"/>
+      <schema name="SoftwareVersion" type="string" constraint="64" inform="true" notification="active"/>
+      <schema name="ModemFirmwareVersion" type="string" constraint="64"/>
+      <schema name="EnabledOptions" type="string" constraint="1024"/>
+      <schema name="AdditionalHardwareVersion" type="string" constraint="64"/>
+      <schema name="AdditionalSoftwareVersion" type="string" constraint="64"/>
+      <schema name="SpecVersion" type="string" constraint="16" inform="true"/>
+      <schema name="ProvisioningCode" type="string" constraint="64" write="W" inform="true" notification="active"/>
+      <schema name="UpTime" type="unsignedInt"/>
+      <schema name="FirstUseDate" type="dateTime"/>
+      <schema name="DeviceLog" type="string" constraint="32768"/>
+      <schema name="VendorConfigFileNumberOfEntries" type="unsignedInt"/>
+      <schema name="VendorConfigFile" type="multipleObject" write="W" number="VendorConfigFileNumberOfEntries">
+        <schema name="Name" type="string" constraint="64"/>
+        <schema name="Version" type="string" constraint="16"/>
+        <schema name="Date" type="dateTime"/>
+        <schema name="Description" type="string" constraint="256"/>
+      </schema>
+    </schema>
+    <schema name="DeviceConfig" type="object">
+      <schema name="PersistentData" type="string" constraint="256"/>
+      <schema name="ConfigFile" type="string" constraint="32768"/>
+    </schema>
+    <schema name="ManagementServer" type="object">
+      <schema name="URL" type="string" constraint="256" write="W"/>
+      <extension name="Timeout" type="unsignedInt"/>
+      <schema name="Username" type="string" constraint="256" write="W"/>
+      <schema name="Password" type="string" constraint="256" write="W"/>
+      <schema name="PeriodicInformEnable" type="boolean" write="W"/>
+      <schema name="PeriodicInformInterval" type="unsignedInt" constraint="1:" write="W"/>
+      <schema name="PeriodicInformTime" type="dateTime" write="W"/>
+      <schema name="ParameterKey" type="string" constraint="32" inform="true"/>
+      <schema name="ConnectionRequestURL" type="string" constraint="256" inform="true" notification="active"/>
+      <schema name="ConnectionRequestUsername" type="string" constraint="256" write="W"/>
+      <schema name="ConnectionRequestPassword" type="string" constraint="256" write="W"/>
+      <extension name="ConnectionRequestInterval" type="unsignedInt"/>
+      <schema name="UpgradesManaged" type="boolean" write="W"/>
+      <schema name="KickURL" type="string" constraint="256"/>
+      <schema name="DownloadProgressURL" type="string" constraint="256"/>
+      <extension name="Authentication" type="string" constraint="NONE|BASIC|DIGEST"/>
+      <extension name="ProxyURL" type="string" constraint="256"/>
+      <extension name="ProxyUsername" type="string" constraint="256"/>
+      <extension name="ProxyPassword" type="string" constraint="256"/>
+    </schema>
+    <schema name="Time" type="object">
+      <schema name="NTPServer1" type="string" constraint="64" write="W"/>
+      <schema name="NTPServer2" type="string" constraint="64" write="W"/>
+      <schema name="NTPServer3" type="string" constraint="64" write="W"/>
+      <schema name="NTPServer4" type="string" constraint="64" write="W"/>
+      <schema name="NTPServer5" type="string" constraint="64" write="W"/>
+      <schema name="CurrentLocalTime" type="dateTime" notification="passive" getter="evcpe_get_curtime" setter="evcpe_set_curtime"/>
+      <schema name="LocalTimeZone" type="string" constraint="6" write="W"/>
+      <schema name="LocalTimeZoneName" type="string" constraint="64" write="W"/>
+      <schema name="DaylightSavingsUsed" type="boolean" write="W"/>
+      <schema name="DaylightSavingsStart" type="dateTime" write="W"/>
+      <schema name="DaylightSavingsEnd" type="dateTime" write="W"/>
+    </schema>
+    <schema name="UserInterface" type="object">
+      <schema name="PasswordRequired" type="boolean" write="W"/>
+      <schema name="PasswordUserSelectable" type="boolean" write="W"/>
+      <schema name="UpgradeAvailable" type="boolean" write="W"/>
+      <schema name="WarrantyDate" type="dateTime" write="W"/>
+      <schema name="ISPName" type="string" constraint="64" write="W"/>
+      <schema name="ISPHelpDesk" type="string" constraint="32" write="W"/>
+      <schema name="ISPHomePage" type="string" constraint="256" write="W"/>
+      <schema name="ISPHelpPage" type="string" constraint="256" write="W"/>
+      <schema name="ISPLogo" type="base64" constraint="5460" write="W"/>
+      <schema name="ISPLogoSize" type="unsignedInt" constraint="0:4095" write="W"/>
+      <schema name="ISPMailServer" type="string" constraint="256" write="W"/>
+      <schema name="TextColor" type="string" constraint="6" write="W"/>
+      <schema name="BackgroundColor" type="string" constraint="6" write="W"/>
+      <schema name="ButtonColor" type="string" constraint="6" write="W"/>
+      <schema name="ButtonTextColor" type="string" constraint="6" write="W"/>
+      <schema name="AutoUpdateServer" type="string" constraint="256" write="W"/>
+      <schema name="UserUpdateServer" type="string" constraint="256" write="W"/>
+      <schema name="ExampleLogin" type="string" constraint="40" write="W"/>
+      <schema name="ExamplePassword" type="string" constraint="30" write="W"/>
+    </schema>
+    <schema name="Layer3Forwarding" type="object">
+      <schema name="DefaultConnectionService" type="string" constraint="256" write="W"/>
+      <schema name="ForwardNumberOfEntries" type="unsignedInt"/>
+      <schema name="Forwarding" type="multipleObject" write="W" number="ForwardNumberOfEntries">
+        <schema name="Enable" type="boolean" write="W"/>
+        <schema name="Status" type="string"/>
+        <schema name="Type" type="string" write="W" constraint="Default|Network|Host"/>
+        <schema name="DestIPAddress" type="string" write="W"/>
+        <schema name="DestSubnetMask" type="string" write="W"/>
+        <schema name="SourceIPAddress" type="string" write="W"/>
+        <schema name="SourceSubnetMask" type="string" write="W"/>
+        <schema name="ForwardingPolicy" type="int" constraint="-1:" write="W" default="-1"/>
+        <schema name="GatewayIPAddress" type="string" write="W"/>
+        <schema name="Interface" type="string" write="W"/>
+        <schema name="ForwardingMetric" type="int" constraint="-1:" write="W"/>
+        <schema name="MTU" type="unsignedInt" constraint="1:1540" write="W"/>
+      </schema>
+    </schema>
+    <schema name="Layer2Bridging" type="object">
+      <schema name="MaxBridgeEntries" type="unsignedInt"/>
+      <schema name="MaxFilterEntries" type="unsignedInt"/>
+      <schema name="MaxMarkingEntries" type="unsignedInt"/>
+      <schema name="BridgeNumberOfEntries" type="unsignedInt"/>
+      <schema name="FilterNumberOfEntries" type="unsignedInt"/>
+      <schema name="MarkingNumberOfEntries" type="unsignedInt"/>
+      <schema name="AvailableInterfaceNumberOfEntries" type="unsignedInt"/>
+      <schema name="Bridge" type="multipleObject" write="W" number="BridgeNumberOfEntries" constraint="MaxBridgeEntries">
+        <schema name="BridgeKey" type="unsignedInt"/>
+        <schema name="BridgeEnable" type="boolean" write="W" default="0"/>
+        <schema name="BridgeStatus" type="string" default="Disabled"/>
+        <schema name="BridgeName" type="string" constraint="64" write="W" default=""/>
+        <schema name="VLANID" type="unsignedInt" constraint="0:4094" write="W" default="0"/>
+      </schema>
+      <schema name="Filter" type="multipleObject" write="W" number="FilterNumberOfEntries" constraint="MaxFilterEntries">
+        <schema name="FilterKey" type="unsignedInt"/>
+        <schema name="FilterEnable" type="boolean" write="W" default="0"/>
+        <schema name="FilterStatus" type="string" default="Disabled"/>
+        <schema name="FilterBridgeReference" type="int" constraint="-1:" write="W" default="-1"/>
+        <schema name="ExclusivityOrder" type="unsignedInt" write="W" default="0"/>
+        <schema name="FilterInterface" type="string" write="W" default=""/>
+        <schema name="VLANID" type="unsignedInt" constraint="0:4094" write="W" default="0"/>
+        <schema name="VLANIDFilter" type="int" constraint="-1:4095" write="W" default="-1"/>
+        <schema name="AdmitOnlyVLANTagged" type="boolean" write="W" default="0"/>
+        <schema name="EthertypeFilterList" type="string" constraint="256" write="W" default=""/>
+        <schema name="EthertypeFilterExclude" type="boolean" write="W" default="1"/>
+        <schema name="SourceMACAddressFilterList" type="string" constraint="512" write="W" default=""/>
+        <schema name="SourceMACAddressFilterExclude" type="boolean" write="W" default="1"/>
+        <schema name="DestMACAddressFilterList" type="string" constraint="512" write="W" default=""/>
+        <schema name="DestMACAddressFilterExclude" type="boolean" write="W" default="1"/>
+        <schema name="SourceMACFromVendorClassIDFilter" type="string" constraint="256" write="W" default=""/>
+        <schema name="SourceMACFromVendorClassIDFilterExclude" type="boolean" write="W" default="1"/>
+        <schema name="DestMACFromVendorClassIDFilter" type="string" constraint="256" write="W" default=""/>
+        <schema name="DestMACFromVendorClassIDFilterExclude" type="boolean" write="W" default="1"/>
+        <schema name="SourceMACFromClientIDFilter" type="string" constraint="256" write="W" default=""/>
+        <schema name="SourceMACFromClientIDFilterExclude" type="boolean" write="W" default="1"/>
+        <schema name="DestMACFromClientIDFilter" type="string" constraint="256" write="W" default=""/>
+        <schema name="DestMACFromClientIDFilterExclude" type="boolean" write="W" default="1"/>
+        <schema name="SourceMACFromUserClassIDFilter" type="string" constraint="256" write="W" default=""/>
+        <schema name="SourceMACFromUserClassIDFilterExclude" type="boolean" write="W" default="1"/>
+        <schema name="DestMACFromUserClassIDFilter" type="string" constraint="256" write="W" default=""/>
+        <schema name="DestMACFromUserClassIDFilterExclude" type="boolean" write="W" default="1"/>
+      </schema>
+      <schema name="Marking" type="multipleObject" write="W" number="MarkingNumberOfEntries" constraint="MaxMarkingEntries">
+        <schema name="MarkingKey" type="unsignedInt"/>
+        <schema name="MarkingEnable" type="boolean" write="W" default="0"/>
+        <schema name="MarkingStatus" type="string" default="Disabled"/>
+        <schema name="MarkingBridgeReference" type="int" constraint="-1:" default="-1"/>
+        <schema name="MarkingInterface" type="string" write="W" default=""/>
+        <schema name="VLANIDUntag" type="boolean" write="W" default="0"/>
+        <schema name="VLANIDMark" type="int" constraint="-1:4095" write="W" default="-1"/>
+        <schema name="EthernetPriorityMark" type="int" constraint="-1:7" write="W" default="-1"/>
+        <schema name="EthernetPriorityOverride" type="boolean" write="W" default="0"/>
+      </schema>
+      <schema name="AvailableInterface" type="multipleObject" write="W" number="AvailableInterfaceNumberOfEntries">
+        <schema name="AvailableInterfaceKey" type="unsignedInt"/>
+        <schema name="InterfaceType" type="string"/>
+        <schema name="InterfaceReference" type="string" constraint="256"/>
+      </schema>
+    </schema>
+  </schema>
+</model>

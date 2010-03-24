@@ -8,5 +8,5 @@ evcpe depends on [libevent|http://www.monkey.org/~provos/libevent/]. Please *mak
 
  # Download or check out evcpe from source repository.
  # Change into unpacked or checked out directory.
- # {{make all}}
+ # {{{make all}}}
  # That's all.

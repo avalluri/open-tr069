@@ -1,0 +1,12 @@
+#summary How to run unit test suite of evcpe
+
+= Prerequisites =
+
+You must have successfully built evcpe.
+
+= Steps =
+
+Just execute:
+{{{
+./test_suite
+}}}

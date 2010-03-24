@@ -1,0 +1,12 @@
+#summary How to build evcpe
+
+= Prerequisites =
+
+evcpe depends on [libevent|http://www.monkey.org/~provos/libevent/]. Please *make install* it before compiling evcpe.
+
+= Build Steps =
+
+# Download or check out evcpe from source repository.
+# Change into unpacked or checked out directory.
+# {{make all}}
+# That's all.

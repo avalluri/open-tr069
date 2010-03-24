@@ -6,7 +6,7 @@ evcpe depends on [libevent|http://www.monkey.org/~provos/libevent/]. Please *mak
 
 = Build Steps =
 
-# Download or check out evcpe from source repository.
-# Change into unpacked or checked out directory.
-# {{make all}}
-# That's all.
+ # Download or check out evcpe from source repository.
+ # Change into unpacked or checked out directory.
+ # {{make all}}
+ # That's all.

@@ -2,7 +2,7 @@
 
 = Prerequisites =
 
-evcpe depends on [libevent|http://www.monkey.org/~provos/libevent/]. Please *make install* it before compiling evcpe.
+evcpe depends on [http://www.monkey.org/~provos/libevent/ libevent]. Please *make install* it before compiling evcpe.
 
 = Build Steps =
 

@@ -71,6 +71,9 @@ void evcpe_persister_free(struct evcpe_persister *persist)
 	    if (evcpe_persister_persist(persist))
 		    evcpe_error(__func__, "failed to write buffer");
 	}
+	if (persist->buffer)
+	  evbuffer_free(persist->buffer);
+
 	free(persist);
 }
 

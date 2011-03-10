@@ -69,6 +69,6 @@ int evcpe_constraint_set_range(struct evcpe_constraint *cons,
 		const char *min, unsigned minlen, const char *max, unsigned maxlen);
 
 int evcpe_constraint_set_attr(struct evcpe_constraint *cons,
-		const char *value, size_t len);
+		const char *value, unsigned len);
 
 #endif /* EVCPE_CONSTRAINT_H_ */

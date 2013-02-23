@@ -87,10 +87,10 @@ $(LIB): $(OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
 $(TEST_SUITE): $(TEST_OBJS) $(OBJS) $(EMBUNIT_LIBS) 
-	$(CC) $(LDFLAGS) -L. -levcpe -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 $(EVCPE): $(EVCPE_OBJS) $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 $(EMBUNIT_LIBS):
 	make -C embunit

@@ -51,7 +51,7 @@ static void error_cb(struct evcpe *cpe,
 
 static int load_file(const char *filename, struct evbuffer *buffer);
 
-static int shutdown(int code);
+static int shutdown_cpe(int code);
 
 static void help(FILE *stream)
 {
@@ -69,7 +69,7 @@ void error_cb(struct evcpe *cpe,
 		enum evcpe_error_type type, int code, const char *reason, void *cbarg)
 {
 	evcpe_error(__func__, "type: %d, code: %d, reason: %s", type, code, reason);
-	shutdown(code);
+	   shutdown_cpe(code);
 }
 
 int main(int argc, char **argv)
@@ -250,10 +250,10 @@ void sig_handler(int signal)
 {
 	evcpe_info(__func__, "signal caught: %d", signal);
 	if (signal == SIGINT)
-		shutdown(0);
+		      shutdown_cpe(0);
 }
 
-int shutdown(int code)
+int shutdown_cpe(int code)
 {
 	evcpe_info(__func__, "shuting down with code: %d (%s)", code, strerror(code));
 	event_base_loopbreak(this.evbase);

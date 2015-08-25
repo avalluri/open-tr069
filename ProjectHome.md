@@ -1,0 +1,1 @@
+CWMP (TR-069) implementation based on event-driven asynchronous I/O technology. Sponsored by [AXIMCOM](http://www.aximcom.com/) and licensed under GNU Lesser GPL version 2.

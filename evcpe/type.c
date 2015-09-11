@@ -18,10 +18,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define _XOPEN_SOURCE // strptime()
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "log.h"
 #include "util.h"
@@ -111,7 +113,7 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 	char *dup;
 	struct tm tm;
 
-	evcpe_debug(__func__, "validating value of type: %s",
+	DEBUG("validating value of type: %s",
 			evcpe_type_to_str(type));
 
 	switch(type) {
@@ -125,7 +127,7 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
        !evcpe_strncmp("false", value, len) &&
        !evcpe_strncmp("0", value, len) &&
        !evcpe_strncmp("1", value, len)) {
-       evcpe_error(__func__, "invalid boolean value: %.*s,"
+       ERROR("invalid boolean value: %.*s,"
         "valid boolean values are 'true, false, 0 or 1'", len, value);
       goto finally;
     }
@@ -133,20 +135,20 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 	case EVCPE_TYPE_INT:
 	case EVCPE_TYPE_UNSIGNED_INT:
 		if ((rc = evcpe_atol(value, len, &val))) {
-			evcpe_error(__func__, "failed to convert to "
+			ERROR("failed to convert to "
 					"integer: %.*s", len, value);
 			goto finally;
 		}
 		if (type == EVCPE_TYPE_UNSIGNED_INT) {
 			if (val < 0) {
-				evcpe_error(__func__, "not a positive integer: %ld", val);
+				ERROR("not a positive integer: %ld", val);
 				goto finally;
 			}
 		}
     #if 0
     else if(type == EVCPE_TYPE_BOOLEAN) {
 			if (val != 0 && val != 1) {
-				evcpe_error(__func__, "boolean value should be "
+				ERROR("boolean value should be "
 						"either 0 or 1: %ld", val);
 				goto finally;
 			}
@@ -160,28 +162,28 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 		case EVCPE_CONSTRAINT_RANGE:
 			if (cons->type != EVCPE_CONSTRAINT_MAX &&
 					val < cons->value.range.min) {
-				evcpe_error(__func__, "value out of range: %ld < %ld",
+				ERROR("value out of range: %ld < %ld",
 						val, cons->value.range.min);
 				rc = EINVAL;
 				goto finally;
 			}
 			if (cons->type != EVCPE_CONSTRAINT_MIN &&
 					val > cons->value.range.max) {
-				evcpe_error(__func__, "value out of range: %ld > %ld",
+				ERROR("value out of range: %ld > %ld",
 						val, cons->value.range.max);
 				rc = EINVAL;
 				goto finally;
 			}
 			break;
 		default:
-			evcpe_error(__func__, "unexpected constraint type: %d", cons->type);
+			ERROR("unexpected constraint type: %d", cons->type);
 			rc = EINVAL;
 			goto finally;
 		}
 		break;
 	case EVCPE_TYPE_DATETIME:
 		if (!(dup = malloc(len + 1))) {
-			evcpe_error(__func__, "failed to malloc: %d bytes", len + 1);
+			ERROR("failed to malloc: %d bytes", len + 1);
 			rc = ENOMEM;
 			goto finally;
 		}
@@ -189,7 +191,7 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 		dup[len] = '\0';
 		if (!strptime(dup, "%Y-%m-%dT%H:%M:%S", &tm)
 				&& !strptime(dup, "%Y-%m-%dT%H:%M:%S%z", &tm)) {
-			evcpe_error(__func__, "failed to parse dateTime: %s", dup);
+			ERROR("failed to parse dateTime: %s", dup);
 			free(dup);
 			rc = EINVAL;
 			goto finally;
@@ -200,7 +202,7 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 	case EVCPE_TYPE_OBJECT:
 	case EVCPE_TYPE_MULTIPLE:
 	default:
-		evcpe_error(__func__, "value is not applicable to "
+		ERROR("value is not applicable to "
 				"type: %d", type);
 		rc = EINVAL;
 		goto finally;

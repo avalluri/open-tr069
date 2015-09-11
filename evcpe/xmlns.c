@@ -37,7 +37,7 @@ void evcpe_xmlns_table_clear(struct evcpe_xmlns_table *table)
 {
 	struct evcpe_xmlns *ns;
 
-	evcpe_trace(__func__, "clearing namespace table");
+	TRACE("clearing namespace table");
 
 	while((ns = RB_MIN(evcpe_xmlns_table, table))) {
 		RB_REMOVE(evcpe_xmlns_table, table, ns);
@@ -49,7 +49,7 @@ struct evcpe_xmlns *evcpe_xmlns_table_find(
 		struct evcpe_xmlns_table *table,
 		const char *name, unsigned name_len)
 {
-	evcpe_trace(__func__, "finding namespace: %.*s", name_len, name);
+	TRACE("finding namespace: %.*s", name_len, name);
 	struct evcpe_xmlns ns;
 	ns.name = name;
 	ns.name_len = name_len;
@@ -64,17 +64,17 @@ int evcpe_xmlns_table_add(struct evcpe_xmlns_table *table,
 	struct evcpe_xmlns *ns;
 
 	if ((ns = evcpe_xmlns_table_find(table, name, name_len))) {
-		evcpe_error(__func__, "namespace already exists: %.*s",
+		ERROR("namespace already exists: %.*s",
 				name_len, name);
 		rc = -1;
 		goto finally;
 	}
 
-	evcpe_trace(__func__, "adding namespace: %.*s => %.*s",
+	TRACE("adding namespace: %.*s => %.*s",
 			name_len, name, value_len, value);
 
 	if (!(ns = calloc(1, sizeof(struct evcpe_xmlns)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_xmlns");
+		ERROR("failed to calloc evcpe_xmlns");
 		rc = ENOMEM;
 		goto finally;
 	}
@@ -97,7 +97,7 @@ int evcpe_xmlns_table_get(struct evcpe_xmlns_table *table,
 	struct evcpe_xmlns *ns;
 
 	if (!(ns = evcpe_xmlns_table_find(table, name, name_len))) {
-		evcpe_error(__func__, "namespace doesn't exists: %.*s",
+		ERROR("namespace doesn't exists: %.*s",
 				name_len, name);
 		rc = -1;
 		goto finally;

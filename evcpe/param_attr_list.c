@@ -36,7 +36,7 @@ void evcpe_param_attr_list_clear(struct evcpe_param_attr_list *list)
 {
 	struct evcpe_param_attr *attr;
 
-	evcpe_debug(__func__, "clearing evcpe_param_attr_list");
+	DEBUG("clearing evcpe_param_attr_list");
 
 	while((attr = TAILQ_FIRST(&list->head))) {
 		TAILQ_REMOVE(&list->head, attr, entry);
@@ -57,7 +57,7 @@ int evcpe_param_attr_list_add(struct evcpe_param_attr_list *list,
 	if (!name || !len) return EINVAL;
 	if (len >= sizeof((*attr)->name)) return EOVERFLOW;
 
-	evcpe_debug(__func__, "adding param attr: %.*s", len, name);
+	DEBUG("adding param attr: %.*s", len, name);
 
 	if (!(*attr = calloc(1, sizeof(struct evcpe_param_attr))))
 		return ENOMEM;

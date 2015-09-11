@@ -53,7 +53,7 @@ int evcpe_msg_to_xml(struct evcpe_msg *msg, struct evbuffer *buffer)
 	int rc;
 	const char *method = evcpe_method_type_to_str(msg->method_type);
 
-	evcpe_debug(__func__, "marshaling SOAP message");
+	DEBUG("marshaling SOAP message");
 
 	if ((rc = evcpe_add_buffer(buffer, "<?xml version=\"1.0\"?>\n"
 			"<"EVCPE_SOAP_ENV_XMLNS":Envelope "
@@ -72,75 +72,75 @@ int evcpe_msg_to_xml(struct evcpe_msg *msg, struct evbuffer *buffer)
 			"</"EVCPE_SOAP_ENV_XMLNS":Header>\n"
 			"<"EVCPE_SOAP_ENV_XMLNS":Body>\n",
 			msg->major, msg->minor, msg->session))) {
-		evcpe_error(__func__, "failed to append buffer");
+		ERROR("failed to append buffer");
 		goto finally;
 	}
 	switch(msg->type) {
 	case EVCPE_MSG_REQUEST:
 		if ((rc = evcpe_add_buffer(buffer, "<"EVCPE_CWMP_XMLNS":%s>\n", method))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 		switch(msg->method_type) {
 		case EVCPE_INFORM:
 			if ((rc = evcpe_inform_to_xml(msg->data, buffer))) {
-				evcpe_error(__func__, "failed to marshal inform");
+				ERROR("failed to marshal inform");
 				goto finally;
 			}
 			break;
 		default:
-			evcpe_error(__func__, "unexpected request type: %d", msg->method_type);
+			ERROR("unexpected request type: %d", msg->method_type);
 			rc = EINVAL;
 			goto finally;
 		}
 		if ((rc = evcpe_add_buffer(buffer, "</"EVCPE_CWMP_XMLNS":%s>\n", method))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 		break;
 	case EVCPE_MSG_RESPONSE:
 		if ((rc = evcpe_add_buffer(buffer, "<"EVCPE_CWMP_XMLNS":%sResponse>\n", method))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 		switch(msg->method_type) {
 		case EVCPE_GET_RPC_METHODS:
 			if ((rc = evcpe_get_rpc_methods_response_to_xml(msg->data, buffer))) {
-				evcpe_error(__func__, "failed to marshal get_rpc_methods_response");
+				ERROR("failed to marshal get_rpc_methods_response");
 				goto finally;
 			}
 			break;
 		case EVCPE_ADD_OBJECT:
 			if ((rc = evcpe_add_object_response_to_xml(msg->data, buffer))) {
-				evcpe_error(__func__, "failed to marshal add_object_response");
+				ERROR("failed to marshal add_object_response");
 				goto finally;
 			}
 			break;
 		case EVCPE_GET_PARAMETER_VALUES:
 			if ((rc = evcpe_get_param_values_response_to_xml(msg->data, buffer))) {
-				evcpe_error(__func__, "failed to marshal get_param_values_response");
+				ERROR("failed to marshal get_param_values_response");
 				goto finally;
 			}
 			break;
 		case EVCPE_GET_PARAMETER_NAMES:
 			if ((rc = evcpe_get_param_names_response_to_xml(msg->data, buffer))) {
-				evcpe_error(__func__, "failed to marshal get_param_names_response");
+				ERROR("failed to marshal get_param_names_response");
 				goto finally;
 			}
 			break;
 		case EVCPE_SET_PARAMETER_VALUES:
 			if ((rc = evcpe_set_param_values_response_to_xml(msg->data, buffer))) {
-				evcpe_error(__func__, "failed to marshal set_param_values_response");
+				ERROR("failed to marshal set_param_values_response");
 				goto finally;
 			}
 			break;
 		default:
-			evcpe_error(__func__, "unexpected response type: %d", msg->method_type);
+			ERROR("unexpected response type: %d", msg->method_type);
 			rc = EINVAL;
 			goto finally;
 		}
 		if ((rc = evcpe_add_buffer(buffer, "</"EVCPE_CWMP_XMLNS":%sResponse>\n", method))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 		break;
@@ -150,28 +150,28 @@ int evcpe_msg_to_xml(struct evcpe_msg *msg, struct evbuffer *buffer)
 				"<faultstring>CWMP fault</faultstring>\n"
 				"<detail>\n"
 				"<"EVCPE_CWMP_XMLNS":Fault>\n"))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 		if ((rc = evcpe_fault_to_xml(msg->data, buffer))) {
-			evcpe_error(__func__, "failed to marshal fault");
+			ERROR("failed to marshal fault");
 			goto finally;
 		}
 		if ((rc = evcpe_add_buffer(buffer, "</"EVCPE_CWMP_XMLNS":Fault>\n"
 				"</detail>\n"
 				"</"EVCPE_SOAP_ENV_XMLNS":Fault>\n"))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 		break;
 	default:
-		evcpe_error(__func__, "unexpected message type: %d", msg->type);
+		ERROR("unexpected message type: %d", msg->type);
 		rc = EINVAL;
 		goto finally;
 	}
 	if ((rc = evcpe_add_buffer(buffer,
 			"</"EVCPE_SOAP_ENV_XMLNS":Body>\n</"EVCPE_SOAP_ENV_XMLNS":Envelope>\n"))) {
-		evcpe_error(__func__, "failed to append buffer");
+		ERROR("failed to append buffer");
 		goto finally;
 	}
 	rc = 0;
@@ -186,14 +186,14 @@ int evcpe_msg_from_xml(struct evcpe_msg *msg, struct evbuffer *buffer)
 	struct evcpe_msg_parser parser;
 	struct evcpe_xml_element *elm;
 
-	evcpe_debug(__func__, "unmarshaling SOAP message");
+	DEBUG("unmarshaling SOAP message");
 
-	if (!EVBUFFER_LENGTH(buffer)) return 0;
+	if (!evbuffer_get_length(buffer)) return 0;
 
 	parser.msg = msg;
 	parser.xml.data = &parser;
-	parser.xml.xmlstart = (const char *)EVBUFFER_DATA(buffer);
-	parser.xml.xmlsize = EVBUFFER_LENGTH(buffer);
+	parser.xml.xmlstart = (const char *)evbuffer_pullup(buffer, -1);
+	parser.xml.xmlsize = evbuffer_get_length(buffer);
 	parser.xml.starteltfunc = evcpe_msg_xml_elm_begin_cb;
 	parser.xml.endeltfunc = evcpe_msg_xml_elm_end_cb;
 	parser.xml.datafunc = evcpe_msg_xml_data_cb;
@@ -201,10 +201,10 @@ int evcpe_msg_from_xml(struct evcpe_msg *msg, struct evbuffer *buffer)
 	RB_INIT(&parser.xmlns);
 	SLIST_INIT(&parser.stack);
 	if ((rc = parsexml(&parser.xml))) {
-		evcpe_error(__func__, "failed to parse SOAP message: %d", rc);
+		ERROR("failed to parse SOAP message: %d", rc);
 	}
 	while((elm = evcpe_xml_stack_pop(&parser.stack))) {
-		evcpe_error(__func__, "pending stack: %.*s", elm->len, elm->name);
+		ERROR("pending stack: %.*s", elm->len, elm->name);
 		free(elm);
 	}
 	evcpe_xmlns_table_clear(&parser.xmlns);
@@ -216,15 +216,14 @@ int evcpe_msg_xml_elm_begin_cb(void *data,
 {
 	const char *attr;
 	unsigned attr_len;
-	const char *urn = "urn:dslforum-org:cwmp-";
 	struct evcpe_msg_parser *parser = data;
 	struct evcpe_xml_element *parent = evcpe_xml_stack_peek(&parser->stack);
 
-	evcpe_trace(__func__, "element begin: %.*s (namespace: %.*s)",
+	TRACE("element begin: %.*s (namespace: %.*s)",
 			len, name, nslen, ns);
 
 	if (parent && !parent->ns_declared) {
-		evcpe_error(__func__, "parent namespace not declared: %.*s:%.*s",
+		ERROR("parent namespace not declared: %.*s:%.*s",
 				parent->nslen, parent->ns, parent->len, parent->name);
 		goto syntax_error;
 	}
@@ -234,11 +233,11 @@ int evcpe_msg_xml_elm_begin_cb(void *data,
 	}
 	if (!evcpe_strncmp("Envelope", name, len)) {
 		if (parent) {
-			evcpe_error(__func__, "parent element is not expected");
+			ERROR("parent element is not expected");
 			goto syntax_error;
 		}
 	} else if (!parent) {
-		evcpe_error(__func__, "parent element is expected");
+		ERROR("parent element is expected");
 		goto syntax_error;
 	} else if (!evcpe_strncmp("Header", name, len)) {
 		if (evcpe_strncmp("Envelope", parent->name, parent->len)) {
@@ -249,7 +248,7 @@ int evcpe_msg_xml_elm_begin_cb(void *data,
 			goto unexpected_parent;
 		}
 		if (evcpe_xmlns_table_get(&parser->xmlns, ns, nslen, &attr, &attr_len)) {
-			evcpe_error(__func__, "undefined XML namespace: %.*s", nslen, ns);
+			ERROR("undefined XML namespace: %.*s", nslen, ns);
 			return -1;
 		}
 		// TODO: get cwmp version
@@ -302,7 +301,7 @@ int evcpe_msg_xml_elm_begin_cb(void *data,
 		parser->msg->type = EVCPE_MSG_REQUEST;
 		parser->msg->method_type = EVCPE_GET_RPC_METHODS;
 	} else if (parent && !evcpe_strncmp("GetRPCMethods", parent->name, parent->len)) {
-		evcpe_error(__func__, "unexpected child element");
+		ERROR("unexpected child element");
 		goto syntax_error;
 	} else if (!evcpe_strncmp("GetParameterNames", name, len)) {
 		if (evcpe_strncmp("Body", parent->name, parent->len)) {
@@ -453,7 +452,7 @@ int evcpe_msg_xml_elm_begin_cb(void *data,
 		}
 	}
 	if (!(parent = calloc(1, sizeof(struct evcpe_xml_element)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_soap_element");
+		ERROR("failed to calloc evcpe_soap_element");
 		return ENOMEM;
 	}
 	parent->ns = ns;
@@ -466,10 +465,10 @@ int evcpe_msg_xml_elm_begin_cb(void *data,
 	return 0;
 
 unexpected_parent:
-	evcpe_error(__func__, "unexpected parent element");
+	ERROR("unexpected parent element");
 
 syntax_error:
-	evcpe_error(__func__, "syntax error");
+	ERROR("syntax error");
 	return EPROTO;
 }
 
@@ -485,12 +484,12 @@ int evcpe_msg_xml_elm_end_cb(void *data,
 
 	if (!(elm = evcpe_xml_stack_pop(&parser->stack))) return -1;
 
-	evcpe_trace(__func__, "element end: %.*s (namespace: %.*s)",
+	TRACE("element end: %.*s (namespace: %.*s)",
 			len, name, nslen, ns);
 
 	if ((nslen && evcpe_strcmp(elm->ns, elm->nslen, ns, nslen)) ||
 			evcpe_strcmp(elm->name, elm->len, name, len)) {
-		evcpe_error(__func__, "element doesn't match start: %.*s:%.*s",
+		ERROR("element doesn't match start: %.*s:%.*s",
 				nslen, ns, len, name);
 		rc = EPROTO;
 		goto finally;
@@ -522,7 +521,7 @@ int evcpe_msg_xml_elm_end_cb(void *data,
 	goto finally;
 
 syntax_error:
-	evcpe_error(__func__, "syntax error");
+	ERROR("syntax error");
 	rc = EPROTO;
 
 finally:
@@ -554,7 +553,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 
 	if (!(elm = evcpe_xml_stack_peek(&parser->stack))) return -1;
 
-	evcpe_trace(__func__, "text: %.*s", len, text);
+	TRACE("text: %.*s", len, text);
 
 	if (!evcpe_strncmp("ID", elm->name, elm->len)) {
 		if (!(parser->msg->session = malloc(len + 1))) {
@@ -592,7 +591,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 	} else if (!evcpe_strncmp("FaultCode", elm->name, elm->len)) {
 		fault = parser->msg->data;
 		if ((rc = evcpe_atol(text, len, &val))) {
-			evcpe_error(__func__, "failed to convert to "
+			ERROR("failed to convert to "
 					"integer: %.*s", len, text);
 			goto finally;
 		}
@@ -630,7 +629,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 				goto finally;
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -643,7 +642,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			strncpy(get_names->parameter_path, text, len);
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -656,7 +655,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			get_names->next_level = val;
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -677,7 +676,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			parser->list_item = param_attr;
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -689,7 +688,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 				goto finally;
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -709,7 +708,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			}
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -731,7 +730,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			}
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -751,7 +750,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			}
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -763,7 +762,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 				param_attr->access_list_change = 1;
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -793,7 +792,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			delete_obj->object_name[len] = '\0';
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
@@ -818,12 +817,12 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			delete_obj->parameter_key[len] = '\0';
 			break;
 		default:
-			evcpe_error(__func__, "unexpected evcpe_method_type: %d",
+			ERROR("unexpected evcpe_method_type: %d",
 					parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (len > 0) {
-		evcpe_error(__func__, "unexpected element: %.*s",
+		ERROR("unexpected element: %.*s",
 				elm->len, elm->name);
 		goto syntax_error;
 	}
@@ -833,7 +832,7 @@ finally:
 	return rc;
 
 syntax_error:
-	evcpe_error(__func__, "syntax error");
+	ERROR("syntax error");
 	return EPROTO;
 }
 
@@ -845,7 +844,7 @@ int evcpe_msg_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 	struct evcpe_msg_parser *parser = data;
 	struct evcpe_xml_element *parent = evcpe_xml_stack_peek(&parser->stack);
 
-	evcpe_trace(__func__, "attribute: %.*s => %.*s (namespace: %.*s)",
+	TRACE("attribute: %.*s => %.*s (namespace: %.*s)",
 			name_len, name, value_len, value, nslen, ns);
 
 	if (nslen && !evcpe_strncmp("xmlns", ns, nslen)) {
@@ -855,7 +854,7 @@ int evcpe_msg_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 		if (!evcpe_strcmp(parent->ns, parent->nslen, name, name_len))
 			parent->ns_declared = 1;
 //	} else {
-//		evcpe_error(__func__, "unexpected attribute: %.*s",
+//		ERROR("unexpected attribute: %.*s",
 //				name_len, name);
 //		rc = EPROTO;
 //		goto finally;

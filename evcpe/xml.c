@@ -35,7 +35,7 @@ int evcpe_xml_add_indent(struct evbuffer *buffer,
 
 	for (i = 0; i < count; i ++) {
 		if ((rc = evcpe_add_buffer(buffer, "%s", indent))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 	}
@@ -63,7 +63,7 @@ int evcpe_xml_add_int(struct evbuffer *buffer,
 //	int len;
 //	char buf[32];
 //
-//	evcpe_debug(__func__, "adding date time node <%s>", node);
+//	DEBUG("adding date time node <%s>", node);
 //	// TODO: timezone
 //	len = strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", datetime);
 //	return evcpe_xml_add_string(buffer, node, buf);

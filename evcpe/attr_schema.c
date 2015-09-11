@@ -32,7 +32,7 @@ void evcpe_attr_schema_free(struct evcpe_attr_schema *schema)
 {
 	if (!schema) return;
 
-	evcpe_trace(__func__, "destructing attribute schema: %s", schema->name);
+	TRACE("destructing attribute schema: %s", schema->name);
 
 	if (schema->class) evcpe_class_free(schema->class);
 	if (schema->name) free(schema->name);
@@ -48,18 +48,18 @@ void evcpe_attr_schema_free(struct evcpe_attr_schema *schema)
 int evcpe_attr_schema_set_name(struct evcpe_attr_schema *schema,
 		const char *name, unsigned len)
 {
-	evcpe_debug(__func__, "setting name: %.*s", len, name);
+	DEBUG("setting name: %.*s", len, name);
 	return evcpe_strdup(name, len, &schema->name);
 }
 
 int evcpe_attr_schema_set_type(struct evcpe_attr_schema *schema,
 		enum evcpe_type type)
 {
-	evcpe_trace(__func__, "setting type: %d", type);
+	TRACE("setting type: %d", type);
 
 	if ((type == EVCPE_TYPE_OBJECT || type == EVCPE_TYPE_MULTIPLE) &&
 			!(schema->class = evcpe_class_new(schema->name))) {
-		evcpe_error(__func__, "failed to create evcpe_class");
+		ERROR("failed to create evcpe_class");
 		return ENOMEM;
 	}
 	schema->type = type;
@@ -69,13 +69,13 @@ int evcpe_attr_schema_set_type(struct evcpe_attr_schema *schema,
 int evcpe_attr_schema_set_default(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
-	evcpe_trace(__func__, "setting default: %.*s", len, value);
+	TRACE("setting default: %.*s", len, value);
 	return evcpe_strdup(value, len, &schema->value);
 }
 
 int evcpe_attr_schema_set_number(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
-	evcpe_trace(__func__, "setting number of entries: %.*s", len, value);
+	TRACE("setting number of entries: %.*s", len, value);
 	return evcpe_strdup(value, len, &schema->number);
 }

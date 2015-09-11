@@ -52,6 +52,7 @@ struct evcpe_constraint {
 		} range;
 		char *attr;
 	} value;
+  char *pattern; // regex pattern
 };
 
 int evcpe_constraint_enums_add(struct evcpe_constraint_enums *enums,
@@ -70,5 +71,8 @@ int evcpe_constraint_set_range(struct evcpe_constraint *cons,
 
 int evcpe_constraint_set_attr(struct evcpe_constraint *cons,
 		const char *value, unsigned len);
+
+int evcpe_constraint_set_pattern(struct evcpe_constraint *cons,
+    const char *value, unsigned len);
 
 #endif /* EVCPE_CONSTRAINT_H_ */

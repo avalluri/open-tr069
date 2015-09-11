@@ -50,7 +50,7 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 	long val;
 	struct evcpe_obj *temp;
 
-	evcpe_trace(__func__, "initializing attribute: %s", attr->schema->name);
+	TRACE("initializing attribute: %s", attr->schema->name);
 
 	if ((attr->pathlen = snprintf(buffer, sizeof(buffer), "%s%s",
 			attr->owner->path, attr->schema->name)) >= sizeof(buffer)) {
@@ -71,26 +71,26 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 			attr_name = attr->schema->constraint.value.attr;
 			if ((rc = evcpe_obj_get(attr->owner, attr_name, strlen(attr_name),
 					&cons_attr))) {
-				evcpe_error(__func__, "failed to get attribute: %s",
+				ERROR("failed to get attribute: %s",
 						attr_name);
 				rc = EINVAL;
 				goto finally;
 			}
 //			if (!cons_attr) {
-//				evcpe_error(__func__, "constraint attribute doesn't exist: %s",
+//				ERROR("constraint attribute doesn't exist: %s",
 //						attr_name);
 //				rc = EINVAL;
 //				goto finally;
 //			}
 			if ((rc = evcpe_attr_get(cons_attr, &value, &len))) {
-				evcpe_error(__func__, "failed to get attribute value: %s",
+				ERROR("failed to get attribute value: %s",
 						attr_name);
 				rc = EINVAL;
 				goto finally;
 			}
 			if (value) {
 				if ((rc = evcpe_atol(value, strlen(value), &val))) {
-					evcpe_error(__func__, "invalid constraint value: %s",
+					ERROR("invalid constraint value: %s",
 							value);
 					goto finally;
 				}
@@ -99,19 +99,19 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 		}
 		if (attr->schema->number && (rc = evcpe_obj_set_int(attr->owner,
 				attr->schema->number, strlen(attr->schema->number), 0))) {
-			evcpe_error(__func__, "failed to set number of entries attribute: "
+			ERROR("failed to set number of entries attribute: "
 					"%s", attr->schema->number);
 			goto finally;
 		}
 		TAILQ_INIT(&attr->value.multiple.list);
 	case EVCPE_TYPE_OBJECT:
 		if (!(temp = evcpe_obj_new(attr->schema->class, attr))) {
-			evcpe_error(__func__, "failed to create evcpe_obj");
+			ERROR("failed to create evcpe_obj");
 			rc = ENOMEM;
 			goto finally;
 		}
 		if ((rc = evcpe_obj_init(temp))) {
-			evcpe_error(__func__, "failed to init object: %s", attr->schema->name);
+			ERROR("failed to init object: %s", attr->schema->name);
 			evcpe_obj_free(temp);
 			goto finally;
 		}
@@ -125,7 +125,7 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 		if (attr->schema->value) {
 			if ((rc = evcpe_attr_set(attr, attr->schema->value,
 					strlen(attr->schema->value)))) {
-				evcpe_error(__func__, "failed set default value: %s = %s",
+				ERROR("failed set default value: %s = %s",
 						attr->schema->name, attr->schema->value);
 				goto finally;
 			}
@@ -139,7 +139,7 @@ finally:
 
 void evcpe_attr_set_cb(struct evcpe_attr *attr, evcpe_attr_cb cb, void *arg)
 {
-	evcpe_debug(__func__, "setting callback on attribute: %s", attr->path);
+	DEBUG("setting callback on attribute: %s", attr->path);
 	attr->cb = cb;
 	attr->cbarg = arg;
 }
@@ -149,19 +149,19 @@ int evcpe_attr_set_notification(struct evcpe_attr *attr,
 {
 	int rc;
 
-	evcpe_trace(__func__, "setting notification on %s: %d",
+	TRACE("setting notification on %s: %d",
 			attr->schema->name, notification);
 
 	if ((attr->schema->type == EVCPE_TYPE_OBJECT ||
 			attr->schema->type == EVCPE_TYPE_MULTIPLE)) {
-		evcpe_error(__func__, "not a simple attribute: %s",
+		ERROR("not a simple attribute: %s",
 				attr->schema->name);
 		rc = EINVAL;
 		goto finally;
 	}
 	if (notification < EVCPE_NOTIFICATION_OFF ||
 			notification > EVCPE_NOTIFICATION_ACTIVE) {
-		evcpe_error(__func__, "notification value is out of range: %d",
+		ERROR("notification value is out of range: %d",
 				notification);
 		rc = EPROTO;
 		goto finally;
@@ -175,7 +175,7 @@ finally:
 
 void evcpe_attr_unset(struct evcpe_attr *attr)
 {
-	evcpe_trace(__func__, "unsetting attribute: %s", attr->schema->name);
+	TRACE("unsetting attribute: %s", attr->schema->name);
 
 	switch(attr->schema->type) {
 	case EVCPE_TYPE_OBJECT:
@@ -203,12 +203,12 @@ int evcpe_attr_set(struct evcpe_attr *attr, const char *value, unsigned len)
 
 	if (!attr || !value) return EINVAL;
 
-	evcpe_trace(__func__, "setting simple value to %s: %.*s",
+	TRACE("setting simple value to %s: %.*s",
 			attr->schema->name, len, value);
 
 	if (attr->schema->type == EVCPE_TYPE_OBJECT
 			|| attr->schema->type == EVCPE_TYPE_MULTIPLE) {
-		evcpe_error(__func__, "not simple type: %s (%s)",
+		ERROR("not simple type: %s (%s)",
 				attr->schema->name,
 				evcpe_type_to_str(attr->schema->type));
 		rc = EINVAL;
@@ -216,7 +216,7 @@ int evcpe_attr_set(struct evcpe_attr *attr, const char *value, unsigned len)
 	}
 	if ((rc = evcpe_type_validate(attr->schema->type, value, len,
 			&attr->schema->constraint))) {
-		evcpe_error(__func__, "not a valid value for %s (%s): %.*s",
+		ERROR("not a valid value for %s (%s): %.*s",
 				attr->schema->name,
 				evcpe_type_to_str(attr->schema->type),
 				len, value);
@@ -224,14 +224,14 @@ int evcpe_attr_set(struct evcpe_attr *attr, const char *value, unsigned len)
 	}
 	if (attr->schema->setter) {
 		if ((rc = (*attr->schema->setter)(attr, value, len))) {
-			evcpe_error(__func__, "failed to set value by setter: %s => %.*s",
+			ERROR("failed to set value by setter: %s => %.*s",
 					attr->path, len, value);
 			goto finally;
 		}
 	} else {
 		if (attr->value.simple.string) free(attr->value.simple.string);
 		if ((rc = evcpe_strdup(value, len, &attr->value.simple.string))) {
-			evcpe_error(__func__, "failed to duplicate value: %.*s", len, value);
+			ERROR("failed to duplicate value: %.*s", len, value);
 			goto finally;
 		}
 	}
@@ -248,16 +248,16 @@ int evcpe_attr_get(struct evcpe_attr *attr, const char **value, unsigned int *le
 {
 	int rc;
 
-	evcpe_trace(__func__, "getting simple value of %s", attr->schema->name);
+	TRACE("getting simple value of %s", attr->schema->name);
 
 	if (attr->schema->type == EVCPE_TYPE_OBJECT
 			|| attr->schema->type == EVCPE_TYPE_MULTIPLE) {
-		evcpe_error(__func__, "attr is not simple type");
+		ERROR("attr is not simple type");
 		return EINVAL;
 	}
 	if (attr->schema->getter) {
 		if ((rc = (*attr->schema->getter)(attr, value, len))) {
-			evcpe_error(__func__, "failed to get value by getter: %s",
+			ERROR("failed to get value by getter: %s",
 					attr->path);
 			goto finally;
 		}
@@ -277,16 +277,16 @@ finally:
 //
 //	if (!attr) return EINVAL;
 //
-//	evcpe_debug(__func__, "setting object value");
+//	DEBUG("setting object value");
 //
 //	if (attr->schema->type != EVCPE_TYPE_OBJECT) {
-//		evcpe_error(__func__, "attr is not object type");
+//		ERROR("attr is not object type");
 //		rc = EINVAL;
 //		goto finally;
 //	}
 //	if (attr->value.object) evcpe_obj_free(attr->value.object);
 //	if (!(attr->value.object = evcpe_obj_new(attr->schema->class))) {
-//		evcpe_error(__func__, "failed to create evcpe_obj");
+//		ERROR("failed to create evcpe_obj");
 //		rc = ENOMEM;
 //		goto finally;
 //	}
@@ -299,10 +299,10 @@ finally:
 
 int evcpe_attr_get_obj(struct evcpe_attr *attr, struct evcpe_obj **child)
 {
-	evcpe_trace(__func__, "getting object value of %s", attr->schema->name);
+	TRACE("getting object value of %s", attr->schema->name);
 
 	if (attr->schema->type != EVCPE_TYPE_OBJECT) {
-		evcpe_error(__func__, "attr is not object type");
+		ERROR("attr is not object type");
 		return EINVAL;
 	} else {
 		*child = attr->value.object;
@@ -318,16 +318,16 @@ int evcpe_attr_add_obj(struct evcpe_attr *attr,
 
 	if (!attr) return EINVAL;
 
-	evcpe_trace(__func__, "adding object to %s", attr->schema->name);
+	TRACE("adding object to %s", attr->schema->name);
 
 	if (attr->schema->type != EVCPE_TYPE_MULTIPLE) {
-		evcpe_error(__func__, "attr is not multiple object type");
+		ERROR("attr is not multiple object type");
 		rc = EINVAL;
 		goto finally;
 	}
 	if (attr->value.multiple.max &&
 			attr->value.multiple.size >= attr->value.multiple.max) {
-		evcpe_error(__func__, "number of objects has reached constraint: %d",
+		ERROR("number of objects has reached constraint: %d",
 				attr->value.multiple.max);
 		rc = EVCPE_CPE_RESOUCES_EXCEEDS;
 		goto finally;
@@ -343,27 +343,27 @@ int evcpe_attr_add_obj(struct evcpe_attr *attr,
 	}
 	if (!item) {
 		if (!(item = calloc(1, sizeof(struct evcpe_obj_item)))) {
-			evcpe_error(__func__, "failed to calloc evcpe_obj_item");
+			ERROR("failed to calloc evcpe_obj_item");
 			rc = ENOMEM;
 			goto finally;
 		}
 		TAILQ_INSERT_TAIL(&attr->value.multiple.list, item, entry);
 	}
 	if (!(item->obj = evcpe_obj_new(attr->schema->class, attr))) {
-		evcpe_error(__func__, "failed to create evcpe_obj");
+		ERROR("failed to create evcpe_obj");
 		rc = ENOMEM;
 		goto finally;
 	}
 	item->obj->index = *index;
 	if ((rc = evcpe_obj_init(item->obj))) {
-		evcpe_error(__func__, "failed to init obj: %s", attr->schema->name);
+		ERROR("failed to init obj: %s", attr->schema->name);
 		goto finally;
 	}
 	attr->value.multiple.size ++;
 	if (attr->schema->number && (rc = evcpe_obj_set_int(attr->owner,
 			attr->schema->number, strlen(attr->schema->number),
 			attr->value.multiple.size))) {
-		evcpe_error(__func__, "failed to set number of entries attribute: "
+		ERROR("failed to set number of entries attribute: "
 				"%s", attr->schema->number);
 		goto finally;
 	}
@@ -384,17 +384,17 @@ int evcpe_attr_idx_obj(struct evcpe_attr *attr,
 
 	if (!attr) return EINVAL;
 
-	evcpe_trace(__func__, "getting object from %s by index: %d",
+	TRACE("getting object from %s by index: %d",
 			attr->schema->name, index);
 
 	if (attr->schema->type != EVCPE_TYPE_MULTIPLE) {
-		evcpe_error(__func__, "attr is not multiple object type");
+		ERROR("attr is not multiple object type");
 		rc = EVCPE_CPE_INVALID_PARAM_NAME;
 		goto finally;
 	}
 	item = evcpe_obj_list_get(&attr->value.multiple.list, index);
 	if (!item || !item->obj) {
-		evcpe_error(__func__, "multiple object attr doesn't exist: %d", index);
+		ERROR("multiple object attr doesn't exist: %d", index);
 		rc = EVCPE_CPE_INVALID_PARAM_NAME;
 		goto finally;
 	}
@@ -413,17 +413,17 @@ int evcpe_attr_del_obj(struct evcpe_attr *attr, unsigned int index)
 
 	if (!attr) return EINVAL;
 
-	evcpe_debug(__func__, "deleting object from %s by index: %d",
+	DEBUG("deleting object from %s by index: %d",
 			attr->schema->name, index);
 
 	if (attr->schema->type != EVCPE_TYPE_MULTIPLE) {
-		evcpe_error(__func__, "attr is not multiple object type");
+		ERROR("attr is not multiple object type");
 		rc = EINVAL;
 		goto finally;
 	}
 	item = evcpe_obj_list_get(&attr->value.multiple.list, index);
 	if (!item || !item->obj) {
-		evcpe_error(__func__, "multiple object attr doesn't exist: %d", index);
+		ERROR("multiple object attr doesn't exist: %d", index);
 		rc = EINVAL;
 		goto finally;
 	}
@@ -446,16 +446,16 @@ int evcpe_attr_obj_to_param_value_list(struct evcpe_class *class,
 	struct evcpe_attr_schema *schema;
 	struct evcpe_attr *attr;
 
-	evcpe_debug(__func__, "adding object to param list: %s", obj->path);
+	DEBUG("adding object to param list: %s", obj->path);
 
 	TAILQ_FOREACH(schema, &class->attrs, entry) {
 		if ((rc = evcpe_obj_get(obj, schema->name, strlen(schema->name), &attr))) {
-			evcpe_error(__func__, "failed to get attribute: %s",
+			ERROR("failed to get attribute: %s",
 					schema->name);
 			goto finally;
 		}
 		if ((rc = evcpe_attr_to_param_value_list(attr, list))) {
-			evcpe_error(__func__, "failed to add attribute "
+			ERROR("failed to add attribute "
 					"to param value list: %s", schema->name);
 			goto finally;
 		}
@@ -477,14 +477,14 @@ int evcpe_attr_to_param_value_list(struct evcpe_attr *attr,
 
 	if (attr->schema->extension) return 0;
 
-	evcpe_debug(__func__, "adding attribute to param value list: %s",
+	DEBUG("adding attribute to param value list: %s",
 			attr->schema->name);
 
 	switch (attr->schema->type) {
 	case EVCPE_TYPE_OBJECT:
 		if ((rc = evcpe_attr_obj_to_param_value_list(attr->schema->class,
 				attr->value.object, list))) {
-			evcpe_error(__func__, "failed to add to param list: %s",
+			ERROR("failed to add to param list: %s",
 					attr->value.object->path);
 			goto finally;
 		}
@@ -494,7 +494,7 @@ int evcpe_attr_to_param_value_list(struct evcpe_attr *attr,
 			if (!item->obj) continue;
 			if ((rc = evcpe_attr_obj_to_param_value_list(attr->schema->class,
 					item->obj, list))) {
-				evcpe_error(__func__, "failed to add to param list: %s",
+				ERROR("failed to add to param list: %s",
 						item->obj->path);
 				goto finally;
 			}
@@ -503,17 +503,17 @@ int evcpe_attr_to_param_value_list(struct evcpe_attr *attr,
 	default:
 		if ((rc = evcpe_param_value_list_add(list, &param,
 				attr->path, attr->pathlen))) {
-			evcpe_error(__func__, "failed to add param value");
+			ERROR("failed to add param value");
 			goto finally;
 		}
 		if ((rc = evcpe_attr_get(attr, &value, &len))) {
-			evcpe_error(__func__, "failed to get attribute value: %s",
+			ERROR("failed to get attribute value: %s",
 					attr->path);
 			evcpe_param_value_list_remove(list, param);
 			goto finally;
 		}
 		if ((rc = evcpe_param_value_set(param, value, len))) {
-			evcpe_error(__func__, "failed to set param value: %s => %.*s",
+			ERROR("failed to set param value: %s => %.*s",
 					attr->path, len, value);
 			evcpe_param_value_list_remove(list, param);
 			goto finally;
@@ -538,7 +538,7 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 
 	if (attr->schema->extension) return 0;
 
-	evcpe_debug(__func__, "adding attribute to param info list: %s",
+	DEBUG("adding attribute to param info list: %s",
 			attr->schema->name);
 
 	switch (attr->schema->type) {
@@ -547,14 +547,14 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 			if ((rc = evcpe_param_info_list_add(list, &param,
 					attr->value.object->path, attr->value.object->pathlen,
 					attr->schema->write == 'W' ? 1 : 0))) {
-				evcpe_error(__func__, "failed to add param info");
+				ERROR("failed to add param info");
 				goto finally;
 			}
 		}
 		TAILQ_FOREACH(schema, &attr->schema->class->attrs, entry) {
 			if ((rc = evcpe_obj_get(attr->value.object,
 					schema->name, strlen(schema->name), &child))) {
-				evcpe_error(__func__, "failed to get child attribute: %s",
+				ERROR("failed to get child attribute: %s",
 						schema->name);
 				goto finally;
 			}
@@ -565,19 +565,19 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 							attr->value.object->path, schema->name);
 					if ((rc = evcpe_param_info_list_add(list, &param,
 							buffer, len, schema->write == 'W' ? 1 : 0))) {
-						evcpe_error(__func__, "failed to add param info");
+						ERROR("failed to add param info");
 						goto finally;
 					}
 				} else {
 					if ((rc = evcpe_param_info_list_add(list, &param,
 							child->path, child->pathlen,
 							schema->write == 'W' ? 1 : 0))) {
-						evcpe_error(__func__, "failed to add param info");
+						ERROR("failed to add param info");
 						goto finally;
 					}
 				}
 			} else if ((rc = evcpe_attr_to_param_info_list(child, list, next_level))) {
-				evcpe_error(__func__, "failed to add child object "
+				ERROR("failed to add child object "
 						"to param info list: %s", schema->name);
 				goto finally;
 			}
@@ -587,7 +587,7 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 		if ((rc = evcpe_param_info_list_add(list, &param,
 				attr->path, attr->pathlen,
 				attr->schema->write == 'W' ? 1 : 0))) {
-			evcpe_error(__func__, "failed to add param info");
+			ERROR("failed to add param info");
 			goto finally;
 		}
 		if (next_level)
@@ -597,17 +597,17 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 			if ((rc = evcpe_param_info_list_add(list, &param,
 					item->obj->path, item->obj->pathlen,
 					attr->schema->write == 'W' ? 1 : 0))) {
-				evcpe_error(__func__, "failed to add param info");
+				ERROR("failed to add param info");
 				goto finally;
 			}
 			TAILQ_FOREACH(schema, &attr->schema->class->attrs, entry) {
 				if ((rc = evcpe_obj_get(item->obj, schema->name, strlen(schema->name), &child))) {
-					evcpe_error(__func__, "failed to get child attribute: %s",
+					ERROR("failed to get child attribute: %s",
 							schema->name);
 					goto finally;
 				}
 				if ((rc = evcpe_attr_to_param_info_list(child, list, next_level))) {
-					evcpe_error(__func__, "failed to add child object "
+					ERROR("failed to add child object "
 							"to param info list: %s", schema->name);
 					goto finally;
 				}
@@ -618,7 +618,7 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 		if ((rc = evcpe_param_info_list_add(list, &param,
 				attr->path, strlen(attr->path),
 				attr->schema->write == 'W' ? 1 : 0))) {
-			evcpe_error(__func__, "failed to add param info");
+			ERROR("failed to add param info");
 			goto finally;
 		}
 		break;
@@ -635,18 +635,18 @@ int evcpe_attr_obj_to_param_attr_list(struct evcpe_attr_schema *schema,
 	int rc;
 	struct evcpe_attr *child;
 
-	evcpe_debug(__func__, "adding object attribute to param list: %s",
+	DEBUG("adding object attribute to param list: %s",
 			schema->name);
 
 	if ((rc = evcpe_obj_get(obj, schema->name, strlen(schema->name), &child))) {
-		evcpe_error(__func__, "failed to get child attribute: %s",
+		ERROR("failed to get child attribute: %s",
 				schema->name);
 		goto finally;
 	}
 	if (!schema->extension && schema->type != EVCPE_TYPE_OBJECT &&
 			schema->type != EVCPE_TYPE_MULTIPLE) {
 		if ((rc = evcpe_attr_to_param_attr_list(child, list))) {
-			evcpe_error(__func__, "failed to add child attribute "
+			ERROR("failed to add child attribute "
 					"to param value list: %s", schema->name);
 			goto finally;
 		}
@@ -667,7 +667,7 @@ int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 
 	if (attr->schema->extension) return 0;
 
-	evcpe_debug(__func__, "adding attribute to param value list: %s",
+	DEBUG("adding attribute to param value list: %s",
 			attr->schema->name);
 
 	switch (attr->schema->type) {
@@ -676,7 +676,7 @@ int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 			if (schema->extension) continue;
 			if ((rc = evcpe_attr_obj_to_param_attr_list(schema,
 					attr->value.object, list))) {
-				evcpe_error(__func__, "failed to add child object "
+				ERROR("failed to add child object "
 						"to param list: %s", schema->name);
 				goto finally;
 			}
@@ -687,8 +687,8 @@ int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 			if (!item->obj) continue;
 			if ((rc = evcpe_attr_obj_to_param_attr_list(attr->schema,
 					item->obj, list))) {
-				evcpe_error(__func__, "failed to add child object "
-						"to param list: %s", schema->name);
+				ERROR("failed to add child object to param list: %s",
+						attr->schema->name);
 				goto finally;
 			}
 		}
@@ -696,12 +696,12 @@ int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 	default:
 		if ((rc = evcpe_param_attr_list_add(list, &param,
 				attr->path, attr->pathlen))) {
-			evcpe_error(__func__, "failed to add param value");
+			ERROR("failed to add param value");
 			goto finally;
 		}
 		if ((rc = evcpe_access_list_clone(&attr->value.simple.access_list,
 				&param->access_list))) {
-			evcpe_error(__func__, "failed to clone access list");
+			ERROR("failed to clone access list");
 			evcpe_param_attr_list_remove(list, param);
 			goto finally;
 		}

@@ -36,7 +36,7 @@ void evcpe_param_info_list_clear(struct evcpe_param_info_list *list)
 {
 	struct evcpe_param_info *param;
 
-	evcpe_debug(__func__, "clearing evcpe_param_info_list");
+	DEBUG("clearing evcpe_param_info_list");
 
 	while((param = TAILQ_FIRST(&list->head))) {
 		TAILQ_REMOVE(&list->head, param, entry);
@@ -57,7 +57,7 @@ int evcpe_param_info_list_add(struct evcpe_param_info_list *list,
 	if (!name || !len) return EINVAL;
 	if (len >= sizeof((*param)->name)) return EOVERFLOW;
 
-	evcpe_debug(__func__, "adding param name: %.*s", len, name);
+	DEBUG("adding param name: %.*s", len, name);
 
 	if (!((*param) = calloc(1, sizeof(struct evcpe_param_info))))
 		return ENOMEM;

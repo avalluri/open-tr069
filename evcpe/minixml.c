@@ -41,7 +41,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define MINIXML_ENSURE_MORE do \
 	if(p->xml >= p->xmlend) { \
-		evcpe_error(__func__, "unexpected end of data"); \
+		ERROR("unexpected end of data"); \
 		return EPROTO; \
 	} \
 	while(0)

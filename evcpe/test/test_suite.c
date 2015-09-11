@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 		evcpe_add_logger("stderr", level, EVCPE_LOG_FATAL,
 				NULL, evcpe_file_logger, stdout);
 
-	evcpe_info(__func__, "starting test");
+	INFO("starting test");
 
 	TextUIRunner_setOutputter(TextOutputter_outputter());
 	TextUIRunner_start();

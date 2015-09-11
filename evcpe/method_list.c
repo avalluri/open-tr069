@@ -36,7 +36,7 @@ void evcpe_method_list_clear(struct evcpe_method_list *list)
 {
 	struct evcpe_method_list_item *item;
 
-	evcpe_debug(__func__, "clearing evcpe_method_list");
+	DEBUG("clearing evcpe_method_list");
 
 	while((item = TAILQ_FIRST(&list->head))) {
 		TAILQ_REMOVE(&list->head, item, entry);
@@ -55,7 +55,7 @@ int evcpe_method_list_add(struct evcpe_method_list *list,
 	if (len >= sizeof((*item)->name)) return EOVERFLOW;
 
 	if (!((*item) = calloc(1, sizeof(struct evcpe_method_list_item)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_method_list_item");
+		ERROR("failed to calloc evcpe_method_list_item");
 		return ENOMEM;
 	}
 	strncpy((*item)->name, name, len);

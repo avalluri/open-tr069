@@ -36,7 +36,7 @@ void evcpe_set_param_value_list_clear(struct evcpe_set_param_value_list *list)
 {
 	struct evcpe_set_param_value *value;
 
-	evcpe_debug(__func__, "clearing evcpe_set_param_value_list");
+	DEBUG("clearing evcpe_set_param_value_list");
 
 	while((value = TAILQ_FIRST(&list->head))) {
 		TAILQ_REMOVE(&list->head, value, entry);
@@ -69,7 +69,7 @@ int evcpe_set_param_value_set(struct evcpe_set_param_value *param,
 {
 	if (!param || !data) return EINVAL;
 
-	evcpe_debug(__func__, "setting value: %s => %.*s",
+	DEBUG("setting value: %s => %.*s",
 			param->name, len, data);
 	param->data = data;
 	param->len = len;

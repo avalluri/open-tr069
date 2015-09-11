@@ -35,25 +35,17 @@
 
 #define PRINTLOC printf("%s(%d)\n", __func__, __LINE__)
 
-static void evcpe_session_http_close_cb(struct evhttp_connection *conn, void *arg);
-static void evcpe_session_http_cb(struct evhttp_request *req, void *arg);
-static int evcpe_session_send_do(struct evcpe_session *session,
-		struct evcpe_msg *msg);
+static
+void evcpe_session_http_cb(struct evhttp_request *http_req, void *arg);
 
-void evcpe_session_close(struct evcpe_session *session, int code)
-{
-	evcpe_info(__func__, "closing CWMP session");
-	evhttp_connection_set_closecb(session->conn, NULL, NULL);
-	if (session->close_cb)
-		(*session->close_cb)(session, code, session->close_cbarg);
-}
-
+static
 void evcpe_session_http_close_cb(struct evhttp_connection *conn, void *arg)
 {
-	evcpe_error(__func__, "HTTP connection closed");
+	ERROR("HTTP connection closed");
 	evcpe_session_close(arg, ECONNRESET);
 }
 
+static
 int evcpe_session_handle_incoming(struct evcpe_session *session,
 		struct evbuffer *buffer)
 {
@@ -61,12 +53,12 @@ int evcpe_session_handle_incoming(struct evcpe_session *session,
 	struct evcpe_msg *msg, *req;
 
 	if (!(msg = evcpe_msg_new())) {
-		evcpe_error(__func__, "failed to create evcpe_msg");
+		ERROR("failed to create evcpe_msg");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if ((rc = evcpe_msg_from_xml(msg, buffer))) {
-		evcpe_error(__func__, "failed to unmarshal response");
+		ERROR("failed to unmarshal response");
 		goto finally;
 	}
 	session->hold_requests = msg->hold_requests;
@@ -80,13 +72,13 @@ int evcpe_session_handle_incoming(struct evcpe_session *session,
 	case EVCPE_MSG_RESPONSE:
 	case EVCPE_MSG_FAULT:
 		if (!(req = TAILQ_FIRST(&session->req_out))) {
-			evcpe_error(__func__, "no pending CPE request");
+			ERROR("no pending CPE request");
 			rc = EPROTO;
 			goto finally;
 		}
 		if (msg->type == EVCPE_MSG_RESPONSE
 				&& msg->method_type != req->method_type) {
-			evcpe_error(__func__, "method of request/response doesn't match: "
+			ERROR("method of request/response doesn't match: "
 					"%d != %d", req->method_type, msg->method_type);
 			rc = EPROTO;
 			goto finally;
@@ -98,7 +90,7 @@ int evcpe_session_handle_incoming(struct evcpe_session *session,
 		evcpe_msg_free(msg);
 		break;
 	default:
-		evcpe_error(__func__, "unexpected message type: %d", msg->type);
+		ERROR("unexpected message type: %d", msg->type);
 		rc = EINVAL;
 		goto finally;
 	}
@@ -108,6 +100,105 @@ finally:
 	return rc;
 }
 
+static
+int evcpe_session_add_header(struct evkeyvalq *keyvalq,
+		const char *key, const char *value)
+{
+	DEBUG("adding HTTP header: %s => %s", key, value);
+	return evhttp_add_header(keyvalq, key, value);
+}
+
+static
+int evcpe_session_send_do(struct evcpe_session *session, struct evcpe_msg *msg)
+{
+	int rc, len;
+	char buffer[513];
+	struct evhttp_request *req;
+	struct evcpe_cookie *cookie;
+
+	if (msg)
+		INFO("sending CWMP %s message in HTTP request",
+				evcpe_msg_type_to_str(msg->type));
+	else
+		INFO("sending empty HTTP request");
+
+	if (!(req = evhttp_request_new(
+			evcpe_session_http_cb, session))) {
+		ERROR("failed to create evhttp_connection");
+		rc = ENOMEM;
+		goto finally;
+	}
+	if (msg && msg->data && (rc = evcpe_msg_to_xml(msg,
+			req->output_buffer))) {
+		ERROR("failed to create SOAP message");
+		evhttp_request_free(req);
+		goto finally;
+	}
+	req->major = 1;
+	req->minor = 1;
+	snprintf(buffer, sizeof(buffer), "%s:%d",
+			session->acs->host, session->acs->port);
+	if ((rc = evcpe_session_add_header(req->output_headers,
+			"Host", buffer))) {
+		ERROR("failed to add header: Host=\"%s\"", buffer);
+		evhttp_request_free(req);
+		goto finally;
+	}
+	if (!RB_EMPTY(&session->cookies)) {
+		len = 0;
+		RB_FOREACH(cookie, evcpe_cookies, &session->cookies) {
+			len += snprintf(buffer + len, sizeof(buffer) - len, "%s=%s; ",
+					cookie->name, cookie->value);
+		}
+		if (len - 2 < sizeof(buffer))
+			buffer[len - 2] = '\0';
+		if ((rc = evcpe_session_add_header(req->output_headers,
+				"Cookie", buffer))) {
+			ERROR("failed to add header: Cookie=\"%s\"", buffer);
+			evhttp_request_free(req);
+			goto finally;
+		}
+	}
+	if (msg && msg->data && (rc = evcpe_session_add_header(req->output_headers,
+			"SOAPAction", ""))) {
+		ERROR("failed to add header: SOAPAction=\"\"");
+		evhttp_request_free(req);
+		goto finally;
+	}
+	if ((rc = evcpe_session_add_header(req->output_headers,
+			"User-Agent", "evcpe-"EVCPE_VERSION))) {
+		ERROR("failed to add header: "
+				"User-Agent=\"evcpe-"EVCPE_VERSION"\"");
+		evhttp_request_free(req);
+		goto finally;
+	}
+	if ((rc = evcpe_session_add_header(req->output_headers,
+			"Content-Type", "text/xml"))) {
+		ERROR("failed to add header: Content-Type=text/xml");
+		evhttp_request_free(req);
+		goto finally;
+	}
+	DEBUG("HTTP request content: %.*s",
+			(int)evbuffer_get_length(req->output_buffer),
+			evbuffer_pullup(req->output_buffer, -1));
+
+	INFO("making HTTP request");
+
+	if ((rc = evhttp_make_request(session->conn, req,
+			EVHTTP_REQ_POST, session->acs->uri))) {
+		ERROR("failed to make request");
+		evhttp_request_free(req);
+		goto finally;
+	}
+	evhttp_connection_set_closecb(session->conn, evcpe_session_http_close_cb,
+			session);
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+static
 void evcpe_session_http_cb(struct evhttp_request *http_req, void *arg)
 {
 	int rc;
@@ -116,53 +207,53 @@ void evcpe_session_http_cb(struct evhttp_request *http_req, void *arg)
 	struct evcpe_session *session = arg;
 
 	if (0 == http_req->response_code) {
-		evcpe_info(__func__, "session timed out");
+		INFO("session timed out");
 		rc = ETIMEDOUT;
 		goto close;
 	}
 
-	evcpe_info(__func__, "HTTP response code: %d", http_req->response_code);
-	evcpe_debug(__func__, "HTTP response content: %.*s",
-			EVBUFFER_LENGTH(http_req->input_buffer),
-			EVBUFFER_DATA(http_req->input_buffer));
+	INFO("HTTP response code: %d", http_req->response_code);
+	DEBUG("HTTP response content: %.*s",
+			(int)evbuffer_get_length(http_req->input_buffer),
+			evbuffer_pullup(http_req->input_buffer, -1));
 
 	if ((cookies = evhttp_find_header(http_req->input_headers, "Set-Cookie"))
 			&& (rc = evcpe_cookies_set_from_header(
 					&session->cookies, cookies))) {
-		evcpe_error(__func__, "failed to set cookies: %s", cookies);
+		ERROR("failed to set cookies: %s", cookies);
 		goto close;
 	}
-	if (EVBUFFER_LENGTH(http_req->input_buffer) &&
+	if (evbuffer_get_length(http_req->input_buffer) &&
 			(rc = evcpe_session_handle_incoming(
 					session, http_req->input_buffer))) {
-		evcpe_error(__func__, "failed to handle incoming data");
+		ERROR("failed to handle incoming data");
 		goto close;
 	}
 	if ((msg = TAILQ_FIRST(&session->res_pending))) {
 		if ((rc = evcpe_session_send_do(session, msg))) {
-			evcpe_error(__func__, "failed to response ACS request");
+			ERROR("failed to response ACS request");
 			goto close;
 		}
 		TAILQ_REMOVE(&session->res_pending, msg, entry);
 		evcpe_msg_free(msg);
 	} else if (session->hold_requests) {
 		if ((rc = evcpe_session_send_do(session, NULL))) {
-			evcpe_error(__func__, "failed to send empty HTTP request");
+			ERROR("failed to send empty HTTP request");
 			goto close;
 		}
 	} else if ((msg = TAILQ_FIRST(&session->req_pending))) {
 		if ((rc = evcpe_session_send_do(session, msg))) {
-			evcpe_error(__func__, "failed to send CPE request");
+			ERROR("failed to send CPE request");
 			goto close;
 		}
 		TAILQ_REMOVE(&session->req_pending, msg, entry);
 		TAILQ_INSERT_TAIL(&session->req_out, msg, entry);
-	} else if (!EVBUFFER_LENGTH(http_req->input_buffer)) {
-		evcpe_info(__func__, "session termination criteria are met");
+	} else if (!evbuffer_get_length(http_req->input_buffer)) {
+		INFO("session termination criteria are met");
 		goto close;
 	} else {
 		if ((rc = evcpe_session_send_do(session, NULL))) {
-			evcpe_error(__func__, "failed to send empty HTTP request");
+			ERROR("failed to send empty HTTP request");
 			goto close;
 		}
 	}
@@ -177,10 +268,10 @@ struct evcpe_session *evcpe_session_new(struct evhttp_connection *conn,
 {
 	struct evcpe_session *session;
 
-	evcpe_debug(__func__, "constructing evcpe_session");
+	DEBUG("constructing evcpe_session");
 
 	if (!(session = calloc(1, sizeof(struct evcpe_session)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_session");
+		ERROR("failed to calloc evcpe_session");
 		return NULL;
 	}
 	RB_INIT(&session->cookies);
@@ -196,11 +287,19 @@ struct evcpe_session *evcpe_session_new(struct evhttp_connection *conn,
 	return session;
 }
 
+void evcpe_session_close(struct evcpe_session *session, int code)
+{
+	INFO("closing CWMP session");
+	evhttp_connection_set_closecb(session->conn, NULL, NULL);
+	if (session->close_cb)
+		(*session->close_cb)(session, code, session->close_cbarg);
+}
+
 void evcpe_session_free(struct evcpe_session *session)
 {
 	if (!session) return;
 
-	evcpe_debug(__func__, "destructing evcpe_session");
+	DEBUG("destructing evcpe_session");
 
 	evcpe_cookies_clear(&session->cookies);
 	evcpe_msg_queue_clear(&session->req_in);
@@ -226,18 +325,18 @@ int evcpe_session_start(struct evcpe_session *session)
 	struct evcpe_msg *req;
 
 	if (!(req = TAILQ_FIRST(&session->req_pending))) {
-		evcpe_error(__func__, "no pending CPE request");
+		ERROR("no pending CPE request");
 		rc = EINVAL;
 		goto finally;
 	}
 	if (req->method_type != EVCPE_INFORM) {
-		evcpe_error(__func__, "first CPE request must be an inform");
+		ERROR("first CPE request must be an inform");
 		rc = EINVAL;
 		goto finally;
 	}
 	req = TAILQ_FIRST(&session->req_pending);
 	if ((rc = evcpe_session_send_do(session, req))) {
-		evcpe_error(__func__, "failed to send first request");
+		ERROR("failed to send first request");
 		goto finally;
 	}
 	TAILQ_REMOVE(&session->req_pending, req, entry);
@@ -262,18 +361,18 @@ int evcpe_session_send(struct evcpe_session *session, struct evcpe_msg *msg)
 	case EVCPE_MSG_RESPONSE:
 	case EVCPE_MSG_FAULT:
 		if (!(req = TAILQ_FIRST(&session->req_in))) {
-			evcpe_error(__func__, "no pending ACS request");
+			ERROR("no pending ACS request");
 			rc = -1;
 			goto finally;
 		} else if (req->method_type != msg->method_type) {
-			evcpe_error(__func__, "method type mismatch: %s != %s",
+			ERROR("method type mismatch: %s != %s",
 					evcpe_method_type_to_str(req->method_type),
 					evcpe_method_type_to_str(msg->method_type));
 			rc = -1;
 			goto finally;
 		}
 		if (!(msg->session = strdup(req->session))) {
-			evcpe_error(__func__, "failed to duplicate session ID");
+			ERROR("failed to duplicate session ID");
 			rc = ENOMEM;
 			goto finally;
 		}
@@ -282,7 +381,7 @@ int evcpe_session_send(struct evcpe_session *session, struct evcpe_msg *msg)
 		evcpe_msg_free(req);
 		break;
 	default:
-		evcpe_error(__func__, "unexpected message type: %d", msg->type);
+		ERROR("unexpected message type: %d", msg->type);
 		rc = EINVAL;
 		goto finally;
 	}
@@ -292,98 +391,3 @@ finally:
 	return rc;
 }
 
-static int evcpe_session_add_header(struct evkeyvalq *keyvalq,
-		const char *key, const char *value)
-{
-	evcpe_debug(__func__, "adding HTTP header: %s => %s", key, value);
-	return evhttp_add_header(keyvalq, key, value);
-}
-
-int evcpe_session_send_do(struct evcpe_session *session, struct evcpe_msg *msg)
-{
-	int rc, len;
-	char buffer[513];
-	struct evhttp_request *req;
-	struct evcpe_cookie *cookie;
-
-	if (msg)
-		evcpe_info(__func__, "sending CWMP %s message in HTTP request",
-				evcpe_msg_type_to_str(msg->type));
-	else
-		evcpe_info(__func__, "sending empty HTTP request");
-
-	if (!(req = evhttp_request_new(
-			evcpe_session_http_cb, session))) {
-		evcpe_error(__func__, "failed to create evhttp_connection");
-		rc = ENOMEM;
-		goto finally;
-	}
-	if (msg && msg->data && (rc = evcpe_msg_to_xml(msg,
-			req->output_buffer))) {
-		evcpe_error(__func__, "failed to create SOAP message");
-		evhttp_request_free(req);
-		goto finally;
-	}
-	req->major = 1;
-	req->minor = 1;
-	snprintf(buffer, sizeof(buffer), "%s:%d",
-			session->acs->host, session->acs->port);
-	if ((rc = evcpe_session_add_header(req->output_headers,
-			"Host", buffer))) {
-		evcpe_error(__func__, "failed to add header: Host=\"%s\"", buffer);
-		evhttp_request_free(req);
-		goto finally;
-	}
-	if (!RB_EMPTY(&session->cookies)) {
-		len = 0;
-		RB_FOREACH(cookie, evcpe_cookies, &session->cookies) {
-			len += snprintf(buffer + len, sizeof(buffer) - len, "%s=%s; ",
-					cookie->name, cookie->value);
-		}
-		if (len - 2 < sizeof(buffer))
-			buffer[len - 2] = '\0';
-		if ((rc = evcpe_session_add_header(req->output_headers,
-				"Cookie", buffer))) {
-			evcpe_error(__func__, "failed to add header: Cookie=\"%s\"", buffer);
-			evhttp_request_free(req);
-			goto finally;
-		}
-	}
-	if (msg && msg->data && (rc = evcpe_session_add_header(req->output_headers,
-			"SOAPAction", ""))) {
-		evcpe_error(__func__, "failed to add header: SOAPAction=\"\"");
-		evhttp_request_free(req);
-		goto finally;
-	}
-	if ((rc = evcpe_session_add_header(req->output_headers,
-			"User-Agent", "evcpe-"EVCPE_VERSION))) {
-		evcpe_error(__func__, "failed to add header: "
-				"User-Agent=\"evcpe-"EVCPE_VERSION"\"");
-		evhttp_request_free(req);
-		goto finally;
-	}
-	if ((rc = evcpe_session_add_header(req->output_headers,
-			"Content-Type", "text/xml"))) {
-		evcpe_error(__func__, "failed to add header: Content-Type=text/xml");
-		evhttp_request_free(req);
-		goto finally;
-	}
-	evcpe_debug(__func__, "HTTP request content: %.*s",
-			EVBUFFER_LENGTH(req->output_buffer),
-			EVBUFFER_DATA(req->output_buffer));
-
-	evcpe_info(__func__, "making HTTP request");
-
-	if ((rc = evhttp_make_request(session->conn, req,
-			EVHTTP_REQ_POST, session->acs->uri))) {
-		evcpe_error(__func__, "failed to make request");
-		evhttp_request_free(req);
-		goto finally;
-	}
-	evhttp_connection_set_closecb(session->conn, evcpe_session_http_close_cb,
-			session);
-	rc = 0;
-
-finally:
-	return rc;
-}

@@ -27,7 +27,7 @@ int evcpe_inform_to_xml(struct evcpe_inform *method, struct evbuffer *buffer)
 {
 	int rc;
 
-	evcpe_debug(__func__, "marshaling inform");
+	DEBUG("marshaling inform");
 
 	if ((rc = evcpe_device_id_to_xml(&method->device_id, "DeviceId", buffer)))
 		goto finally;

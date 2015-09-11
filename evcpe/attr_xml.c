@@ -41,31 +41,31 @@ static int evcpe_attr_obj_to_xml(struct evcpe_attr *attr, struct evcpe_obj *obj,
 	struct evcpe_attr_schema *schema;
 
 	if ((rc = evcpe_xml_add_indent(buffer, EVCPE_XML_INDENT, indent))) {
-		evcpe_error(__func__, "failed to append indentation");
+		ERROR("failed to append indentation");
 		goto finally;
 	}
 	if ((rc = evcpe_add_buffer(buffer, "<%s>\n", attr->schema->name))) {
-		evcpe_error(__func__, "failed to append buffer");
+		ERROR("failed to append buffer");
 		goto finally;
 	}
 	TAILQ_FOREACH(schema, &attr->schema->class->attrs, entry) {
 		if ((rc = evcpe_obj_get(obj, schema->name,
 				strlen(schema->name), &child))) {
-			evcpe_error(__func__, "failed to get attribute: %s", schema->name);
+			ERROR("failed to get attribute: %s", schema->name);
 			goto finally;
 		}
 		if ((rc = evcpe_attr_to_xml(child, indent + 1, buffer))) {
-			evcpe_error(__func__, "failed to marshal child attribute: %s",
+			ERROR("failed to marshal child attribute: %s",
 					schema->name);
 			goto finally;
 		}
 	}
 	if ((rc = evcpe_xml_add_indent(buffer, EVCPE_XML_INDENT, indent))) {
-		evcpe_error(__func__, "failed to append indentation");
+		ERROR("failed to append indentation");
 		goto finally;
 	}
 	if ((rc = evcpe_add_buffer(buffer, "</%s>\n", attr->schema->name))) {
-		evcpe_error(__func__, "failed to append buffer");
+		ERROR("failed to append buffer");
 		goto finally;
 	}
 
@@ -80,12 +80,12 @@ int evcpe_attr_to_xml(struct evcpe_attr *attr,
 	struct evcpe_obj_item *item;
 	struct evcpe_access_list_item *entity;
 
-	evcpe_debug(__func__, "marshalling evcpe_attr");
+	DEBUG("marshalling evcpe_attr");
 
 	switch (attr->schema->type) {
 	case EVCPE_TYPE_OBJECT:
 		if ((rc = evcpe_attr_obj_to_xml(attr, attr->value.object, indent, buffer))) {
-			evcpe_error(__func__, "failed to marshal evcpe_obj");
+			ERROR("failed to marshal evcpe_obj");
 			goto finally;
 		}
 		break;
@@ -95,7 +95,7 @@ int evcpe_attr_to_xml(struct evcpe_attr *attr,
 		TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
 			if (!item->obj) continue;
 			if ((rc = evcpe_attr_obj_to_xml(attr, item->obj, indent, buffer))) {
-				evcpe_error(__func__, "failed to marshal evcpe_obj: %s",
+				ERROR("failed to marshal evcpe_obj: %s",
 						attr->schema->name);
 				goto finally;
 			}
@@ -107,17 +107,17 @@ int evcpe_attr_to_xml(struct evcpe_attr *attr,
 				TAILQ_EMPTY(&attr->value.simple.access_list.head))
 			break;
 		if ((rc = evcpe_xml_add_indent(buffer, EVCPE_XML_INDENT, indent))) {
-			evcpe_error(__func__, "failed to append indentation");
+			ERROR("failed to append indentation");
 			goto finally;
 		}
 		if ((rc = evcpe_add_buffer(buffer, "<%s>", attr->schema->name))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 		if (attr->value.simple.string) {
 			if ((rc = evcpe_add_buffer(buffer, "<Value>%s</Value>",
 					attr->value.simple.string))) {
-				evcpe_error(__func__, "failed to append value: %s",
+				ERROR("failed to append value: %s",
 						attr->schema->name);
 				goto finally;
 			}
@@ -126,31 +126,31 @@ int evcpe_attr_to_xml(struct evcpe_attr *attr,
 			if ((rc = evcpe_add_buffer(buffer,
 					"<Notification>%d</Notification>",
 					attr->value.simple.notification))) {
-				evcpe_error(__func__, "failed to add notification: %s",
+				ERROR("failed to add notification: %s",
 						attr->schema->name);
 				goto finally;
 			}
 		}
 		if (!TAILQ_EMPTY(&attr->value.simple.access_list.head)) {
 			if ((rc = evcpe_add_buffer(buffer, "<AccessList>"))) {
-				evcpe_error(__func__, "failed to append buffer");
+				ERROR("failed to append buffer");
 				goto finally;
 			}
 			TAILQ_FOREACH(entity, &attr->value.simple.access_list.head, entry) {
 				if ((rc = evcpe_add_buffer(buffer, "<string>%s</string>",
 						entity->entity))) {
-					evcpe_error(__func__, "failed to add access entity: %s",
+					ERROR("failed to add access entity: %s",
 							attr->schema->name);
 					goto finally;
 				}
 			}
 			if ((rc = evcpe_add_buffer(buffer, "</AccessList>"))) {
-				evcpe_error(__func__, "failed to append buffer");
+				ERROR("failed to append buffer");
 				goto finally;
 			}
 		}
 		if ((rc = evcpe_add_buffer(buffer, "</%s>\n", attr->schema->name))) {
-			evcpe_error(__func__, "failed to append buffer");
+			ERROR("failed to append buffer");
 			goto finally;
 		}
 		break;
@@ -166,7 +166,7 @@ int evcpe_attr_to_xml_obj_param_name(struct evcpe_obj *obj,
 {
 	int rc;
 
-	evcpe_debug(__func__, "marshaling object param name: %s",
+	DEBUG("marshaling object param name: %s",
 			obj->class->name);
 
 	if ((rc = evcpe_add_buffer(buffer, "<ParameterInfoStruct "
@@ -192,7 +192,7 @@ int evcpe_attr_to_xml_obj_param_names(struct evcpe_obj *obj,
 	struct evcpe_attr *attr;
 	struct evcpe_attr_schema *schema;
 
-	evcpe_debug(__func__, "marshaling object to param names: %s",
+	DEBUG("marshaling object to param names: %s",
 			obj->class->name);
 
 	TAILQ_FOREACH(schema, &obj->class->attrs, entry) {
@@ -216,7 +216,7 @@ int evcpe_attr_to_xml_param_names(struct evcpe_attr *attr, int next_level,
 	int rc;
 	struct evcpe_obj_item *item;
 
-	evcpe_debug(__func__, "marshaling attribute to param name: %s",
+	DEBUG("marshaling attribute to param name: %s",
 			attr->schema->name);
 
 	switch (attr->schema->type) {

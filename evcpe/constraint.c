@@ -33,15 +33,15 @@ int evcpe_constraint_enums_add(struct evcpe_constraint_enums *enums,
 	int rc;
 	struct evcpe_constraint_enum *cons_enum;
 
-	evcpe_debug(__func__, "adding enum constraint: %.*s", len, string);
+	DEBUG("adding enum constraint: %.*s", len, string);
 
 	if (!(cons_enum = calloc(1, sizeof(struct evcpe_constraint_enum)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_constraint_enum");
+		ERROR("failed to calloc evcpe_constraint_enum");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if ((rc = evcpe_strdup(string, len, &cons_enum->string))) {
-		evcpe_error(__func__, "failed to duplicate: %.*s", len, string);
+		ERROR("failed to duplicate: %.*s", len, string);
 		free(cons_enum);
 		goto finally;
 	}
@@ -56,7 +56,7 @@ void evcpe_constraint_enums_clear(struct evcpe_constraint_enums *enums)
 {
 	struct evcpe_constraint_enum *cons_enum;
 
-	evcpe_trace(__func__, "clearing enum constraints");
+	TRACE("clearing enum constraints");
 
 	while((cons_enum = TAILQ_FIRST(enums))) {
 		TAILQ_REMOVE(enums, cons_enum, entry);
@@ -70,7 +70,7 @@ static inline int evcpe_constraint_set_min_max(long *ptr,
 {
 	int rc;
 	if ((rc = evcpe_atol(value, len, ptr))) {
-		evcpe_error(__func__, "failed to convert to integer: %.*s", len, value);
+		ERROR("failed to convert to integer: %.*s", len, value);
 	}
 	return rc;
 }
@@ -78,7 +78,7 @@ static inline int evcpe_constraint_set_min_max(long *ptr,
 int evcpe_constraint_set_min(struct evcpe_constraint *cons,
 		const char *min, unsigned len)
 {
-	evcpe_debug(__func__, "setting min constraint: %.*s", len, min);
+	DEBUG("setting min constraint: %.*s", len, min);
 	cons->type = EVCPE_CONSTRAINT_MIN;
 	return evcpe_constraint_set_min_max(&cons->value.range.min,
 			min, len);
@@ -87,7 +87,7 @@ int evcpe_constraint_set_min(struct evcpe_constraint *cons,
 int evcpe_constraint_set_max(struct evcpe_constraint *cons,
 		const char *max, unsigned len)
 {
-	evcpe_debug(__func__, "setting max constraint: %.*s", len, max);
+	DEBUG("setting max constraint: %.*s", len, max);
 	cons->type = EVCPE_CONSTRAINT_MAX;
 	return evcpe_constraint_set_min_max(&cons->value.range.max,
 			max, len);
@@ -98,18 +98,18 @@ int evcpe_constraint_set_range(struct evcpe_constraint *cons,
 {
 	int rc;
 
-	evcpe_debug(__func__, "setting range constraint: %.*s:%.*s",
+	DEBUG("setting range constraint: %.*s:%.*s",
 			minlen, min, maxlen, max);
 
 	cons->type = EVCPE_CONSTRAINT_RANGE;
 	if ((rc = evcpe_constraint_set_min_max(&cons->value.range.min,
 			min, minlen))) {
-		evcpe_error(__func__, "failed to set min constraint");
+		ERROR("failed to set min constraint");
 		goto finally;
 	}
 	if ((rc = evcpe_constraint_set_min_max(&cons->value.range.max,
 			max, maxlen))) {
-		evcpe_error(__func__, "failed to set max constraint");
+		ERROR("failed to set max constraint");
 		goto finally;
 	}
 
@@ -120,7 +120,14 @@ finally:
 int evcpe_constraint_set_attr(struct evcpe_constraint *cons,
 		const char *value, unsigned len)
 {
-	evcpe_debug(__func__, "setting attribute constraint: %.*s",	len, value);
+	DEBUG("setting attribute constraint: %.*s",	len, value);
 	cons->type = EVCPE_CONSTRAINT_ATTR;
 	return evcpe_strdup(value, len, &cons->value.attr);
+}
+
+int evcpe_constraint_set_pattern(struct evcpe_constraint *cons,
+    const char *value, unsigned len)
+{
+	DEBUG("setting constraint pattern: %.*s",	len, value);
+  return evcpe_strdup(value, len, &cons->pattern);
 }

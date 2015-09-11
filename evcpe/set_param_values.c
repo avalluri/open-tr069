@@ -29,7 +29,7 @@ struct evcpe_set_param_values *evcpe_set_param_values_new(void)
 	struct evcpe_set_param_values *method;
 
 	if (!(method = calloc(1, sizeof(struct evcpe_set_param_values)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_set_param_values");
+		ERROR("failed to calloc evcpe_set_param_values");
 		return NULL;
 	}
 	evcpe_set_param_value_list_init(&method->parameter_list);
@@ -49,7 +49,7 @@ struct evcpe_set_param_values_response *evcpe_set_param_values_response_new(void
 	struct evcpe_set_param_values_response *method;
 
 	if (!(method = calloc(1, sizeof(struct evcpe_set_param_values_response)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_set_param_values_response");
+		ERROR("failed to calloc evcpe_set_param_values_response");
 		return NULL;
 	}
 	return method;

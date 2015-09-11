@@ -53,7 +53,7 @@ const char *evcpe_log_level_to_str(enum evcpe_log_level level)
 
 int evcpe_add_logger(const char *name,
 		enum evcpe_log_level min, enum evcpe_log_level max,
-		const char *prefix, evcpe_logger cb, void *cbarg)
+		const char *prefix, evcpe_logger_cb cb, void *cbarg)
 {
 	struct evcpe_logger *logger;
 

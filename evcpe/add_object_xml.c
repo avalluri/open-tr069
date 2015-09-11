@@ -28,7 +28,7 @@ int evcpe_add_object_response_to_xml(
 		struct evbuffer *buffer)
 {
 	int rc;
-	evcpe_debug(__func__, "marshaling evcpe_add_object_response");
+	DEBUG("marshaling evcpe_add_object_response");
 	if ((rc = evcpe_xml_add_xsd_unsigned_int(buffer, "InstanceNumber",
 			method->instance_number)))
 		goto finally;

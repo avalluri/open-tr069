@@ -44,7 +44,7 @@ void evcpe_cookies_clear(struct evcpe_cookies *cookies)
 {
 	struct evcpe_cookie *cookie;
 
-	evcpe_debug(__func__, "clearing cookies");
+	DEBUG("clearing cookies");
 
 	while((cookie = RB_ROOT(cookies))) {
 		RB_REMOVE(evcpe_cookies, cookies, cookie);
@@ -71,21 +71,21 @@ int evcpe_cookies_set(struct evcpe_cookies *cookies,
 
 	if (!cookies || !name || !value) return EINVAL;
 
-	evcpe_debug(__func__, "setting cookie: %s => %s", name, value);
+	DEBUG("setting cookie: %s => %s", name, value);
 
 	if (!(cookie = calloc(1, sizeof(struct evcpe_cookie)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_cookie");
+		ERROR("failed to calloc evcpe_cookie");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if (!(cookie->name = strdup(name))) {
-		evcpe_error(__func__, "failed to duplicate name: %s", name);
+		ERROR("failed to duplicate name: %s", name);
 		evcpe_cookie_free(cookie);
 		rc = ENOMEM;
 		goto finally;
 	}
 	if (!(cookie->value = strdup(value))) {
-		evcpe_error(__func__, "failed to duplicate value: %s", value);
+		ERROR("failed to duplicate value: %s", value);
 		evcpe_cookie_free(cookie);
 		rc = ENOMEM;
 		goto finally;
@@ -112,7 +112,7 @@ int evcpe_cookies_set_from_header(struct evcpe_cookies *cookies,
 	if (!(dup = strdup(header)))
 		return ENOMEM;
 
-	evcpe_debug(__func__, "setting cookie from header: %s", header);
+	DEBUG("setting cookie from header: %s", header);
 
 	name = value = NULL;
 	ptr = dup;
@@ -131,7 +131,7 @@ int evcpe_cookies_set_from_header(struct evcpe_cookies *cookies,
 			if (strcmp("expires", name) && strcmp("path", name) &&
 					strcmp("domain", name) && (rc = evcpe_cookies_set(
 					cookies, name, value))) {
-				evcpe_error(__func__, "failed to set cookie: %s=%s",
+				ERROR("failed to set cookie: %s=%s",
 						name, value);
 				goto finally;
 			}

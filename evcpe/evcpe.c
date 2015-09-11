@@ -34,6 +34,7 @@
 #include "obj_xml.h"
 #include "persister.h"
 #include "evcpe-config.h"
+#include "log.h"
 
 static struct {
 	struct event_base *evbase;
@@ -68,7 +69,7 @@ static void help(FILE *stream)
 void error_cb(struct evcpe *cpe,
 		enum evcpe_error_type type, int code, const char *reason, void *cbarg)
 {
-	evcpe_error(__func__, "type: %d, code: %d, reason: %s", type, code, reason);
+	ERROR("type: %d, code: %d, reason: %s", type, code, reason);
 	   shutdown_cpe(code);
 }
 
@@ -113,6 +114,10 @@ int main(int argc, char **argv)
 		exit(EINVAL);
 	}
 
+	if (bootstrap) {
+		//FIXME: notify '0 BOOTSTRAP' Event to ACS
+	}
+
 	if (!repo_model || !repo_data) {
 		help(stderr);
 		rc = EINVAL;
@@ -123,12 +128,12 @@ int main(int argc, char **argv)
 		evcpe_add_logger("stderr", level, EVCPE_LOG_FATAL,
 				NULL, evcpe_file_logger, stdout);
 
-	evcpe_info(__func__, "initializing evcpe");
+	INFO("initializing evcpe");
 
 	mtrace();
 
 	if (!(buffer = evbuffer_new())) {
-		evcpe_error(__func__, "failed to create evbuffer");
+		ERROR("failed to create evbuffer");
 		rc = ENOMEM;
 		goto finally;
 	}
@@ -136,86 +141,86 @@ int main(int argc, char **argv)
 	bzero(&this, sizeof(this));
 
 	if ((rc = load_file(repo_model, buffer))) {
-		evcpe_error(__func__, "failed to load model: %s", repo_model);
+		ERROR("failed to load model: %s", repo_model);
 		goto finally;
 	}
 	if (!(this.cls = evcpe_class_new(NULL))) {
-		evcpe_error(__func__, "failed to create evcpe_class");
+		ERROR("failed to create evcpe_class");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if ((rc = evcpe_class_from_xml(this.cls, buffer))) {
-		evcpe_error(__func__, "failed to parse model: %s", repo_model);
+		ERROR("failed to parse model: %s", repo_model);
 		goto finally;
 	}
 	if (!(this.obj = evcpe_obj_new(this.cls, NULL))) {
-		evcpe_error(__func__, "failed to create root object");
+		ERROR("failed to create root object");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if ((rc = evcpe_obj_init(this.obj))) {
-		evcpe_error(__func__, "failed to init root object");
+		ERROR("failed to init root object");
 		goto finally;
 	}
 	if ((rc = load_file(repo_data, buffer))) {
-		evcpe_error(__func__, "failed to load data: %s", repo_data);
+		ERROR("failed to load data: %s", repo_data);
 		goto finally;
 	}
 	if ((rc = evcpe_obj_from_xml(this.obj, buffer))) {
-		evcpe_error(__func__, "failed to parse data: %s", repo_data);
+		ERROR("failed to parse data: %s", repo_data);
 		goto finally;
 	}
 	if (!(this.repo = evcpe_repo_new(this.obj))) {
-		evcpe_error(__func__, "failed to create repo");
+		ERROR("failed to create repo");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if ((this.evbase = event_init()) == NULL) {
-		evcpe_error(__func__, "failed to init event");
+		ERROR("failed to init event");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if (!(this.persist = evcpe_persister_new(this.evbase))) {
-		evcpe_error(__func__, "failed to create persister");
+		ERROR("failed to create persister");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if ((rc = evcpe_persister_set(this.persist, this.repo, repo_data))) {
-		evcpe_error(__func__, "failed to set persister");
+		ERROR("failed to set persister");
 		goto finally;
 	}
 	if ((rc = evdns_init())) {
-		evcpe_error(__func__, "failed to initialize DNS");
+		ERROR("failed to initialize DNS");
 		goto finally;
 	}
 	if ((this.cpe = evcpe_new(this.evbase,
 			NULL, error_cb, NULL)) == NULL) {
-		evcpe_error(__func__, "failed to create evcpe");
+		ERROR("failed to create evcpe");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if ((rc = evcpe_set(this.cpe, this.repo))) {
-		evcpe_error(__func__, "failed to set evcpe");
+		ERROR("failed to set evcpe");
 		goto finally;
 	}
-	evcpe_info(__func__, "configuring signal action");
+	INFO("configuring signal action");
 	action.sa_handler = sig_handler;
 	sigemptyset (&action.sa_mask);
 	action.sa_flags = 0;
 	if ((rc = sigaction(SIGINT, &action, NULL)) != 0) {
-		evcpe_error(__func__, "failed to configure signal action");
+		ERROR("failed to configure signal action");
 		goto finally;
 	}
 
-	evcpe_info(__func__, "starting evcpe");
+	INFO("starting evcpe");
 	if ((rc = evcpe_start(this.cpe))) {
-		evcpe_error(__func__, "failed to start evcpe");
+		ERROR("failed to start evcpe");
 		goto finally;
 	}
 
-	evcpe_info(__func__, "dispatching event base");
+	INFO("dispatching event base");
 	if ((rc = event_dispatch()) != 0) {
-		evcpe_error(__func__, "failed to dispatch event base");
+		ERROR("failed to dispatch event base");
 		goto finally;
 	}
 
@@ -234,7 +239,7 @@ int load_file(const char *filename, struct evbuffer *buffer)
 		goto finally;
 	}
 	fd = fileno(file);
-	evbuffer_drain(buffer, EVBUFFER_LENGTH(buffer));
+	evbuffer_drain(buffer, evbuffer_get_length(buffer));
 	do {
 		len = evbuffer_read(buffer, fd, -1);
 	} while(len > 0);
@@ -248,14 +253,14 @@ finally:
 
 void sig_handler(int signal)
 {
-	evcpe_info(__func__, "signal caught: %d", signal);
+	INFO("signal caught: %d", signal);
 	if (signal == SIGINT)
 		      shutdown_cpe(0);
 }
 
 int shutdown_cpe(int code)
 {
-	evcpe_info(__func__, "shuting down with code: %d (%s)", code, strerror(code));
+	INFO("shuting down with code: %d (%s)", code, strerror(code));
 	event_base_loopbreak(this.evbase);
 	evcpe_free(this.cpe);
 	evdns_shutdown(0);

@@ -53,7 +53,7 @@ struct evcpe_dns_entry *evcpe_dns_cache_find(struct evcpe_dns_cache *cache,
 void evcpe_dns_cache_remove(struct evcpe_dns_cache *cache,
 		struct evcpe_dns_entry *entry)
 {
-	evcpe_debug(__func__, "removing DNS entry: %s", entry->name);
+	DEBUG("removing DNS entry: %s", entry->name);
 	RB_REMOVE(evcpe_dns_cache, cache, entry);
 	evcpe_dns_entry_free(entry);
 }
@@ -63,15 +63,15 @@ int evcpe_dns_cache_add(struct evcpe_dns_cache *cache,
 {
 	int rc;
 
-	evcpe_debug(__func__, "adding DNS entry: %s", hostname);
+	DEBUG("adding DNS entry: %s", hostname);
 
 	if (!(*entry = calloc(1, sizeof(struct evcpe_dns_entry)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_dns_entry");
+		ERROR("failed to calloc evcpe_dns_entry");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if (!((*entry)->name = strdup(hostname))) {
-		evcpe_error(__func__, "failed to duplicate hostname");
+		ERROR("failed to duplicate hostname");
 		rc = ENOMEM;
 		evcpe_dns_entry_free(*entry);
 		goto finally;
@@ -90,7 +90,7 @@ const char *evcpe_dns_cache_get(struct evcpe_dns_cache *cache,
 
 	if (!cache || !name) return NULL;
 
-	evcpe_debug(__func__, "getting DNS entry: %s", name);
+	DEBUG("getting DNS entry: %s", name);
 
 	if ((entry = evcpe_dns_cache_find(cache, name))) {
 		return entry->address;
@@ -102,7 +102,7 @@ const char *evcpe_dns_cache_get(struct evcpe_dns_cache *cache,
 void evcpe_dns_cache_clear(struct evcpe_dns_cache *cache)
 {
 	struct evcpe_dns_entry *entry;
-	evcpe_debug(__func__, "clearing all DNS entries");
+	DEBUG("clearing all DNS entries");
 	RB_FOREACH(entry, evcpe_dns_cache, cache) {
 		evcpe_dns_cache_remove(cache, entry);
 	}

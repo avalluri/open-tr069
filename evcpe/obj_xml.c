@@ -47,11 +47,11 @@ int evcpe_obj_to_xml(struct evcpe_obj *obj, struct evbuffer *buffer)
 	int rc;
 
 	if ((rc = evcpe_add_buffer(buffer, "<?xml version=\"1.0\"?>\n"))) {
-		evcpe_error(__func__, "failed to append buffer");
+		ERROR("failed to append buffer");
 		goto finally;
 	}
 	if ((rc = evcpe_attr_to_xml(RB_ROOT(&obj->attrs), 0, buffer))) {
-		evcpe_error(__func__, "failed to marshal root attribute");
+		ERROR("failed to marshal root attribute");
 		goto finally;
 	}
 	rc = 0;
@@ -66,22 +66,22 @@ int evcpe_obj_from_xml(struct evcpe_obj *obj, struct evbuffer *buffer)
 	struct evcpe_obj_parser parser;
 	struct evcpe_xml_element *elm;
 
-	evcpe_debug(__func__, "unmarshalling object from XML");
+	DEBUG("unmarshalling object from XML");
 
 	parser.root = obj;
 	parser.xml.data = &parser;
-	parser.xml.xmlstart = (const char *)EVBUFFER_DATA(buffer);
-	parser.xml.xmlsize = EVBUFFER_LENGTH(buffer);
+	parser.xml.xmlstart = (const char *)evbuffer_pullup(buffer, -1);
+	parser.xml.xmlsize = evbuffer_get_length(buffer);
 	parser.xml.starteltfunc = evcpe_obj_xml_elm_begin_cb;
 	parser.xml.endeltfunc = evcpe_obj_xml_elm_end_cb;
 	parser.xml.datafunc = evcpe_obj_xml_data_cb;
 	parser.xml.attfunc = evcpe_obj_xml_attr_cb;
 	SLIST_INIT(&parser.stack);
 	if ((rc = parsexml(&parser.xml))) {
-		evcpe_error(__func__, "failed to parse XML: %d", rc);
+		ERROR("failed to parse XML: %d", rc);
 	}
 	while((elm = evcpe_xml_stack_pop(&parser.stack))) {
-		evcpe_error(__func__, "pending stack: %.*s", elm->len, elm->name);
+		ERROR("pending stack: %.*s", elm->len, elm->name);
 		free(elm);
 	}
 	return rc;
@@ -97,7 +97,7 @@ int evcpe_obj_xml_elm_begin_cb(void *data,
 	struct evcpe_attr *attr;
 	unsigned int index;
 
-	evcpe_trace(__func__, "element begin: %.*s (namespace: %.*s)",
+	TRACE("element begin: %.*s (namespace: %.*s)",
 			len, name, nslen, ns);
 
 	if (len >= sizeof(buffer)) {
@@ -108,7 +108,7 @@ int evcpe_obj_xml_elm_begin_cb(void *data,
 	parent = evcpe_xml_stack_peek(&parser->stack);
 
 	if (!(elm = calloc(1, sizeof(struct evcpe_xml_element)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_soap_element");
+		ERROR("failed to calloc evcpe_soap_element");
 		return ENOMEM;
 	}
 	elm->ns = ns;
@@ -120,7 +120,7 @@ int evcpe_obj_xml_elm_begin_cb(void *data,
 	if (!parent) {
 		obj = parser->root;
 	} else if (!(obj = parent->data)) {
-		evcpe_error(__func__, "no object in parent element: %.*s",
+		ERROR("no object in parent element: %.*s",
 				parent->len, parent->name);
 		rc = -1;
 		goto finally;
@@ -130,14 +130,14 @@ int evcpe_obj_xml_elm_begin_cb(void *data,
 	} else if (!evcpe_strncmp("AccessList", name, len)) {
 	} else if (!evcpe_strncmp("string", name, len)) {
 		if (evcpe_strncmp("AccessList", parent->name, parent->len)) {
-			evcpe_error(__func__, "unexpected parent element: %.*s",
+			ERROR("unexpected parent element: %.*s",
 					parent->len, parent->name);
 			rc = EPROTO;
 			goto finally;
 		}
 	} else {
 		if ((rc = evcpe_obj_get(obj, name, len, &attr))) {
-			evcpe_error(__func__, "failed to get attribute: %.*s", len, name);
+			ERROR("failed to get attribute: %.*s", len, name);
 			goto finally;
 		}
 		switch(attr->schema->type) {
@@ -146,12 +146,12 @@ int evcpe_obj_xml_elm_begin_cb(void *data,
 			break;
 		case EVCPE_TYPE_MULTIPLE:
 			if ((rc = evcpe_attr_add_obj(attr, &obj, &index))) {
-				evcpe_error(__func__, "failed to add object: %.*s", len, name);
+				ERROR("failed to add object: %.*s", len, name);
 				goto finally;
 			}
 			break;
 		default:
-//			evcpe_error(__func__, "attribute is not applicable to "
+//			ERROR("attribute is not applicable to "
 //					"simple type: %s", attr->schema->name);
 //			rc = EPROTO;
 //			goto finally;
@@ -175,12 +175,12 @@ int evcpe_obj_xml_elm_end_cb(void *data,
 
 	if (!(elm = evcpe_xml_stack_pop(&parser->stack))) return -1;
 
-	evcpe_trace(__func__, "element end: %.*s (namespace: %.*s)",
+	TRACE("element end: %.*s (namespace: %.*s)",
 			len, name, nslen, ns);
 
 	if ((nslen && evcpe_strcmp(elm->ns, elm->nslen, ns, nslen)) ||
 			evcpe_strcmp(elm->name, elm->len, name, len)) {
-		evcpe_error(__func__, "element doesn't match start: %.*s:%.*s",
+		ERROR("element doesn't match start: %.*s:%.*s",
 				nslen, ns, len, name);
 		rc = EPROTO;
 		goto finally;
@@ -202,66 +202,66 @@ int evcpe_obj_xml_data_cb(void *data, const char *text, unsigned len)
 	struct evcpe_attr *attr;
 	struct evcpe_access_list_item *item;
 
-	evcpe_trace(__func__, "text: %.*s",	len, text);
+	TRACE("text: %.*s",	len, text);
 
 	if (!(elm = evcpe_xml_stack_peek(&parser->stack))) return -1;
 	if (!(parent = evcpe_xml_stack_up(elm))) {
-		evcpe_error(__func__, "no parent element");
+		ERROR("no parent element");
 		return -1;
 	}
 
 	obj = elm->data;
 	if (!evcpe_strncmp("Value", elm->name, elm->len)) {
 		if ((rc = evcpe_obj_get(obj, parent->name, parent->len, &attr))) {
-			evcpe_error(__func__, "failed to get attribute: %.*s",
+			ERROR("failed to get attribute: %.*s",
 					parent->len, parent->name);
 			goto finally;
 		}
 		if ((rc = evcpe_attr_set(attr, text, len))) {
-			evcpe_error(__func__, "failed to set simple attr: %.*s",
+			ERROR("failed to set simple attr: %.*s",
 					elm->len, elm->name);
 			goto finally;
 		}
 	} else if (!evcpe_strncmp("Notification", elm->name, elm->len)) {
 		if ((rc = evcpe_obj_get(obj, parent->name, parent->len, &attr))) {
-			evcpe_error(__func__, "failed to get attribute: %.*s",
+			ERROR("failed to get attribute: %.*s",
 					parent->len, parent->name);
 			goto finally;
 		}
 		if ((rc = evcpe_atol(text, len, &value))) {
-			evcpe_error(__func__, "failed to convert to integer: %.*s",
+			ERROR("failed to convert to integer: %.*s",
 					len, text);
 			goto finally;
 		}
 		if ((rc = evcpe_attr_set_notification(attr, value))) {
-			evcpe_error(__func__, "failed to set notification: %ld",
+			ERROR("failed to set notification: %ld",
 					value);
 			goto finally;
 		}
 	} else if (!evcpe_strncmp("string", elm->name, elm->len)) {
 		if (!(parent = evcpe_xml_stack_up(parent))) {
-			evcpe_error(__func__, "no parent element");
+			ERROR("no parent element");
 			return -1;
 		}
 		if ((rc = evcpe_obj_get(obj, parent->name, parent->len, &attr))) {
-			evcpe_error(__func__, "failed to get attribute: %.*s",
+			ERROR("failed to get attribute: %.*s",
 					parent->len, parent->name);
 			goto finally;
 		}
 		if ((attr->schema->type == EVCPE_TYPE_OBJECT ||
 				attr->schema->type == EVCPE_TYPE_MULTIPLE)) {
-			evcpe_error(__func__, "not a simple attribute: %s",
+			ERROR("not a simple attribute: %s",
 					attr->schema->name);
 			rc = -1;
 			goto finally;
 		}
 		if ((rc = evcpe_access_list_add(
 				&attr->value.simple.access_list, &item, text, len))) {
-			evcpe_error(__func__, "failed to add access list: %.*s", len, text);
+			ERROR("failed to add access list: %.*s", len, text);
 			goto finally;
 		}
 	} else if (len > 0) {
-		evcpe_error(__func__, "unexpected element with text: %.*s",
+		ERROR("unexpected element with text: %.*s",
 				elm->len, elm->name);
 		rc = EPROTO;
 		goto finally;
@@ -276,6 +276,6 @@ int evcpe_obj_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 		const char *name, unsigned name_len,
 		const char *value, unsigned value_len)
 {
-	evcpe_error(__func__, "XML attribute is not expected");
+	ERROR("XML attribute is not expected");
 	return EPROTO;
 }

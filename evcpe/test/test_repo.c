@@ -63,7 +63,7 @@ static void test_load(const char *filename)
 
 	TEST_ASSERT_NOT_NULL((file = fopen(filename, "r")));
 	fd = fileno(file);
-	evbuffer_drain(buffer, EVBUFFER_LENGTH(buffer));
+	evbuffer_drain(buffer, evbuffer_get_length(buffer));
 	while ((len = evbuffer_read(buffer, fd, -1)));
 	fclose(file);
 }
@@ -462,10 +462,10 @@ static void test_tr098(void)
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_inform(repo, inform));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_del_event(repo, "0 BOOTSTRAP"));
 
-	evbuffer_drain(buffer, EVBUFFER_LENGTH(buffer));
+	evbuffer_drain(buffer, evbuffer_get_length(buffer));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_to_xml(obj, buffer));
 	evcpe_obj_free(obj);
-//	printf("%.*s", EVBUFFER_LENGTH(buffer), EVBUFFER_DATA(buffer));
+//	printf("%.*s", evbuffer_get_length(buffer), evbuffer_pullup(buffer , -1));
 	TEST_ASSERT_NOT_NULL((obj = evcpe_obj_new(cls, NULL)));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_init(obj));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_from_xml(obj, buffer));

@@ -31,10 +31,10 @@ struct evcpe_class *evcpe_class_new(const char *name)
 {
 	struct evcpe_class *class;
 
-	evcpe_trace(__func__, "constructing evcpe_class: %s", name);
+	TRACE("constructing evcpe_class: %s", name);
 
 	if (!(class = calloc(1, sizeof(struct evcpe_class)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_class");
+		ERROR("failed to calloc evcpe_class");
 		return NULL;
 	}
 	class->name = name;
@@ -48,7 +48,7 @@ void evcpe_class_free(struct evcpe_class *class)
 
 	if (!class) return;
 
-	evcpe_trace(__func__, "destructing evcpe_class: %s", class->name);
+	TRACE("destructing evcpe_class: %s", class->name);
 
 	while((schema = TAILQ_FIRST(&class->attrs))) {
 		TAILQ_REMOVE(&class->attrs, schema, entry);
@@ -62,10 +62,10 @@ int evcpe_class_add(struct evcpe_class *class,
 {
 	int rc;
 
-	evcpe_trace(__func__, "adding attribute to class: %s", class->name);
+	TRACE("adding attribute to class: %s", class->name);
 
 	if (!(*schema = calloc(1, sizeof(struct evcpe_attr_schema)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_attr_schema");
+		ERROR("failed to calloc evcpe_attr_schema");
 		rc = ENOMEM;
 		goto finally;
 	}

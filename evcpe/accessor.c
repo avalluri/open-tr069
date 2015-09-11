@@ -31,10 +31,10 @@ int evcpe_get_curtime(struct evcpe_attr *attr,
 	char buf[32];
 	time_t curtime;
 
-	evcpe_debug(__func__, "get current time");
+	DEBUG("get current time");
 	// TODO: timezone
 	if ((curtime = time(NULL)) == ((time_t)-1)) {
-		evcpe_error(__func__, "failed to get time");
+		ERROR("failed to get time");
 		return errno;
 	}
  	*len = strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", localtime(&curtime));
@@ -45,6 +45,6 @@ int evcpe_get_curtime(struct evcpe_attr *attr,
 int evcpe_set_curtime(struct evcpe_attr *attr,
 		const char *buffer, unsigned int len)
 {
-	evcpe_error(__func__, "not implemented");
+	ERROR("not implemented");
 	return -1;
 }

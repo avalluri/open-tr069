@@ -29,7 +29,7 @@ int evcpe_is_ipaddr(const char *address);
 
 int evcpe_add_buffer(struct evbuffer *buffer, const char *fmt, ...) EVCPE_CHKFMT(2,3);
 
-int evcpe_encode_base64(struct evbuffer *buffer, u_char *data, unsigned len);
+int evcpe_encode_base64(struct evbuffer *buffer, uint8_t *data, unsigned len);
 
 int evcpe_strcmp(const char *a, unsigned alen, const char *b, unsigned blen);
 

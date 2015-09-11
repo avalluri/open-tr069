@@ -37,7 +37,7 @@ void evcpe_param_value_list_clear(struct evcpe_param_value_list *list)
 {
 	struct evcpe_param_value *param;
 
-	evcpe_debug(__func__, "clearing evcpe_param_value_list");
+	DEBUG("clearing evcpe_param_value_list");
 
 	while((param = TAILQ_FIRST(&list->head))) {
 		TAILQ_REMOVE(&list->head, param, entry);
@@ -51,7 +51,7 @@ int evcpe_param_value_set(struct evcpe_param_value *param,
 {
 	if (!param) return EINVAL;
 
-	evcpe_debug(__func__, "setting value: %s => %.*s",
+	DEBUG("setting value: %s => %.*s",
 			param->name, len, data);
 	param->data = data;
 	param->len = len;
@@ -72,10 +72,10 @@ int evcpe_param_value_list_add(struct evcpe_param_value_list *list,
 	if (!name || !len) return EINVAL;
 	if (len >= sizeof(param->name)) return EOVERFLOW;
 
-	evcpe_debug(__func__, "adding parameter: %.*s", len, name);
+	DEBUG("adding parameter: %.*s", len, name);
 
 	if (!(param = calloc(1, sizeof(struct evcpe_param_value)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_param_value");
+		ERROR("failed to calloc evcpe_param_value");
 		rc = ENOMEM;
 		goto finally;
 	}

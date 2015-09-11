@@ -36,7 +36,7 @@ void evcpe_set_param_attr_list_clear(struct evcpe_set_param_attr_list *list)
 {
 	struct evcpe_set_param_attr *attr;
 
-	evcpe_debug(__func__, "clearing evcpe_set_param_attr_list");
+	DEBUG("clearing evcpe_set_param_attr_list");
 
 	while((attr = TAILQ_FIRST(&list->head))) {
 		TAILQ_REMOVE(&list->head, attr, entry);

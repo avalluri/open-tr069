@@ -52,7 +52,7 @@ int evcpe_add_buffer(struct evbuffer *buffer, const char *fmt, ...)
 	return rc;
 }
 
-int evcpe_encode_base64(struct evbuffer *buffer, u_char *data, unsigned len)
+int evcpe_encode_base64(struct evbuffer *buffer, uint8_t *data, unsigned len)
 {
 	// TODO
 	return -1;
@@ -68,7 +68,7 @@ int evcpe_strcmp(const char *a, unsigned alen, const char *b, unsigned blen)
 	int result;
 	unsigned len;
 
-//	evcpe_trace(__func__, "comparing \"%.*s\" with \"%.*s\"", alen, a, blen, b);
+//	TRACE("comparing \"%.*s\" with \"%.*s\"", alen, a, blen, b);
 
 	len = alen > blen ? blen : alen;
 	result = strncmp(a, b, len);
@@ -126,7 +126,7 @@ char *evcpe_ltoa(long value)
 int evcpe_strdup(const char *string, unsigned len, char **ptr)
 {
 	if (!(*ptr = malloc(len + 1))) {
-//		evcpe_error(__func__, "failed to malloc: %d", len + 1);
+//		ERROR("failed to malloc: %d", len + 1);
 		return ENOMEM;
 	}
 	memcpy(*ptr, string, len);

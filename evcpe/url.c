@@ -52,10 +52,10 @@ struct evcpe_url *evcpe_url_new(void)
 {
 	struct evcpe_url *url;
 
-	evcpe_debug(__func__, "constructing evcpe_url");
+	DEBUG("constructing evcpe_url");
 
 	if (!(url = calloc(1, sizeof(struct evcpe_url)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_url");
+		ERROR("failed to calloc evcpe_url");
 		return NULL;
 	}
 	return url;
@@ -64,7 +64,7 @@ struct evcpe_url *evcpe_url_new(void)
 void evcpe_url_free(struct evcpe_url *url)
 {
 	if (!url) return;
-	evcpe_debug(__func__, "destructing evcpe_url");
+	DEBUG("destructing evcpe_url");
 	evcpe_url_reset(url);
 	free(url);
 }

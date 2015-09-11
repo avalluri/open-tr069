@@ -29,7 +29,7 @@ struct evcpe_set_param_attrs *evcpe_set_param_attrs_new(void)
 	struct evcpe_set_param_attrs *method;
 
 	if (!(method = calloc(1, sizeof(struct evcpe_set_param_attrs)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_set_param_attrs");
+		ERROR("failed to calloc evcpe_set_param_attrs");
 		return NULL;
 	}
 	evcpe_set_param_attr_list_init(&method->parameter_list);

@@ -28,7 +28,7 @@ int evcpe_get_param_names_response_to_xml(
 		struct evbuffer *buffer)
 {
 	int rc;
-	evcpe_debug(__func__, "marshaling evcpe_get_param_names_response");
+	DEBUG("marshaling evcpe_get_param_names_response");
 	if ((rc = evcpe_param_info_list_to_xml(&method->parameter_list,
 			"ParameterList", buffer)))
 		goto finally;

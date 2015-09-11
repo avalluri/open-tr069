@@ -36,7 +36,7 @@ void evcpe_access_list_clear(struct evcpe_access_list *list)
 {
 	struct evcpe_access_list_item *item;
 
-	evcpe_trace(__func__, "clearing evcpe_access_list");
+	TRACE("clearing evcpe_access_list");
 
 	while((item = TAILQ_FIRST(&list->head))) {
 		TAILQ_REMOVE(&list->head, item, entry);
@@ -50,12 +50,12 @@ int evcpe_access_list_clone(struct evcpe_access_list *src,
 	int rc;
 	struct evcpe_access_list_item *src_item, *dst_item;
 
-	evcpe_debug(__func__, "cloning evcpe_access_list");
+	DEBUG("cloning evcpe_access_list");
 
 	TAILQ_FOREACH(src_item, &src->head, entry) {
 		if ((rc = evcpe_access_list_add(dst, &dst_item,
 				src_item->entity, strlen(src_item->entity)))) {
-			evcpe_error(__func__, "failed to add entity to destination list");
+			ERROR("failed to add entity to destination list");
 			goto finally;
 		}
 	}
@@ -75,7 +75,7 @@ int evcpe_access_list_add(struct evcpe_access_list *list,
 {
 	if (len >= sizeof((*item)->entity)) return EOVERFLOW;
 
-	evcpe_trace(__func__, "adding entity: %.*s", len, entity);
+	TRACE("adding entity: %.*s", len, entity);
 
 	if (!((*item) = calloc(1, sizeof(struct evcpe_access_list_item)))) {
 		return ENOMEM;

@@ -51,7 +51,7 @@ const char *evcpe_msg_type_to_str(enum evcpe_msg_type type)
 void evcpe_msg_queue_clear(struct evcpe_msg_queue *queue)
 {
 	struct evcpe_msg *msg;
-	evcpe_debug(__func__, "clearing evcpe_msg_queue");
+	DEBUG("clearing evcpe_msg_queue");
 	while ((msg = TAILQ_FIRST(queue))) {
 		TAILQ_REMOVE(queue, msg, entry);
 		evcpe_msg_free(msg);
@@ -62,10 +62,10 @@ struct evcpe_msg *evcpe_msg_new(void)
 {
 	struct evcpe_msg *msg;
 
-	evcpe_debug(__func__, "constructing evcpe_msg");
+	DEBUG("constructing evcpe_msg");
 
 	if (!(msg = calloc(1, sizeof(struct evcpe_msg)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_msg");
+		ERROR("failed to calloc evcpe_msg");
 		return NULL;
 	}
 	msg->major = 1;
@@ -77,7 +77,7 @@ void evcpe_msg_free(struct evcpe_msg *msg)
 {
 	if (!msg) return;
 
-	evcpe_debug(__func__, "destructing evcpe_msg");
+	DEBUG("destructing evcpe_msg");
 
 	if (msg->data) {
 		switch(msg->type) {
@@ -113,7 +113,7 @@ void evcpe_msg_free(struct evcpe_msg *msg)
 				evcpe_inform_free(msg->data);
 				break;
 			default:
-				evcpe_error(__func__, "unexpected request type: %d",
+				ERROR("unexpected request type: %d",
 						msg->method_type);
 			}
 			break;
@@ -138,7 +138,7 @@ void evcpe_msg_free(struct evcpe_msg *msg)
 				evcpe_inform_response_free(msg->data);
 				break;
 			default:
-				evcpe_error(__func__, "unexpected response type: %d",
+				ERROR("unexpected response type: %d",
 						msg->method_type);
 			}
 			break;
@@ -146,7 +146,7 @@ void evcpe_msg_free(struct evcpe_msg *msg)
 			evcpe_fault_free(msg->data);
 			break;
 		default:
-			evcpe_error(__func__, "unexpected message type: %d",
+			ERROR("unexpected message type: %d",
 					msg->type);
 		}
 	}

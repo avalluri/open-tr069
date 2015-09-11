@@ -39,14 +39,14 @@ struct evcpe_persister *evcpe_persister_new(struct event_base *evbase)
 {
 	struct evcpe_persister *persist;
 
-	evcpe_debug(__func__, "constructing evcpe_persister");
+	DEBUG("constructing evcpe_persister");
 
 	if (!(persist = calloc(1, sizeof(struct evcpe_persister)))) {
-		evcpe_error(__func__, "failed to calloc evcpe_persister");
+		ERROR("failed to calloc evcpe_persister");
 		return NULL;
 	}
 	if (!(persist->buffer = evbuffer_new())) {
-		evcpe_error(__func__, "failed to create evbuffer");
+		ERROR("failed to create evbuffer");
 		free(persist);
 		return NULL;
 	}
@@ -59,7 +59,7 @@ void evcpe_persister_free(struct evcpe_persister *persist)
 {
 	if (!persist) return;
 
-	evcpe_debug(__func__, "destructing evcpe_persister");
+	DEBUG("destructing evcpe_persister");
 
 	if (event_initialized(&persist->timer_ev) && evtimer_pending(
 			&persist->timer_ev, NULL)) {
@@ -69,7 +69,7 @@ void evcpe_persister_free(struct evcpe_persister *persist)
 			&persist->timer_ev, NULL)) {
 		event_del(&persist->timer_ev);
 	    if (evcpe_persister_persist(persist))
-		    evcpe_error(__func__, "failed to write buffer");
+		    ERROR("failed to write buffer");
 	}
 	if (persist->buffer)
 	  evbuffer_free(persist->buffer);
@@ -82,10 +82,10 @@ int evcpe_persister_set(struct evcpe_persister *persist,
 {
 	int rc;
 
-	evcpe_debug(__func__, "setting persisting target: %s", filename);
+	DEBUG("setting persisting target: %s", filename);
 
 	if ((rc = evcpe_repo_listen(repo, evcpe_persister_listen_cb, persist))) {
-		evcpe_error(__func__, "failed to listen repo");
+		ERROR("failed to listen repo");
 		goto finally;
 	}
 	persist->repo = repo;
@@ -102,18 +102,18 @@ void evcpe_persister_listen_cb(struct evcpe_repo *repo,
 	int rc;
 	struct evcpe_persister *persist = cbarg;
 
-	evcpe_debug(__func__, "kicking persister");
+	DEBUG("kicking persister");
 
 	if (!event_initialized(&persist->timer_ev)) {
 		evtimer_set(&persist->timer_ev, evcpe_persister_timer_cb, persist);
 		if ((rc = event_base_set(persist->evbase, &persist->timer_ev))) {
-			evcpe_error(__func__, "failed to set event base");
+			ERROR("failed to set event base");
 			goto finally;
 		}
 	}
 	if (!evtimer_pending(&persist->timer_ev, NULL)) {
 		if ((rc = event_add(&persist->timer_ev, &persist->timer_tv))) {
-			evcpe_error(__func__, "failed to add timer event");
+			ERROR("failed to add timer event");
 			goto finally;
 		}
 	}
@@ -128,12 +128,12 @@ int evcpe_persister_write(struct evcpe_persister *persist)
 {
 	int rc;
 
-	evcpe_debug(__func__, "writing data in buffer");
+	DEBUG("writing data in buffer");
 
-	if (EVBUFFER_LENGTH(persist->buffer) > persist->written) {
+	if (evbuffer_get_length(persist->buffer) > persist->written) {
 	    if ((rc = write(persist->fd,
-	    		EVBUFFER_DATA(persist->buffer) + persist->written,
-	    		EVBUFFER_LENGTH(persist->buffer) - persist->written)) == -1) {
+	    		evbuffer_pullup(persist->buffer) + persist->written,
+	    		evbuffer_get_length(persist->buffer) - persist->written)) == -1) {
 		    if (errno == EAGAIN || errno == EINTR || errno == EINPROGRESS)
 			    goto reschedule;
 		    else
@@ -143,13 +143,13 @@ int evcpe_persister_write(struct evcpe_persister *persist)
 	}
 
 reschedule:
-	if (EVBUFFER_LENGTH(persist->buffer) > persist->written) {
+	if (evbuffer_get_length(persist->buffer) > persist->written) {
 			if ((rc = event_add(&persist->write_ev, NULL))) {
-				evcpe_error(__func__, "failed to add write event");
+				ERROR("failed to add write event");
 				goto finally;
 			}
 	} else {
-		evbuffer_drain(persist->buffer, EVBUFFER_LENGTH(persist->buffer));
+		evbuffer_drain(persist->buffer, evbuffer_get_length(persist->buffer));
 		close(persist->fd);
 	}
 	rc = 0;
@@ -164,24 +164,24 @@ int evcpe_persister_persist(struct evcpe_persister *persist)
 	int rc, fd;
 	FILE *fp;
 
-	evcpe_debug(__func__, "persisting repository");
+	DEBUG("persisting repository");
 
 	if (!(fp = fopen(persist->filename, "w+"))) {
-		evcpe_error(__func__, "failed to open file to write: %s", persist->filename);
+		ERROR("failed to open file to write: %s", persist->filename);
 		rc = errno ? errno : -1;
 		goto finally;
 	}
 	fd = fileno(fp);
-	evbuffer_drain(persist->buffer, EVBUFFER_LENGTH(persist->buffer));
+	evbuffer_drain(persist->buffer, evbuffer_get_length(persist->buffer));
 	if ((rc = evcpe_obj_to_xml(persist->repo->root, persist->buffer))) {
-		evcpe_error(__func__, "failed to marshal root object");
+		ERROR("failed to marshal root object");
 		goto finally;
 	}
-	evcpe_debug(__func__, "%.*s", EVBUFFER_LENGTH(persist->buffer),
-			EVBUFFER_DATA(persist->buffer));
-    while (EVBUFFER_LENGTH(persist->buffer)) {
+	DEBUG("%.*s", (int)evbuffer_get_length(persist->buffer),
+			evbuffer_pullup(persist->buffer ,-1));
+    while (evbuffer_get_length(persist->buffer)) {
     	if (evbuffer_write(persist->buffer, fd) < 0) {
-			evcpe_error(__func__, "failed to write buffer");
+			ERROR("failed to write buffer");
 			rc = errno ? errno : -1;
 			goto finally;
     	}
@@ -197,20 +197,20 @@ void evcpe_persister_timer_cb(int fd, short event, void *arg)
 {
 	struct evcpe_persister *persist = arg;
 
-	evcpe_debug(__func__, "starting timer callback");
+	DEBUG("starting timer callback");
 
 	if (evcpe_persister_persist(persist))
-		evcpe_error(__func__, "failed to persist");
+		ERROR("failed to persist");
 }
 #if 0
 void evcpe_persister_write_cb(int fd, short event, void *arg)
 {
 	struct evcpe_persister *persist = arg;
 
-	evcpe_debug(__func__, "starting write callback");
+	DEBUG("starting write callback");
 
 	if (evcpe_persister_write(persist)) {
-		evcpe_error(__func__, "failed to write buffer");
+		ERROR("failed to write buffer");
 		close(persist->fd);
 		return;
 	}

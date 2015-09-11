@@ -27,7 +27,7 @@ int evcpe_fault_to_xml(struct evcpe_fault *fault, struct evbuffer *buffer)
 {
 	int rc;
 
-	evcpe_debug(__func__, "marshaling fault");
+	DEBUG("marshaling fault");
 
 	if ((rc = evcpe_xml_add_int(buffer, "FaultCode", fault->code)))
 		goto finally;

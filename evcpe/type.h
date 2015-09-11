@@ -26,18 +26,38 @@
 #include "constraint.h"
 
 enum evcpe_type {
-	EVCPE_TYPE_UNKNOWN,
 	EVCPE_TYPE_OBJECT,
 	EVCPE_TYPE_MULTIPLE,
 	EVCPE_TYPE_STRING,
 	EVCPE_TYPE_INT,
 	EVCPE_TYPE_UNSIGNED_INT,
+	EVCPE_TYPE_UNSIGNED_LONG,
 	EVCPE_TYPE_BOOLEAN,
 	EVCPE_TYPE_DATETIME,
-	EVCPE_TYPE_BASE64
+	EVCPE_TYPE_BASE64,
+
+	/* TR-069 Data Model Data Types */
+
+	EVCPE_TYPE_ALIAS,                     // string(64)
+	EVCEP_TYPE_DBM_1000,                  // int
+	EVCPE_TYPE_IEEE_EUI64,                // string(23)
+	EVCPE_TYPE_IP_ADDRESS,                // string(45)
+	EVCPE_TYPE_IP_PREFIX,                 // string(49)
+	EVCPE_TYPE_IP_V4_ADDRESS,             // IPAddress(15)
+	EVCPE_TYPE_IP_V4_PREFIX,              // IPPrefix(18)
+	EVCPE_TYPE_IP_V6_ADDRESS,             // IPAddress
+	EVCEP_TYPE_IP_V6_PREFIX,              // IPPrefix
+	EVCPE_TYPE_MAC_ADDRESS,               // string(17)
+	EVCPE_TYPE_STATS_COUNTER_32,          // unsignedInt
+	EVCPE_TYPE_STATS_COUNTER_64,          // unsignedLong
+	EVCPE_TYPE_UUID,                      // string(36:36)
+	EVCPE_TYPE_ZIG_BEE_NETWORK_ADDRESS,   // string(4)
+	EVCPE_TYPE_UNKNOWN
 };
 
 const char *evcpe_type_to_str(enum evcpe_type type);
+
+enum evcpe_type evcpe_type_from_str(const char *type_string, unsigned len);
 
 int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 		struct evcpe_constraint *cons);

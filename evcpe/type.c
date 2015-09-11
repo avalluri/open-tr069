@@ -28,8 +28,45 @@
 
 #include "type.h"
 
+#ifdef __cplusplus__
+extern "C" {
+#endif
+
+const char *types[] = {
+  [EVCPE_TYPE_OBJECT] = "object",
+  [EVCPE_TYPE_MULTIPLE] = "multipleObject",
+  [EVCPE_TYPE_STRING] = "string",
+  [EVCPE_TYPE_INT] = "int",
+  [EVCPE_TYPE_UNSIGNED_INT] = "unsignedInt",
+  [EVCPE_TYPE_UNSIGNED_INT] = "unsignedLong",
+  [EVCPE_TYPE_BOOLEAN] = "boolean",
+  [EVCPE_TYPE_DATETIME] = "dataTime",
+  [EVCPE_TYPE_BASE64] = "base64",
+
+  [EVCPE_TYPE_ALIAS] = "Alias",
+  [EVCEP_TYPE_DBM_1000] = "Dbm1000",
+  [EVCPE_TYPE_IEEE_EUI64] = "IEEE_EUI64",
+  [EVCPE_TYPE_IP_ADDRESS] = "IPAddress",
+  [EVCPE_TYPE_IP_PREFIX] = "IPPrefix",
+  [EVCPE_TYPE_IP_V4_ADDRESS] = "IPv4Address",
+  [EVCPE_TYPE_IP_V4_PREFIX] = "IPv4Prefix",
+  [EVCPE_TYPE_IP_V6_ADDRESS] = "IPv6Address",
+  [EVCEP_TYPE_IP_V6_PREFIX] = "IPv6Prefix",
+  [EVCPE_TYPE_MAC_ADDRESS] = "MACAddress",
+  [EVCPE_TYPE_STATS_COUNTER_32] = "StatsCounter32",
+  [EVCPE_TYPE_STATS_COUNTER_64] = "StatsCounter64",
+  [EVCPE_TYPE_UUID] = "UUID",
+  [EVCPE_TYPE_ZIG_BEE_NETWORK_ADDRESS] = "ZigBeeNetworkAddress"
+};
+
+#ifdef __cplusplus__
+}
+#endif
+
 const char *evcpe_type_to_str(enum evcpe_type type)
 {
+  return types[type];
+  /*
 	switch (type) {
 	case EVCPE_TYPE_OBJECT:
 		return "object";
@@ -51,6 +88,19 @@ const char *evcpe_type_to_str(enum evcpe_type type)
 	default:
 		return "unknown";
 	}
+  */
+}
+
+enum evcpe_type evcpe_type_from_str(const char *type_str, unsigned len)
+{
+  int i = 0;
+  for(i = 0; i < EVCPE_TYPE_UNKNOWN; i++) {
+		if (!evcpe_strncmp(types[i], type_str, len)) {
+      return (enum evcpe_type)i;
+    }
+  }
+
+  return EVCPE_TYPE_UNKNOWN;
 }
 
 int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,

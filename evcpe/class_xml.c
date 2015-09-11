@@ -548,6 +548,12 @@ int evcpe_class_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 			rc = -1;
 			goto finally;
 		}
+	} else if(!evcpe_strncmp("description", name, name_len)) {
+        	// ignore descriotion
+	}else if(!evcpe_strncmp("status", name, name_len)){
+    if (!evcpe_strncmp("deprecated", elm->name, elm->len)) {
+      evcpe_warn(__func__, "Deprecated parameter: %.*s", elm->len, elm->name);
+		}
 	} else {
 		evcpe_error(__func__, "unexpected attribute: %.*s",
 				name_len, name);

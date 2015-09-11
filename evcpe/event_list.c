@@ -26,6 +26,26 @@
 
 #include "data.h"
 
+const char *evcpe_event_code_type_to_str(enum evcpe_event_code_type type) {
+  switch(type) {
+    case EVCPE_EVENT_0_BOOTSTRAP: return "0 BOOTSTRAP";
+    case EVCPE_EVENT_1_BOOT: return "1 BOOT";
+    case EVCPE_EVENT_2_PERIODIC: return "2 PERIODIC";
+    case EVCPE_EVENT_3_SCHEDULED: return "3 SCHEDULED";
+    case EVCPE_EVENT_4_VALUE_CHANGE: return "4 VALUE CHANGE";
+    case EVCPE_EVENT_5_KICKED: return "5 KICKED";
+    case EVCPE_EVENT_6_CONNECTION_REQUEST: return "6 CONNECTION REQUEST";
+    case EVCPE_EVENT_7_TRANSFER_COMPLETE: return "7 TRANSFER COMPLETE";
+    case EVCPE_EVENT_8_DIAGNOSTICS_COMPLETE: return "8 DIAGNOSTICS COMPLETE";
+    case EVCPE_EVENT_9_REQUEST_DOWNLOAD: return "9 REQUEST DOWNLOAD";
+    case EVCPE_EVENT_10_AUTONOMOUS_TRANSFER_COMPLETE: return "10 AUTONOMOUS TRANSFER COMPLETE";
+    case EVCPE_EVENT_11_DU_STATE_CHANGE_COMPLETE: return "11 DU STATE CHANGE COMPLETE";
+    case EVCPE_EVENT_12_AUTONOMOUS_DU_STATE_CHANGE_COMPLETE: return "12 AUTONOMOUS DU STATE CHANGE COMPLETE";
+    case EVCPE_EVENT_13_WAKEUP: return "13 WAKEUP";
+    default: return NULL;
+  }
+}
+
 static struct evcpe_event *evcpe_event_list_find(
 		struct evcpe_event_list *list, const char *event_code);
 

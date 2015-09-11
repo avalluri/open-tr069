@@ -33,7 +33,26 @@ struct evcpe_device_id {
 	char serial_number[65];
 };
 
+enum evcpe_event_code_type {
+  EVCPE_EVENT_0_BOOTSTRAP,
+  EVCPE_EVENT_1_BOOT,
+  EVCPE_EVENT_2_PERIODIC,
+  EVCPE_EVENT_3_SCHEDULED,
+  EVCPE_EVENT_4_VALUE_CHANGE,
+  EVCPE_EVENT_5_KICKED,
+  EVCPE_EVENT_6_CONNECTION_REQUEST,
+  EVCPE_EVENT_7_TRANSFER_COMPLETE,
+  EVCPE_EVENT_8_DIAGNOSTICS_COMPLETE,
+  EVCPE_EVENT_9_REQUEST_DOWNLOAD,
+  EVCPE_EVENT_10_AUTONOMOUS_TRANSFER_COMPLETE,
+  EVCPE_EVENT_11_DU_STATE_CHANGE_COMPLETE,
+  EVCPE_EVENT_12_AUTONOMOUS_DU_STATE_CHANGE_COMPLETE,
+  EVCPE_EVENT_13_WAKEUP,
+  EVCPE_EVENT_MAX,
+};
+
 struct evcpe_event {
+  enum evcpe_event_code_type event_code_type;
 	char event_code[65];
 	char command_key[33];
 	TAILQ_ENTRY(evcpe_event) entry;
@@ -45,6 +64,8 @@ struct evcpe_event_list {
 	struct evcpe_event_head head;
 	unsigned int size;
 };
+
+const char *evcpe_event_code_type_to_str(enum evcpe_event_code_type type);
 
 inline void evcpe_event_list_init(struct evcpe_event_list *list);
 

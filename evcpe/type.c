@@ -70,9 +70,18 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 	case EVCPE_TYPE_BASE64:
 		// TODO
 		break;
+	case EVCPE_TYPE_BOOLEAN:
+    if(!evcpe_strncmp("true", value, len) && 
+       !evcpe_strncmp("false", value, len) &&
+       !evcpe_strncmp("0", value, len) &&
+       !evcpe_strncmp("1", value, len)) {
+       evcpe_error(__func__, "invalid boolean value: %.*s,"
+        "valid boolean values are 'true, false, 0 or 1'", len, value);
+      goto finally;
+    }
+    break;
 	case EVCPE_TYPE_INT:
 	case EVCPE_TYPE_UNSIGNED_INT:
-	case EVCPE_TYPE_BOOLEAN:
 		if ((rc = evcpe_atol(value, len, &val))) {
 			evcpe_error(__func__, "failed to convert to "
 					"integer: %.*s", len, value);
@@ -83,13 +92,16 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 				evcpe_error(__func__, "not a positive integer: %ld", val);
 				goto finally;
 			}
-		} else if(type == EVCPE_TYPE_BOOLEAN) {
+		}
+    #if 0
+    else if(type == EVCPE_TYPE_BOOLEAN) {
 			if (val != 0 && val != 1) {
 				evcpe_error(__func__, "boolean value should be "
 						"either 0 or 1: %ld", val);
 				goto finally;
 			}
 		}
+    #endif
 		switch(cons->type) {
 		case EVCPE_CONSTRAINT_NONE:
 			break;

@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <InternetGatewayDevice>
-    <Event>
-        <EventCode><Value>1 BOOT</Value></EventCode>
-        <CommandKey><Value></Value></CommandKey>
-    </Event>
     <DeviceSummary><Value></Value><Notification>1</Notification><AccessList><string>Subscriber</string></AccessList></DeviceSummary>
     <LANDeviceNumberOfEntries><Value>1</Value></LANDeviceNumberOfEntries>
     <WANDeviceNumberOfEntries><Value>1</Value></WANDeviceNumberOfEntries>
+    <Capabilities>
+        <PerformanceDiagnostic>
+        </PerformanceDiagnostic>
+    </Capabilities>
     <DeviceInfo>
         <Manufacturer><Value>Foobar Inc.</Value></Manufacturer>
         <ManufacturerOUI><Value>147AD2</Value></ManufacturerOUI>
@@ -27,39 +27,82 @@
             <Version><Value>ConfigFileVersion2</Value></Version>
             <Description><Value>ConfigFileDescription2</Value></Description>
         </VendorConfigFile>
+        <MemoryStatus>
+        </MemoryStatus>
+        <ProcessStatus>
+            <ProcessNumberOfEntries><Value>0</Value></ProcessNumberOfEntries>
+        </ProcessStatus>
+        <TemperatureStatus>
+            <TemperatureSensorNumberOfEntries><Value>0</Value></TemperatureSensorNumberOfEntries>
+        </TemperatureStatus>
+        <NetworkProperties>
+        </NetworkProperties>
+        <SupportedDataModelNumberOfEntries><Value>0</Value></SupportedDataModelNumberOfEntries>
+        <ProcessorNumberOfEntries><Value>0</Value></ProcessorNumberOfEntries>
+        <VendorLogFileNumberOfEntries><Value>0</Value></VendorLogFileNumberOfEntries>
+        <ProxierInfo>
+        </ProxierInfo>
+        <LocationNumberOfEntries><Value>0</Value></LocationNumberOfEntries>
     </DeviceInfo>
     <DeviceConfig>
         <PersistentData><Value>Test</Value></PersistentData>
         <ConfigFile><Value>Test</Value></ConfigFile>
     </DeviceConfig>
     <ManagementServer>
-        <URL><Value>http://gs-oacs.gatespace.net/tr69/tr69.cgi</Value></URL>
+        <URL><Value>http://localhost:7547/tr69/tr69.cgi</Value></URL>
         <Timeout><Value>10</Value></Timeout>
-        <Username><Value>testuser</Value></Username>
-        <Password><Value>testpassword</Value></Password>
+        <Username><Value></Value></Username>
+        <Password><Value></Value></Password>
         <PeriodicInformEnable><Value>1</Value></PeriodicInformEnable>
         <PeriodicInformInterval><Value>60</Value></PeriodicInformInterval>
         <PeriodicInformTime><Value>0001-01-01T00:00:00</Value></PeriodicInformTime>
         <ParameterKey><Value></Value></ParameterKey>
-        <ConnectionRequestURL><Value>http://59.116.70.1:7547/cwmp/creq</Value></ConnectionRequestURL>
+        <ConnectionRequestURL><Value>http://localhost:7548/cwmp/creq</Value></ConnectionRequestURL>
         <ConnectionRequestUsername><Value>testuser</Value></ConnectionRequestUsername>
         <ConnectionRequestPassword><Value>testpassword</Value></ConnectionRequestPassword>
         <ConnectionRequestInterval><Value>10</Value></ConnectionRequestInterval>
         <UpgradesManaged><Value>0</Value></UpgradesManaged>
-        <KickURL><Value>http://59.116.70.1:7547/cwmp/kick</Value></KickURL>
-        <DownloadProgressURL><Value>http://59.116.70.1:7547/cwmp/dlstat</Value></DownloadProgressURL>
+        <STUNServerPort><Value>3478</Value></STUNServerPort>
+        <AutoCreateInstances><Value>false</Value></AutoCreateInstances>
+        <ManageableDeviceNumbeOfEntries><Value>0</Value></ManageableDeviceNumbeOfEntries>
+        <EmbeddedDeviceNumberOfEntries><Value>0</Value></EmbeddedDeviceNumberOfEntries>
+        <VirtualDeviceNumberOfEntries><Value>0</Value></VirtualDeviceNumberOfEntries>
+        <HTTPCompression><Value>Disabled</Value></HTTPCompression>
+        <InformParameterNumberOfEntries><Value>0</Value></InformParameterNumberOfEntries>
+        <AutonomousTransferCompletePolicy>
+        </AutonomousTransferCompletePolicy>
+        <DUStateChangeComplPolicy>
+        </DUStateChangeComplPolicy>
+        <StandbyPolicy>
+            <CRUnawarenessMaxDuration><Value>-1</Value></CRUnawarenessMaxDuration>
+            <MaxMissedPeriodic><Value>-1</Value></MaxMissedPeriodic>
+            <NotifyMissedScheduled><Value>0</Value></NotifyMissedScheduled>
+            <CRAwarenessRequested><Value>0</Value></CRAwarenessRequested>
+            <PeriodicAwarenessRequested><Value>0</Value></PeriodicAwarenessRequested>
+            <ScheduledAwarenessRequested><Value>0</Value></ScheduledAwarenessRequested>
+        </StandbyPolicy>
         <Authentication><Value>BASIC</Value></Authentication>
     </ManagementServer>
     <Time>
     </Time>
     <UserInterface>
+        <RemoteAccess>
+        </RemoteAccess>
+        <LocalDisplay>
+        </LocalDisplay>
     </UserInterface>
+    <CapitvePortal>
+    </CapitvePortal>
     <Layer3Forwarding>
         <ForwardNumberOfEntries><Value>2</Value></ForwardNumberOfEntries>
         <Forwarding>
+            <Status><Value>Disabled</Value></Status>
+            <StaticRoute><Value>1</Value></StaticRoute>
             <ForwardingPolicy><Value>-1</Value></ForwardingPolicy>
         </Forwarding>
         <Forwarding>
+            <Status><Value>Disabled</Value></Status>
+            <StaticRoute><Value>1</Value></StaticRoute>
             <ForwardingPolicy><Value>-1</Value></ForwardingPolicy>
         </Forwarding>
     </Layer3Forwarding>
@@ -69,4 +112,51 @@
         <MarkingNumberOfEntries><Value>0</Value></MarkingNumberOfEntries>
         <AvailableInterfaceNumberOfEntries><Value>0</Value></AvailableInterfaceNumberOfEntries>
     </Layer2Bridging>
+    <QueueManagement>
+        <ClassificationNumberOfEntries><Value>0</Value></ClassificationNumberOfEntries>
+        <AppNumberOfEntries><Value>0</Value></AppNumberOfEntries>
+        <FlowNumberOfEntries><Value>0</Value></FlowNumberOfEntries>
+        <PolicerNumberOfEntries><Value>0</Value></PolicerNumberOfEntries>
+        <QueueNumberOfEntries><Value>0</Value></QueueNumberOfEntries>
+        <QueueStatsNumberOfEntries><Value>0</Value></QueueStatsNumberOfEntries>
+    </QueueManagement>
+    <LANConfigSecurity>
+    </LANConfigSecurity>
+    <IPPingDiagnostics>
+    </IPPingDiagnostics>
+    <TraceRouteDiagnostics>
+        <RouteHopsNumberOfEntries><Value>0</Value></RouteHopsNumberOfEntries>
+    </TraceRouteDiagnostics>
+    <DownloadDiagnostics>
+    </DownloadDiagnostics>
+    <UploadDiagnostics>
+    </UploadDiagnostics>
+    <UDPEchoConfig>
+    </UDPEchoConfig>
+    <LANInterface>
+        <LANEthernetInterfaceNumberOfEntries><Value>0</Value></LANEthernetInterfaceNumberOfEntries>
+        <LANUSBInterfaceNumberOfEntries><Value>0</Value></LANUSBInterfaceNumberOfEntries>
+        <LANWLANInterfaceNumberOfEntries><Value>0</Value></LANWLANInterfaceNumberOfEntries>
+    </LANInterface>
+    <UPnP>
+        <Device>
+            <Capabilities>
+            </Capabilities>
+        </Device>
+        <Discovery>
+            <RootDeviceNumberOfEntries><Value>0</Value></RootDeviceNumberOfEntries>
+            <DeviceNumberOfEntries><Value>0</Value></DeviceNumberOfEntries>
+            <ServiceNumberOfEntries><Value>0</Value></ServiceNumberOfEntries>
+        </Discovery>
+        <Description>
+            <DeviceDescriptionNumberOfEntries><Value>0</Value></DeviceDescriptionNumberOfEntries>
+            <DeviceInstanceNumberOfEntries><Value>0</Value></DeviceInstanceNumberOfEntries>
+            <ServiceInstanceNumberOfEntries><Value>0</Value></ServiceInstanceNumberOfEntries>
+        </Description>
+    </UPnP>
+    <SoftwareModules>
+        <ExecEnvNumberOfEntries><Value>0</Value></ExecEnvNumberOfEntries>
+        <DeploymentUnitNumberOfEntries><Value>0</Value></DeploymentUnitNumberOfEntries>
+        <ExecutionUnitNumberofEntries><Value>0</Value></ExecutionUnitNumberofEntries>
+    </SoftwareModules>
 </InternetGatewayDevice>

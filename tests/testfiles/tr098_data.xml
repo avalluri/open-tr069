@@ -1,5 +1,17 @@
 <?xml version="1.0"?>
 <InternetGatewayDevice>
+    <Event>
+        <EventCode><Value>1 BOOT</Value></EventCode>
+        <CommandKey><Value></Value></CommandKey>
+    </Event>
+    <Event>
+        <EventCode><Value>1 BOOT</Value></EventCode>
+        <CommandKey><Value></Value></CommandKey>
+    </Event>
+    <Event>
+        <EventCode><Value>1 BOOT</Value></EventCode>
+        <CommandKey><Value></Value></CommandKey>
+    </Event>
     <DeviceSummary><Value></Value><Notification>1</Notification><AccessList><string>Subscriber</string></AccessList></DeviceSummary>
     <LANDeviceNumberOfEntries><Value>1</Value></LANDeviceNumberOfEntries>
     <WANDeviceNumberOfEntries><Value>1</Value></WANDeviceNumberOfEntries>

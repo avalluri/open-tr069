@@ -27,6 +27,6 @@ TestRunner.o: TestRunner.h TestResult.h TestListener.h Test.h stdImpl.h config.h
 TestSuite.o: TestSuite.h TestResult.h TestListener.h Test.h
 
 clean:
-	-$(RM) $(OBJS) $(TARGET)
+	-$(RM) $(OBJS) $(OUTPUT)$(TARGET)
 
 .PHONY: clean all

@@ -38,8 +38,7 @@ SLIST_HEAD(evcpe_xml_stack, evcpe_xml_element);
 void evcpe_xml_stack_put(struct evcpe_xml_stack *stack,
 		struct evcpe_xml_element *elm);
 
-struct evcpe_xml_element *evcpe_xml_stack_peek(
-		struct evcpe_xml_stack *stack);
+struct evcpe_xml_element *evcpe_xml_stack_peek(struct evcpe_xml_stack *stack);
 
 struct evcpe_xml_element *evcpe_xml_stack_pop(struct evcpe_xml_stack *stack);
 

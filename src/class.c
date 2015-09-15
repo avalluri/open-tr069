@@ -29,7 +29,7 @@
 
 struct evcpe_class *evcpe_class_new(const char *name)
 {
-	struct evcpe_class *class;
+	struct evcpe_class *class = NULL;
 
 	TRACE("constructing evcpe_class: %s", name);
 
@@ -57,34 +57,29 @@ void evcpe_class_free(struct evcpe_class *class)
 	free(class);
 }
 
-int evcpe_class_add(struct evcpe_class *class,
+int evcpe_class_add_new_schema(struct evcpe_class *class,
 		struct evcpe_attr_schema **schema)
 {
-	int rc;
-
 	TRACE("adding attribute to class: %s", class->name);
 
-	if (!(*schema = calloc(1, sizeof(struct evcpe_attr_schema)))) {
-		ERROR("failed to calloc evcpe_attr_schema");
-		rc = ENOMEM;
-		goto finally;
-	}
-	(*schema)->owner = class;
-	TAILQ_INSERT_TAIL(&class->attrs, *schema, entry);
-	rc = 0;
+	if (!(*schema = evcpe_attr_schema_new(class))) return ENOMEM;
 
-finally:
-	return rc;
+	TAILQ_INSERT_TAIL(&class->attrs, *schema, entry);
+
+	return 0;
 }
 
 struct evcpe_attr_schema *evcpe_class_find(struct evcpe_class *class,
 		const char *name, unsigned len)
 {
-	struct evcpe_attr_schema *schema;
+	struct evcpe_attr_schema *schema = NULL;
+
+	if (!class) return NULL;
 
 	TAILQ_FOREACH(schema, &class->attrs, entry) {
 		if (!evcpe_strncmp(schema->name, name, len))
 			return schema;
 	}
+
 	return NULL;
 }

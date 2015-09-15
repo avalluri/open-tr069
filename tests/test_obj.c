@@ -49,7 +49,7 @@ static void test_simple(void)
 	struct evcpe_attr_schema *schema;
 	struct evcpe_attr *attr;
 
-	TEST_ASSERT_EQUAL_INT(0, evcpe_class_add(cls, &schema));
+	TEST_ASSERT_EQUAL_INT(0, evcpe_class_add_new_schema(cls, &schema));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_attr_schema_set_name(schema, "foo", strlen("foo")));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_attr_schema_set_type(schema, EVCPE_TYPE_STRING));
 
@@ -82,7 +82,7 @@ static void test_obj(void)
 	const char *value;
 	unsigned int len;
 
-	TEST_ASSERT_EQUAL_INT(0, evcpe_class_add(cls, &schema));
+	TEST_ASSERT_EQUAL_INT(0, evcpe_class_add_new_schema(cls, &schema));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_attr_schema_set_name(schema, "foo", strlen("foo")));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_attr_schema_set_type(schema, EVCPE_TYPE_OBJECT));
 
@@ -108,7 +108,7 @@ static void test_multiple(void)
 	const char *value;
 	unsigned int index, len;
 
-	TEST_ASSERT_EQUAL_INT(0, evcpe_class_add(cls, &schema));
+	TEST_ASSERT_EQUAL_INT(0, evcpe_class_add_new_schema(cls, &schema));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_attr_schema_set_name(schema, "foo", strlen("foo")));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_attr_schema_set_type(schema, EVCPE_TYPE_MULTIPLE));
 

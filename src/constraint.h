@@ -52,27 +52,42 @@ struct evcpe_constraint {
 		} range;
 		char *attr;
 	} value;
-  char *pattern; // regex pattern
 };
 
-int evcpe_constraint_enums_add(struct evcpe_constraint_enums *enums,
-		const char *string, unsigned len);
+struct evcpe_constraint *evcpe_constraint_new();
 
-void evcpe_constraint_enums_clear(struct evcpe_constraint_enums *enums);
+void evcpe_constraint_free();
+
+int evcpe_constraint_set_size(struct evcpe_constraint *cons, long size);
+
+int evcpe_constraint_get_size(struct evcpe_constraint *cons, long *size_out);
+
+int evcpe_constraint_set_enums(struct evcpe_constraint *cons,
+		const char *str_enums, unsigned len);
+
+int evcpe_constraint_get_enums(struct evcpe_constraint *cons,
+		struct evcpe_constraint_enums **enums_out);
 
 int evcpe_constraint_set_min(struct evcpe_constraint *cons,
 		const char *min, unsigned len);
 
+int evcpe_constraint_get_min(struct evcpe_constraint *cons, long *min_out);
+
 int evcpe_constraint_set_max(struct evcpe_constraint *cons,
 		const char *max, unsigned len);
+
+int evcpe_constraint_get_max(struct evcpe_constraint *cons, long *max_out);
 
 int evcpe_constraint_set_range(struct evcpe_constraint *cons,
 		const char *min, unsigned minlen, const char *max, unsigned maxlen);
 
+int evcpe_constraint_get_range(struct evcpe_constraint *cons, long *min_out,
+		long *max_out);
+
 int evcpe_constraint_set_attr(struct evcpe_constraint *cons,
 		const char *value, unsigned len);
 
-int evcpe_constraint_set_pattern(struct evcpe_constraint *cons,
-    const char *value, unsigned len);
+int evcpe_constraint_get_attr(struct evcpe_constraint *cons, char **attr_out);
+
 
 #endif /* EVCPE_CONSTRAINT_H_ */

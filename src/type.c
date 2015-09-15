@@ -40,9 +40,9 @@ const char *types[] = {
   [EVCPE_TYPE_STRING] = "string",
   [EVCPE_TYPE_INT] = "int",
   [EVCPE_TYPE_UNSIGNED_INT] = "unsignedInt",
-  [EVCPE_TYPE_UNSIGNED_INT] = "unsignedLong",
+  [EVCPE_TYPE_UNSIGNED_LONG] = "unsignedLong",
   [EVCPE_TYPE_BOOLEAN] = "boolean",
-  [EVCPE_TYPE_DATETIME] = "dataTime",
+  [EVCPE_TYPE_DATETIME] = "dateTime",
   [EVCPE_TYPE_BASE64] = "base64",
 
   [EVCPE_TYPE_ALIAS] = "Alias",
@@ -113,8 +113,9 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 	char *dup;
 	struct tm tm;
 
-	DEBUG("validating value of type: %s",
-			evcpe_type_to_str(type));
+	DEBUG("validating value of type: %s", evcpe_type_to_str(type));
+
+	if (type == EVCPE_TYPE_UNKNOWN || !cons) return 0;
 
 	switch(type) {
 	case EVCPE_TYPE_STRING:
@@ -202,10 +203,8 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 	case EVCPE_TYPE_OBJECT:
 	case EVCPE_TYPE_MULTIPLE:
 	default:
-		ERROR("value is not applicable to "
-				"type: %d", type);
-		rc = EINVAL;
-		goto finally;
+		ERROR("value is not applicable to type: %d", type);
+		rc = EINVAL; goto finally;
 	}
 	rc = 0;
 

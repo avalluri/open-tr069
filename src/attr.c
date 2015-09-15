@@ -43,55 +43,45 @@ RB_GENERATE(evcpe_attrs, evcpe_attr, entry, evcpe_attr_cmp);
 
 int evcpe_attr_init(struct evcpe_attr *attr)
 {
-	int rc;
-	struct evcpe_attr *cons_attr;
-	const char *attr_name, *value;
-	unsigned int len;
-	long val;
-	struct evcpe_obj *temp;
+	int rc = 0;
+	struct evcpe_attr *cons_attr = NULL;
+	char *attr_name = NULL;
+	const char *value = NULL;
+	unsigned int len = 0;
+	long val = 0;
+	struct evcpe_obj *temp = NULL;
 
 	TRACE("initializing attribute: %s", attr->schema->name);
 
 	if ((attr->pathlen = snprintf(buffer, sizeof(buffer), "%s%s",
 			attr->owner->path, attr->schema->name)) >= sizeof(buffer)) {
-		rc = EOVERFLOW;
-		goto finally;
+		rc = EOVERFLOW; goto finally;
 	}
 	if (attr->schema->type == EVCPE_TYPE_MULTIPLE ||
 			attr->schema->type == EVCPE_TYPE_OBJECT)
 		attr->pathlen += snprintf(buffer + attr->pathlen,
 				sizeof(buffer) - attr->pathlen, ".");
 	if (!(attr->path = strdup(buffer))) {
-		rc = ENOMEM;
-		goto finally;
+		rc = ENOMEM; goto finally;
 	}
 	switch (attr->schema->type) {
 	case EVCPE_TYPE_MULTIPLE:
-		if (attr->schema->constraint.type == EVCPE_CONSTRAINT_ATTR) {
-			attr_name = attr->schema->constraint.value.attr;
+		if (!evcpe_constraint_get_attr(attr->schema->constraint, &attr_name)) {
 			if ((rc = evcpe_obj_get(attr->owner, attr_name, strlen(attr_name),
 					&cons_attr))) {
-				ERROR("failed to get attribute: %s",
-						attr_name);
-				rc = EINVAL;
-				goto finally;
+				ERROR("failed to get attribute: %s", attr_name);
+				free(attr_name);
+				rc = EINVAL; goto finally;
 			}
-//			if (!cons_attr) {
-//				ERROR("constraint attribute doesn't exist: %s",
-//						attr_name);
-//				rc = EINVAL;
-//				goto finally;
-//			}
+			free(attr_name);
+
 			if ((rc = evcpe_attr_get(cons_attr, &value, &len))) {
-				ERROR("failed to get attribute value: %s",
-						attr_name);
-				rc = EINVAL;
-				goto finally;
+				ERROR("failed to get attribute value: %s", attr_name);
+				rc = EINVAL; goto finally;
 			}
 			if (value) {
 				if ((rc = evcpe_atol(value, strlen(value), &val))) {
-					ERROR("invalid constraint value: %s",
-							value);
+					ERROR("invalid constraint value: %s", value);
 					goto finally;
 				}
 				attr->value.multiple.max = val;
@@ -104,6 +94,8 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 			goto finally;
 		}
 		TAILQ_INIT(&attr->value.multiple.list);
+		break;
+
 	case EVCPE_TYPE_OBJECT:
 		if (!(temp = evcpe_obj_new(attr->schema->class, attr))) {
 			ERROR("failed to create evcpe_obj");
@@ -115,11 +107,9 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 			evcpe_obj_free(temp);
 			goto finally;
 		}
-		if (attr->schema->type == EVCPE_TYPE_MULTIPLE)
-			evcpe_obj_free(temp);
-		else
-			attr->value.object = temp;
+		attr->value.object = temp;
 		break;
+
 	default:
 		evcpe_access_list_init(&attr->value.simple.access_list);
 		if (attr->schema->value) {
@@ -131,7 +121,6 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 			}
 		}
 	}
-	rc = 0;
 
 finally:
 	return rc;
@@ -215,7 +204,7 @@ int evcpe_attr_set(struct evcpe_attr *attr, const char *value, unsigned len)
 		goto finally;
 	}
 	if ((rc = evcpe_type_validate(attr->schema->type, value, len,
-			&attr->schema->constraint))) {
+			attr->schema->constraint))) {
 		ERROR("not a valid value for %s (%s): %.*s",
 				attr->schema->name,
 				evcpe_type_to_str(attr->schema->type),

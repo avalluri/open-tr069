@@ -37,7 +37,7 @@ void evcpe_class_free(struct evcpe_class *class);
 struct evcpe_attr_schema *evcpe_class_find(struct evcpe_class *class,
 		const char *name, unsigned len);
 
-int evcpe_class_add(struct evcpe_class *class,
+int evcpe_class_add_new_schema(struct evcpe_class *class,
 		struct evcpe_attr_schema **schema);
 
 int evcpe_class_add_attr(struct evcpe_class *class, const char *name,

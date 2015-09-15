@@ -45,13 +45,16 @@ struct evcpe_attr_schema {
 	enum evcpe_notification notification;
 	struct evcpe_class *class;
 	char *number;
-	struct evcpe_constraint constraint;
+	struct evcpe_constraint *constraint;
+	char *pattern; // regex pattern
 	char write;
 	evcpe_attr_getter getter;
 	evcpe_attr_setter setter;
 	char *value;
 	TAILQ_ENTRY(evcpe_attr_schema) entry;
 };
+
+struct evcpe_attr_schema *evcpe_attr_schema_new(struct evcpe_class *owner);
 
 void evcpe_attr_schema_free(struct evcpe_attr_schema *schema);
 
@@ -65,6 +68,14 @@ int evcpe_attr_schema_set_default(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len);
 
 int evcpe_attr_schema_set_number(struct evcpe_attr_schema *schema,
+		const char *value, unsigned len);
+
+int evcpe_attr_schema_set_extension(struct evcpe_attr_schema *schema, int val);
+
+int evcpe_attr_schema_set_constraint(struct evcpe_attr_schema *schema,
+		const char *value, unsigned len);
+
+int evcpe_attr_schema_set_pattern(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len);
 
 #endif /* EVCPE_ATTR_SCHEMA_H_ */

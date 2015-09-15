@@ -84,8 +84,7 @@ int evcpe_class_xml_elm_begin_cb(void *data,
 	struct evcpe_xml_element *parent, *elm;
 	struct evcpe_attr_schema *schema, *parent_schema;
 
-	TRACE("element begin: %.*s (namespace: %.*s)",
-			len, name, nslen, ns);
+	TRACE("element begin: %.*s (namespace: %.*s)", len, name, nslen, ns);
 
 	parent = evcpe_xml_stack_peek(&parser->stack);
 
@@ -109,25 +108,23 @@ int evcpe_class_xml_elm_begin_cb(void *data,
 	} else if ((extension = !evcpe_strncmp("extension", name, len)) ||
 			!evcpe_strncmp("schema", name, len)) {
 		if (!parent) {
-			ERROR("<%.*s> should not be the root element",
-					len, name);
+			ERROR("<%.*s> should not be the root element", len, name);
 			rc = EPROTO;
 			goto finally;
 		}
 		parent_schema = parent->data;
 		if (parent_schema->type != EVCPE_TYPE_OBJECT &&
-				parent_schema->type != EVCPE_TYPE_MULTIPLE) {
-			ERROR("sub-object is not applicable for "
-					"type: %d", parent_schema->type);
+			parent_schema->type != EVCPE_TYPE_MULTIPLE) {
+			ERROR("sub-object is not applicable for type: %d",
+					parent_schema->type);
 			rc = EPROTO;
 			goto finally;
 		}
-		if ((rc = evcpe_class_add(parent_schema->class, &schema))) {
+		if ((rc = evcpe_class_add_new_schema(parent_schema->class, &schema))) {
 			ERROR("failed to add attribute schema");
 			goto finally;
 		}
-		if (extension)
-			schema->extension = 1;
+		evcpe_attr_schema_set_extension(schema, extension);
 		elm->data = schema;
 	} else {
 		ERROR("unexpected element: %.*s", len, name);
@@ -143,7 +140,7 @@ finally:
 int evcpe_class_xml_elm_end_cb(void *data,
 		const char *ns, unsigned nslen, const char *name, unsigned len)
 {
-	int rc;
+	int rc = 0;
 	struct evcpe_class_parser *parser = data;
 	struct evcpe_xml_element *elm;
 	struct evcpe_attr_schema *schema;
@@ -179,22 +176,14 @@ int evcpe_class_xml_elm_end_cb(void *data,
 			rc = EPROTO;
 			goto finally;
 		} else if ((schema->type == EVCPE_TYPE_OBJECT ||
-				schema->type == EVCPE_TYPE_MULTIPLE)) {
+				    schema->type == EVCPE_TYPE_MULTIPLE)) {
 			if ((!schema->class || TAILQ_EMPTY(&schema->class->attrs))) {
 				ERROR("missing sub-schema for object type");
 				rc = EPROTO;
 				goto finally;
 			}
-//		} else if (schema->type == EVCPE_TYPE_STRING) {
-//			if (!schema->constraint.size) {
-//				ERROR("missing constraint for string type");
-//				rc = EPROTO;
-//				goto finally;
-//			}
 		}
 	}
-	rc = 0;
-	goto finally;
 
 finally:
 	free(elm);
@@ -217,355 +206,181 @@ int evcpe_class_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 	int rc;
 	long val;
 	struct evcpe_class_parser *parser = data;
-	struct evcpe_xml_element *elm;
-	struct evcpe_attr_schema *schema, *find;
-	const char *start, *end;
+	struct evcpe_xml_element *elm = NULL;
+	struct evcpe_attr_schema *schema = NULL;
 	char symbol[256];
 	const char *error;
+	int is_schema = 0;
+	int is_extension = 0;
 
 	if (!(elm = evcpe_xml_stack_peek(&parser->stack))) return -1;
 
 	TRACE("attribute: %.*s => %.*s (namespace: %.*s)",
 			name_len, name, value_len, value, nslen, ns);
 
+	is_schema = !evcpe_strncmp("schema", elm->name, elm->len);
+	is_extension = !evcpe_strncmp("extension", elm->name, elm->len);
+
 	schema = elm->data;
 	if (!evcpe_strncmp("name", name, name_len)) {
-		if (evcpe_strncmp("schema", elm->name, elm->len) &&
-				evcpe_strncmp("extension", elm->name, elm->len)) {
-			ERROR("unexpected element: %.*s",
-					elm->len, elm->name);
-			rc = EPROTO;
-			goto finally;
+		if (!is_schema && !is_extension) {
+			ERROR("unexpected element: %.*s", elm->len, elm->name);
+			rc = EPROTO; goto finally;
 		}
 		if ((rc = evcpe_attr_schema_set_name(schema, value, value_len))) {
-			ERROR("failed to set attribute schema name: %.*s",
-					value_len, value);
+			ERROR("failed to set attribute schema name: %.*s", value_len,
+					value);
 			goto finally;
 		}
 	} else if (!evcpe_strncmp("type", name, name_len)) {
-		if (evcpe_strncmp("schema", elm->name, elm->len) &&
-				evcpe_strncmp("extension", elm->name, elm->len)) {
-			ERROR("unexpected element: %.*s",
-					elm->len, elm->name);
-			rc = EPROTO;
-			goto finally;
+		enum evcpe_type type;
+		if (!is_schema && !is_extension) {
+			ERROR("unexpected element: %.*s", elm->len, elm->name);
+			rc = EPROTO; goto finally;
 		}
-		if (!evcpe_strncmp("object", value, value_len)) {
-			if ((rc = evcpe_attr_schema_set_type(schema,
-					EVCPE_TYPE_OBJECT)))
-				goto finally;
-		} else if (!evcpe_strncmp("multipleObject", value, value_len)) {
-			if ((rc = evcpe_attr_schema_set_type(schema,
-					EVCPE_TYPE_MULTIPLE)))
-				goto finally;
-		} else if (!evcpe_strncmp("string", value, value_len)) {
-			if ((rc = evcpe_attr_schema_set_type(schema,
-					EVCPE_TYPE_STRING)))
-				goto finally;
-		} else if (!evcpe_strncmp("int", value, value_len)) {
-			if ((rc = evcpe_attr_schema_set_type(schema,
-					EVCPE_TYPE_INT)))
-				goto finally;
-		} else if (!evcpe_strncmp("unsignedInt", value, value_len)) {
-			if ((rc = evcpe_attr_schema_set_type(schema,
-					EVCPE_TYPE_UNSIGNED_INT)))
-				goto finally;
-		} else if (!evcpe_strncmp("boolean", value, value_len)) {
-			if ((rc = evcpe_attr_schema_set_type(schema,
-					EVCPE_TYPE_BOOLEAN)))
-				goto finally;
-		} else if (!evcpe_strncmp("dateTime", value, value_len)) {
-			if ((rc = evcpe_attr_schema_set_type(schema,
-					EVCPE_TYPE_DATETIME)))
-				goto finally;
-		} else if (!evcpe_strncmp("base64", value, value_len)) {
-			if ((rc = evcpe_attr_schema_set_type(schema,
-					EVCPE_TYPE_BASE64)))
+
+		type = evcpe_type_from_str(value, value_len);
+		if (type != EVCPE_TYPE_UNKNOWN) {
+			if ((rc = evcpe_attr_schema_set_type(schema, type)))
 				goto finally;
 		} else {
-			ERROR("unexpected type: %.*s",
-					value_len, value);
-			rc = EPROTO;
-			goto finally;
+			ERROR("unexpected type: %.*s", value_len, value);
+			rc = EPROTO; goto finally;
 		}
 	} else if (!evcpe_strncmp("constraint", name, name_len)) {
-		switch(schema->type) {
-		case EVCPE_TYPE_STRING:
-		case EVCPE_TYPE_BASE64:
-			if (!evcpe_atol(value, value_len, &val)) {
-				if (val < 0) {
-					ERROR("size constraint should not be "
-							"negative: %ld", val);
-					rc = EPROTO;
-					goto finally;
-				}
-				schema->constraint.type = EVCPE_CONSTRAINT_SIZE;
-				schema->constraint.value.size = val;
-				schema->constraint.pattern =
-            		"^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$";
-			} else if (schema->type == EVCPE_TYPE_STRING) {
-				schema->constraint.type = EVCPE_CONSTRAINT_ENUM;
-				TAILQ_INIT(&schema->constraint.value.enums);
-				for (start = end = value; end < value + value_len; end ++) {
-					if (*end == '|') {
-						if ((rc = evcpe_constraint_enums_add(
-								&schema->constraint.value.enums,
-								start, end - start))) {
-							ERROR("failed to add enum constraint");
-							goto finally;
-						}
-						start = end + 1;
-					}
-				}
-				if ((rc = evcpe_constraint_enums_add(
-						&schema->constraint.value.enums, start, end - start))) {
-					ERROR("failed to add enum constraint");
-					goto finally;
-				}
-			} else {
-				ERROR("invalid constraint: %.*s",
-						value_len, value);
-				rc = EPROTO;
-				goto finally;
-			}
-			break;
-		case EVCPE_TYPE_INT:
-		case EVCPE_TYPE_UNSIGNED_INT:
-			end = NULL;
-			for (start = value; start < value + value_len; start ++) {
-				if (*start == ':') {
-					end = start;
-					break;
-				}
-			}
-			if (!end) {
-				ERROR("constraint of int/unsignedInt should be "
-						"a colon separated integer pair");
-				rc = EPROTO;
-				goto finally;
-			}
-			if (end == value) {
-				if ((rc = evcpe_constraint_set_max(&schema->constraint,
-						value + 1, value_len - 1))) {
-					ERROR("failed to set max constraint");
-					goto finally;
-				}
-			} else if (end == value + value_len - 1) {
-				if ((rc = evcpe_constraint_set_min(&schema->constraint,
-						value, end - value))) {
-					ERROR("failed to set min constraint");
-					goto finally;
-				}
-			} else {
-				if ((rc = evcpe_constraint_set_range(&schema->constraint,
-						value, end - value,
-						end + 1, value_len - (end - value + 1)))) {
-					ERROR("failed to set range constraint");
-					goto finally;
-				}
-			}
-			break;
-		case EVCPE_TYPE_MULTIPLE:
-			if (!(find = evcpe_class_find(schema->owner, value, value_len))) {
-				ERROR("constraint attribute doesn't exist: "
-						"%.*s", value_len, value);
-				rc = EPROTO;
-				goto finally;
-			}
-			if (find->type != EVCPE_TYPE_UNSIGNED_INT) {
-				ERROR("constraint attribute is not "
-						"unsigned int: %.*s", value_len, value);
-				rc = EPROTO;
-				goto finally;
-			}
-			if ((rc = evcpe_constraint_set_attr(&schema->constraint,
-					value, value_len))) {
-				ERROR("failed to set attribute constraint");
-				goto finally;
-			}
-			break;
-		case EVCPE_TYPE_UNKNOWN:
-		case EVCPE_TYPE_OBJECT:
-		case EVCPE_TYPE_BOOLEAN:
-		case EVCPE_TYPE_DATETIME:
-		default:
-			ERROR("constraint is not applicable to "
-					"type: %d", schema->type);
-			rc = EPROTO;
-			goto finally;
+		rc = evcpe_attr_schema_set_constraint(schema, value, value_len);
+	} else if (!evcpe_strncmp("pattern", name, name_len)) {
+		// TODO: Add support for regex
+		if ((rc = evcpe_attr_schema_set_pattern(schema, value, value_len))) {
+			ERROR("failed to set constraint pattern: %*.s", value_len, value);
+			rc = EPROTO; goto finally;
 		}
-  } else if (!evcpe_strncmp("pattern", name, name_len)) {
-    // TODO: Add support for regex
-    if ((rc = evcpe_constraint_set_pattern(&schema->constraint, value, value_len))) {
-      ERROR("failed to set constraint pattern: %*.s", value_len, value);
-      rc = EPROTO;
-      goto finally;
-    }
 	} else if (!evcpe_strncmp("default", name, name_len)) {
 		if (schema->type == EVCPE_TYPE_DATETIME) {
 			if (evcpe_strncmp("auto", value, value_len)) {
-				ERROR("only \"auto\" is accepted for default "
-						"dateTime value");
+				ERROR("only \"auto\" is accepted for default dateTime value");
 				goto finally;
 			}
 		} else if ((rc = evcpe_type_validate(schema->type, value, value_len,
-				&schema->constraint))) {
-			ERROR("invalid default value: %.*s",
-					value_len, value);
+				schema->constraint))) {
+			ERROR("invalid default value: %.*s", value_len, value);
 			goto finally;
 		}
 		if ((rc = evcpe_attr_schema_set_default(schema, value, value_len))) {
-			ERROR("failed to set attr schema default: %.*s",
-					value_len, value);
+			ERROR("failed to set attr schema default: %.*s", value_len, value);
 			goto finally;
 		}
 	} else if (!evcpe_strncmp("number", name, name_len)) {
+		struct evcpe_attr_schema *find = NULL;
+
 		if (schema->type != EVCPE_TYPE_MULTIPLE) {
-			ERROR("number of entries is not applicable to "
-					"type: %d", schema->type);
-			rc = EPROTO;
-			goto finally;
+			ERROR("number of entries is not applicable to type: %d",
+					schema->type);
+			rc = EPROTO; goto finally;
 		}
 		if (!(find = evcpe_class_find(schema->owner, value, value_len))) {
 			ERROR("number of entries attribute doesn't exist: "
 					"%.*s", value_len, value);
-			rc = EPROTO;
-			goto finally;
+			rc = EPROTO; goto finally;
 		}
 		if (find->type != EVCPE_TYPE_UNSIGNED_INT) {
 			ERROR("number of entries attribute is not "
 					"unsigned int: %.*s", value_len, value);
-			rc = EPROTO;
-			goto finally;
+			rc = EPROTO; goto finally;
 		}
 		if ((rc = evcpe_attr_schema_set_number(schema, value, value_len))) {
-			ERROR("failed to set attr schema default: %.*s",
-					value_len, value);
+			ERROR("failed to set attr schema default: %.*s", value_len, value);
 			goto finally;
 		}
 	} else if (!evcpe_strncmp("write", name, name_len)) {
 		if (schema->type == EVCPE_TYPE_OBJECT) {
-			ERROR("'write' is not applicable to "
-					"type: %d", schema->type);
-			rc = EPROTO;
-			goto finally;
+			ERROR("'write' is not applicable to type: %d", schema->type);
+			rc = EPROTO; goto finally;
 		}
-		if (evcpe_strncmp("schema", elm->name, elm->len)) {
-			ERROR("unexpected element: %.*s",
-					elm->len, elm->name);
-			rc = EPROTO;
-			goto finally;
+		if (!is_schema) {
+			ERROR("unexpected element: %.*s", elm->len, elm->name);
+			rc = EPROTO; goto finally;
 		}
-		if (value_len != 1) {
-			ERROR("write attribute should be a character");
-			rc = EPROTO;
-			goto finally;
-		}
-		if (value[0] != 'W') {
-			ERROR("unexpected write attribute: %.*s", 1, value);
-			rc = EPROTO;
-			goto finally;
-		}
-		schema->write = value[0];
+		/* write is no value attribute */
+		schema->write = 1;
 	} else if (!evcpe_strncmp("inform", name, name_len)) {
 		if (schema->type == EVCPE_TYPE_OBJECT ||
-				schema->type == EVCPE_TYPE_MULTIPLE) {
-			ERROR("'inform' is not applicable to "
-					"type: %d", schema->type);
-			rc = EPROTO;
-			goto finally;
+			schema->type == EVCPE_TYPE_MULTIPLE) {
+			ERROR("'inform' is not applicable to type: %d", schema->type);
+			rc = EPROTO; goto finally;
 		}
-		if (evcpe_strncmp("schema", elm->name, elm->len)) {
-			ERROR("unexpected element: %.*s",
-					elm->len, elm->name);
-			rc = EPROTO;
-			goto finally;
+		if (!is_schema) {
+			ERROR("unexpected element: %.*s", elm->len, elm->name);
+			rc = EPROTO; goto finally;
 		}
 		if (!evcpe_strncmp("true", value, value_len)) {
 			schema->inform = 1;
 		} else if (evcpe_strncmp("false", value, value_len)) {
-			ERROR("'inform' value must be (true|false)': %.*s",
-					value_len, value);
-			rc = EPROTO;
-			goto finally;
+			ERROR("'inform' value must be (true|false)': %.*s", value_len, value);
+			rc = EPROTO; goto finally;
 		}
 	} else if (!evcpe_strncmp("notification", name, name_len)) {
 		if (schema->type == EVCPE_TYPE_OBJECT ||
-				schema->type == EVCPE_TYPE_MULTIPLE) {
-			ERROR("'notification' is not applicable to "
-					"type: %d", schema->type);
-			rc = EPROTO;
-			goto finally;
+			schema->type == EVCPE_TYPE_MULTIPLE) {
+			ERROR("'notification' is not applicable to type: %d", schema->type);
+			rc = EPROTO; goto finally;
 		}
-		if (evcpe_strncmp("schema", elm->name, elm->len)) {
-			ERROR("unexpected element: %.*s",
-					elm->len, elm->name);
-			rc = EPROTO;
-			goto finally;
+		if (!is_schema) {
+			ERROR("unexpected element: %.*s", elm->len, elm->name);
+			rc = EPROTO; goto finally;
 		}
 		if (!evcpe_strncmp("passive", value, value_len)) {
 			schema->notification = EVCPE_NOTIFICATION_PASSIVE;
 		} else if (!evcpe_strncmp("active", value, value_len)) {
-				schema->notification = EVCPE_NOTIFICATION_ACTIVE;
+			schema->notification = EVCPE_NOTIFICATION_ACTIVE;
 		} else if (evcpe_strncmp("false", value, value_len)) {
 			ERROR("'notification' value must be (normal|passive|active): %.*s",
 					value_len, value);
-			rc = EPROTO;
-			goto finally;
+			rc = EPROTO; goto finally;
 		}
 	} else if (!evcpe_strncmp("getter", name, name_len)) {
 		if (schema->type == EVCPE_TYPE_OBJECT ||
-				schema->type == EVCPE_TYPE_MULTIPLE) {
-			ERROR("'notification' is not applicable to "
-					"type: %d", schema->type);
-			rc = EPROTO;
-			goto finally;
+			schema->type == EVCPE_TYPE_MULTIPLE) {
+			ERROR("'notification' is not applicable to type: %d", schema->type);
+			rc = EPROTO; goto finally;
 		}
-		if (evcpe_strncmp("schema", elm->name, elm->len)) {
-			ERROR("unexpected element: %.*s",
-					elm->len, elm->name);
-			rc = EPROTO;
-			goto finally;
+		if (!is_schema) {
+			ERROR("unexpected element: %.*s", elm->len, elm->name);
+			rc = EPROTO; goto finally;
 		}
 		snprintf(symbol, sizeof(symbol), "%.*s", value_len, value);
 		if (!(schema->getter = dlsym(parser->dynlib, symbol)) &&
-				(error = dlerror())) {
+			 (error = dlerror())) {
 			ERROR("failed to load symbol: %s", error);
-			rc = -1;
-			goto finally;
+			rc = -1; goto finally;
 		}
 	} else if (!evcpe_strncmp("setter", name, name_len)) {
 		if (schema->type == EVCPE_TYPE_OBJECT ||
-				schema->type == EVCPE_TYPE_MULTIPLE) {
-			ERROR("'notification' is not applicable to "
-					"type: %d", schema->type);
+			schema->type == EVCPE_TYPE_MULTIPLE) {
+			ERROR("'notification' is not applicable to type: %d", schema->type);
 			rc = EPROTO;
 			goto finally;
 		}
-		if (evcpe_strncmp("schema", elm->name, elm->len)) {
-			ERROR("unexpected element: %.*s",
-					elm->len, elm->name);
-			rc = EPROTO;
-			goto finally;
+		if (!is_schema) {
+			ERROR("unexpected element: %.*s", elm->len, elm->name);
+			rc = EPROTO; goto finally;
 		}
 		snprintf(symbol, sizeof(symbol), "%.*s", value_len, value);
 		if (!(schema->setter = dlsym(parser->dynlib, symbol)) &&
-				(error = dlerror())) {
+			(error = dlerror())) {
 			ERROR("failed to load symbol: %s", error);
 			rc = -1;
 			goto finally;
 		}
 	} else if(!evcpe_strncmp("description", name, name_len)) {
         	// ignore descriotion
-	}else if(!evcpe_strncmp("status", name, name_len)){
-    if (!evcpe_strncmp("deprecated", elm->name, elm->len)) {
-      WARN("Deprecated parameter: %.*s", elm->len, elm->name);
+	} else if(!evcpe_strncmp("status", name, name_len)) {
+		if (!evcpe_strncmp("deprecated", elm->name, elm->len)) {
+			WARN("Deprecated parameter: %.*s", elm->len, elm->name);
 		}
 	} else {
-		ERROR("unexpected attribute: %.*s",
-				name_len, name);
-		rc = EPROTO;
-		goto finally;
+		ERROR("unexpected attribute: %.*s", name_len, name);
+		rc = EPROTO; goto finally;
 	}
 	rc = 0;
 

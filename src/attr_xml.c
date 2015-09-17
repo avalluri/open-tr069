@@ -76,15 +76,16 @@ finally:
 int evcpe_attr_to_xml(struct evcpe_attr *attr,
 		unsigned int indent, struct evbuffer *buffer)
 {
-	int rc;
-	struct evcpe_obj_item *item;
-	struct evcpe_access_list_item *entity;
+	int rc = 0;
+	struct evcpe_obj_item *item = NULL;
+	struct evcpe_access_list_item *entity = NULL, *last_entity = NULL;
 
 	DEBUG("marshalling evcpe_attr");
 
 	switch (attr->schema->type) {
 	case EVCPE_TYPE_OBJECT:
-		if ((rc = evcpe_attr_obj_to_xml(attr, attr->value.object, indent, buffer))) {
+		if ((rc = evcpe_attr_obj_to_xml(attr, attr->value.object, indent,
+				buffer))) {
 			ERROR("failed to marshal evcpe_obj");
 			goto finally;
 		}
@@ -95,60 +96,61 @@ int evcpe_attr_to_xml(struct evcpe_attr *attr,
 		TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
 			if (!item->obj) continue;
 			if ((rc = evcpe_attr_obj_to_xml(attr, item->obj, indent, buffer))) {
-				ERROR("failed to marshal evcpe_obj: %s",
-						attr->schema->name);
+				ERROR("failed to marshal evcpe_obj: %s", attr->schema->name);
 				goto finally;
 			}
 		}
 		break;
 	default:
 		if (!attr->value.simple.string &&
-				attr->value.simple.notification == 0 &&
-				TAILQ_EMPTY(&attr->value.simple.access_list.head))
+			attr->value.simple.notification == 0 &&
+			TAILQ_EMPTY(&attr->value.simple.access_list.head))
 			break;
 		if ((rc = evcpe_xml_add_indent(buffer, EVCPE_XML_INDENT, indent))) {
 			ERROR("failed to append indentation");
 			goto finally;
 		}
-		if ((rc = evcpe_add_buffer(buffer, "<%s>", attr->schema->name))) {
+
+		// <Paramert notification="" access_list="">Value</Parameter>
+
+		if ((rc = evcpe_add_buffer(buffer, "<%s", attr->schema->name))) {
 			ERROR("failed to append buffer");
 			goto finally;
 		}
-		if (attr->value.simple.string) {
-			if ((rc = evcpe_add_buffer(buffer, "<Value>%s</Value>",
-					attr->value.simple.string))) {
-				ERROR("failed to append value: %s",
-						attr->schema->name);
-				goto finally;
-			}
-		}
+
 		if (attr->value.simple.notification != 0) {
-			if ((rc = evcpe_add_buffer(buffer,
-					"<Notification>%d</Notification>",
+			if ((rc = evcpe_add_buffer(buffer, " notification=\"%d\"",
 					attr->value.simple.notification))) {
-				ERROR("failed to add notification: %s",
-						attr->schema->name);
+				ERROR("failed to add notification: %s", attr->schema->name);
 				goto finally;
 			}
 		}
 		if (!TAILQ_EMPTY(&attr->value.simple.access_list.head)) {
-			if ((rc = evcpe_add_buffer(buffer, "<AccessList>"))) {
+			last_entity = TAILQ_LAST(&attr->value.simple.access_list.head,
+					evcpe_access_head);
+			if ((rc = evcpe_add_buffer(buffer, "accesslist=\""))) {
 				ERROR("failed to append buffer");
 				goto finally;
 			}
 			TAILQ_FOREACH(entity, &attr->value.simple.access_list.head, entry) {
-				if ((rc = evcpe_add_buffer(buffer, "<string>%s</string>",
-						entity->entity))) {
-					ERROR("failed to add access entity: %s",
-							attr->schema->name);
+				if ((rc = evcpe_add_buffer(buffer, "%s%c", entity->entity,
+						entity == last_entity ? "" : ","))) {
+					ERROR("failed to add access entity: %s", attr->schema->name);
 					goto finally;
 				}
 			}
-			if ((rc = evcpe_add_buffer(buffer, "</AccessList>"))) {
+			if ((rc = evcpe_add_buffer(buffer, "\""))) {
 				ERROR("failed to append buffer");
 				goto finally;
 			}
 		}
+
+		if ((rc = evcpe_add_buffer(buffer, ">%s",
+			 attr->value.simple.string ? attr->value.simple.string : ""))) {
+			ERROR("failed to append value: %s", attr->schema->name);
+			goto finally;
+		}
+
 		if ((rc = evcpe_add_buffer(buffer, "</%s>\n", attr->schema->name))) {
 			ERROR("failed to append buffer");
 			goto finally;

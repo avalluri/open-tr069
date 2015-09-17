@@ -47,8 +47,8 @@ static struct {
 
 static void sig_handler(int signum);
 
-static void error_cb(struct evcpe *cpe,
-		enum evcpe_error_type type, int code, const char *reason, void *cbarg);
+static void error_cb(struct evcpe *cpe, enum evcpe_error_type type, int code,
+		const char *reason, void *cbarg);
 
 static int load_file(const char *filename, struct evbuffer *buffer);
 
@@ -66,11 +66,11 @@ static void help(FILE *stream)
 			"\n");
 }
 
-void error_cb(struct evcpe *cpe,
-		enum evcpe_error_type type, int code, const char *reason, void *cbarg)
+void error_cb(struct evcpe *cpe, enum evcpe_error_type type, int code,
+		const char *reason, void *cbarg)
 {
 	ERROR("type: %d, code: %d, reason: %s", type, code, reason);
-	   shutdown_cpe(code);
+	shutdown_cpe(code);
 }
 
 int main(int argc, char **argv)
@@ -193,8 +193,7 @@ int main(int argc, char **argv)
 		ERROR("failed to initialize DNS");
 		goto finally;
 	}
-	if ((this.cpe = evcpe_new(this.evbase,
-			NULL, error_cb, NULL)) == NULL) {
+	if ((this.cpe = evcpe_new(this.evbase, NULL, error_cb, NULL)) == NULL) {
 		ERROR("failed to create evcpe");
 		rc = ENOMEM;
 		goto finally;
@@ -255,7 +254,7 @@ void sig_handler(int signal)
 {
 	INFO("signal caught: %d", signal);
 	if (signal == SIGINT)
-		      shutdown_cpe(0);
+		shutdown_cpe(0);
 }
 
 int shutdown_cpe(int code)

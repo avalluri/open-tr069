@@ -42,56 +42,37 @@ struct evcpe_obj *evcpe_obj_new(struct evcpe_class *class,
 	}
 	obj->class = class;
 	obj->owner = owner;
-	RB_INIT(&obj->attrs);
+	evcpe_attrs_init(&obj->attrs);
 	return obj;
 }
 
 void evcpe_obj_free(struct evcpe_obj *obj)
 {
-	struct evcpe_attr *attr;
-
 	if (!obj) return;
 
 	TRACE("destructing evcpe_obj: %s", obj->class->name);
 
-	while((attr = RB_MIN(evcpe_attrs, &obj->attrs))) {
-		RB_REMOVE(evcpe_attrs, &obj->attrs, attr);
-		evcpe_attr_unset(attr);
-		switch(attr->schema->type) {
-		case EVCPE_TYPE_OBJECT:
-			if (attr->value.object) evcpe_obj_free(attr->value.object);
-			break;
-		case EVCPE_TYPE_MULTIPLE:
-			break;
-		default:
-			evcpe_access_list_clear(&attr->value.simple.access_list);
-			break;
-		}
-		if (attr->path) free(attr->path);
-		free(attr);
-	}
+	evcpe_attrs_clear(&obj->attrs);
 	if (obj->path) free(obj->path);
 	free(obj);
 }
 
 int evcpe_obj_init(struct evcpe_obj *obj)
 {
-	int rc;
-	struct evcpe_attr_schema *schema;
-	struct evcpe_attr *attr;
+	int rc = 0;
+	struct evcpe_attr_schema *schema = NULL;
+	struct evcpe_attr *attr = NULL;
 
 	TRACE("initializing object: %s", obj->class->name);
 
 	if (obj->owner) {
-		obj->pathlen = snprintf(buffer, sizeof(buffer),
-				"%s", obj->owner->path);
+		obj->pathlen = snprintf(buffer, sizeof(buffer), "%s", obj->owner->path);
 		if (obj->owner->schema->type == EVCPE_TYPE_MULTIPLE)
 			obj->pathlen += snprintf(buffer + obj->pathlen,
 					sizeof(buffer) - obj->pathlen,
 					"%d.", obj->index + 1);
 		if (obj->pathlen >= sizeof(buffer)) {
-			ERROR("object path exceeds limit: %s",
-					obj->owner->schema->name);
+			ERROR("object path exceeds limit: %s", obj->owner->schema->name);
 			rc = EOVERFLOW;
 			goto finally;
 		}
@@ -99,36 +80,32 @@ int evcpe_obj_init(struct evcpe_obj *obj)
 		buffer[0] = '\0';
 	}
 	if (!(obj->path = strdup(buffer))) {
-		ERROR("failed to strdup path: %s",
-				buffer);
+		ERROR("failed to strdup path: %s", buffer);
 		rc = ENOMEM;
 		goto finally;
 	}
 
 	TAILQ_FOREACH(schema, &obj->class->attrs, entry) {
 		DEBUG("adding attribute: %s", schema->name);
-		if ((attr = evcpe_obj_find(obj, schema->name,
-				strlen(schema->name)))) {
-			ERROR("duplicated attribute in %s: %s",
-					obj->class->name, schema->name);
+		if ((attr = evcpe_obj_find(obj, schema->name, strlen(schema->name)))) {
+			ERROR("duplicated attribute in %s: %s", obj->class->name,
+					schema->name);
 			rc = EINVAL;
 			goto finally;
 		}
-		if (!(attr = calloc(1, sizeof(struct evcpe_attr)))) {
+		if (!(attr = evcpe_attr_new(obj, schema))) {
 			ERROR("failed to calloc evcpe_attr");
 			rc = ENOMEM;
 			goto finally;
 		}
-		attr->owner = obj;
-		attr->schema = schema;
+
 		if ((rc = evcpe_attr_init(attr))) {
-			ERROR("failed to init attribute of %s: %s",
-					obj->class->name, schema->name);
+			ERROR("failed to init attribute of %s: %s", obj->class->name,
+					schema->name);
 			goto finally;
 		}
 		RB_INSERT(evcpe_attrs, &obj->attrs, attr);
 	}
-	rc = 0;
 
 finally:
 	return rc;
@@ -154,24 +131,24 @@ struct evcpe_attr *evcpe_obj_find(struct evcpe_obj *obj,
 	return RB_FIND(evcpe_attrs, &obj->attrs, &find);
 }
 
-int evcpe_obj_get(struct evcpe_obj *obj,
-		const char *name, unsigned len, struct evcpe_attr **attr)
+int evcpe_obj_get(struct evcpe_obj *obj, const char *name, unsigned len,
+		struct evcpe_attr **attr)
 {
 	if (!obj || !name || !len) return EINVAL;
 
 	DEBUG("getting attribute: %.*s", len, name);
 
 	if (!(*attr = evcpe_obj_find(obj, name, len))) {
-		ERROR("attribute of %s doesn't exist: %.*s",
-				obj->class->name, len, name);
+		ERROR("attribute of %s doesn't exist: %.*s", obj->class->name, len,
+				name);
 		return EVCPE_CPE_INVALID_PARAM_NAME;
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-int evcpe_obj_set_int(struct evcpe_obj *obj,
-		const char *name, unsigned len, long value)
+int evcpe_obj_set_int(struct evcpe_obj *obj, const char *name, unsigned len,
+		long value)
 {
 	int rc;
 	char size[16];

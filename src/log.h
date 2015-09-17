@@ -87,7 +87,7 @@ void evcpe_fatal(const char *func, const char *fmt, ...) EVCPE_CHKFMT(2,3);
 #define ERROR(...) evcpe_error(__func__, __VA_ARGS__)
 #define WARN(...)  evcpe_warn (__func__, __VA_ARGS__)
 #define FATAL(...) evcpe_fatal(__func__, __VA_ARGS__)
-#define INFO(...)  evcpe_fatal(__func__, __VA_ARGS__)
+#define INFO(...)  evcpe_info(__func__, __VA_ARGS__)
 #define DEBUG(...) evcpe_debug(__func__, __VA_ARGS__)
 #define TRACE(...) evcpe_trace(__func__, __VA_ARGS__)
 

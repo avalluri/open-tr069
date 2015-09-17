@@ -38,19 +38,19 @@ typedef int (*evcpe_attr_setter)(struct evcpe_attr *attr,
 
 struct evcpe_attr_schema {
 	struct evcpe_class *owner;
-	char *name;
-	enum evcpe_type type;
-	int extension;
-	int inform;
-	enum evcpe_notification notification;
 	struct evcpe_class *class;
+	char *name;
+	char *value;
+	enum evcpe_type type;
+	unsigned extension:1;
+	unsigned inform:1;
+	unsigned write:1;
+	unsigned notification:2; //enum evcpe_notification
 	char *number;
 	struct evcpe_constraint *constraint;
 	char *pattern; // regex pattern
-	char write;
 	evcpe_attr_getter getter;
 	evcpe_attr_setter setter;
-	char *value;
 	TAILQ_ENTRY(evcpe_attr_schema) entry;
 };
 
@@ -70,7 +70,12 @@ int evcpe_attr_schema_set_default(struct evcpe_attr_schema *schema,
 int evcpe_attr_schema_set_number(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len);
 
+int evcpe_attr_schema_set_notification(struct evcpe_attr_schema *schema,
+		const char *value, unsigned len);
+
 int evcpe_attr_schema_set_extension(struct evcpe_attr_schema *schema, int val);
+
+int evcpe_attr_schema_set_write(struct evcpe_attr_schema *schema, int val);
 
 int evcpe_attr_schema_set_constraint(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len);

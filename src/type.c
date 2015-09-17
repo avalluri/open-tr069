@@ -106,11 +106,11 @@ enum evcpe_type evcpe_type_from_str(const char *type_str, unsigned len)
 }
 
 int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
-		struct evcpe_constraint *cons)
+		struct evcpe_constraint *cons, const char *pattern)
 {
-	int rc;
-	long val;
-	char *dup;
+	int rc = 0;
+	long val = 0;
+	char *dup = NULL;
 	struct tm tm;
 
 	DEBUG("validating value of type: %s", evcpe_type_to_str(type));
@@ -146,15 +146,6 @@ int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
 				goto finally;
 			}
 		}
-    #if 0
-    else if(type == EVCPE_TYPE_BOOLEAN) {
-			if (val != 0 && val != 1) {
-				ERROR("boolean value should be "
-						"either 0 or 1: %ld", val);
-				goto finally;
-			}
-		}
-    #endif
 		switch(cons->type) {
 		case EVCPE_CONSTRAINT_NONE:
 			break;

@@ -59,7 +59,10 @@ const char *evcpe_type_to_str(enum evcpe_type type);
 
 enum evcpe_type evcpe_type_from_str(const char *type_string, unsigned len);
 
-int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
-		struct evcpe_constraint *cons);
+int evcpe_type_validate(
+		enum evcpe_type type,
+		const char *value, unsigned len,
+		struct evcpe_constraint *cons,
+		const char *pattern);
 
 #endif /* EVCPE_TYPE_H_ */

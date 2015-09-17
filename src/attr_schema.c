@@ -78,14 +78,44 @@ int evcpe_attr_schema_set_type(struct evcpe_attr_schema *schema,
 int evcpe_attr_schema_set_default(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
+	int rc = 0;
 	TRACE("setting default: %.*s", len, value);
+
+	if (schema->type == EVCPE_TYPE_DATETIME) {
+		if (evcpe_strncmp("auto", value, len)) {
+			ERROR("only \"auto\" is accepted for default dateTime value");
+			return EINVAL;
+		}
+	} else if ((rc = evcpe_type_validate(schema->type, value, len,
+			schema->constraint, schema->pattern))) {
+		ERROR("invalid default value: %.*s", len, value);
+		return rc;
+	}
+
 	return evcpe_strdup(value, len, &schema->value);
 }
 
 int evcpe_attr_schema_set_number(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
+	struct evcpe_attr_schema *find = NULL;
+
 	TRACE("setting number of entries: %.*s", len, value);
+
+	if (schema->type != EVCPE_TYPE_MULTIPLE) {
+		ERROR("number of entries is not applicable to type: %d", schema->type);
+		return EPROTO;
+	}
+	if (!(find = evcpe_class_find(schema->owner, value, len))) {
+		ERROR("number of entries attribute doesn't exist: %.*s", len, value);
+		return EPROTO;
+	}
+	if (find->type != EVCPE_TYPE_UNSIGNED_INT) {
+		ERROR("number of entries attribute is not unsigned int: %.*s", len,
+				value);
+		return EPROTO;
+	}
+
 	return evcpe_strdup(value, len, &schema->number);
 }
 
@@ -94,6 +124,35 @@ int evcpe_attr_schema_set_extension(struct evcpe_attr_schema *schema, int val)
 	if (!schema) return EINVAL;
 
 	schema->extension = !!val;
+
+	return 0;
+}
+
+int evcpe_attr_schema_set_write(struct evcpe_attr_schema *schema, int write) {
+	if (!schema) return EINVAL;
+	schema->write = !!write;
+	return 0;
+}
+
+int evcpe_attr_schema_set_notification(struct evcpe_attr_schema *schema,
+		const char *value, unsigned len) {
+	if (!schema) return EINVAL;
+
+	if (schema->type == EVCPE_TYPE_OBJECT ||
+		schema->type == EVCPE_TYPE_MULTIPLE) {
+		ERROR("'notification' is not applicable to type: %d", schema->type);
+		return EPROTO;
+	}
+
+	if (!evcpe_strncmp("passive", value, len)) {
+		schema->notification = EVCPE_NOTIFICATION_PASSIVE;
+	} else if (!evcpe_strncmp("active", value, len)) {
+		schema->notification = EVCPE_NOTIFICATION_ACTIVE;
+	} else if (evcpe_strncmp("false", value, len)) {
+		ERROR("'notification' value must be (normal|passive|active): %.*s",
+				len, value);
+		return EPROTO;
+	}
 
 	return 0;
 }
@@ -128,7 +187,7 @@ int evcpe_attr_schema_set_constraint(struct evcpe_attr_schema *schema,
 		break;
 
 	case EVCPE_TYPE_BASE64:
-		if (rc = evcpe_atol(value, len, &val)) {
+		if ((rc = evcpe_atol(value, len, &val))) {
 			ERROR("invalid constraint: %.*s", len, value);
 			rc = EPROTO; goto finally;
 		}

@@ -63,6 +63,11 @@ struct evcpe_attr {
 
 RB_HEAD(evcpe_attrs, evcpe_attr);
 
+struct evcpe_attr *evcpe_attr_new(struct evcpe_obj *owner,
+		struct evcpe_attr_schema *schema);
+
+void evcpe_attr_free(struct evcpe_attr *attr);
+
 int evcpe_attr_cmp(struct evcpe_attr *a, struct evcpe_attr *b);
 
 RB_PROTOTYPE(evcpe_attrs, evcpe_attr, next, evcpe_attr_cmp);
@@ -100,5 +105,11 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 
 int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 		struct evcpe_param_attr_list *list);
+
+/* attribute list */
+void evcpe_attrs_init(struct evcpe_attrs *attrs);
+
+void evcpe_attrs_clear(struct evcpe_attrs *attrs);
+
 
 #endif /* EVCPE_ATTR_H_ */

@@ -68,4 +68,8 @@ void evcpe_msg_free(struct evcpe_msg *msg);
 
 void evcpe_msg_queue_clear(struct evcpe_msg_queue *queue);
 
+int evcpe_msg_from_xml(struct evcpe_msg *msg, struct evbuffer *buffer);
+
+int evcpe_msg_to_xml(struct evcpe_msg *msg, struct evbuffer *buffer);
+
 #endif /* EVCPE_MSG_H_ */

@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#define _XOPEN_SOURCE // strptime()
+//#define _XOPEN_SOURCE // strptime()
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>

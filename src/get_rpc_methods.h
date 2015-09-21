@@ -39,4 +39,9 @@ struct evcpe_get_rpc_methods_response *evcpe_get_rpc_methods_response_new(void);
 void evcpe_get_rpc_methods_response_free(
 		struct evcpe_get_rpc_methods_response *resp);
 
+int evcpe_get_rpc_methods_response_to_xml(
+		struct evcpe_get_rpc_methods_response *method,
+		struct evbuffer *buffer);
+
+
 #endif /* EVCPE_GET_RPC_METHODS_H_ */

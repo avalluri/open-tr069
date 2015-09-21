@@ -21,7 +21,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "msg_xml.h"
+#include "msg.h"
 #include "fault.h"
 #include "inform.h"
 #include "get_rpc_methods.h"
@@ -92,7 +92,7 @@ static void test_get_rpc_methods(void)
 static void test_get_rpc_methods_response(void)
 {
 	struct evcpe_get_rpc_methods_response *method;
-	struct evcpe_method_list_item *item;
+	struct evcpe_method *item;
 	int i;
 	test_load("testfiles/get_rpc_methods_response.xml");
 	TEST_ASSERT_EQUAL_INT(0, evcpe_msg_from_xml(msg, buffer));
@@ -201,7 +201,7 @@ static void test_set_param_attrs(void)
 {
 	struct evcpe_set_param_attrs *method;
 	struct evcpe_set_param_attr *param;
-	struct evcpe_access_list_item *item;
+	struct evcpe_access *item;
 	int i;
 	test_load("testfiles/set_parameter_attributes.xml");
 	TEST_ASSERT_EQUAL_INT(0, evcpe_msg_from_xml(msg, buffer));

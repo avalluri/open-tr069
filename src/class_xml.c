@@ -162,7 +162,7 @@ int evcpe_class_xml_elm_end_cb(void *data,
 
 	schema = elm->data;
 	if (!evcpe_strncmp("model", name, len)) {
-		if (TAILQ_EMPTY(&schema->class->attrs)) {
+		if (tqueue_empty(schema->class->attrs)) {
 			ERROR("empty model definition");
 			rc = EPROTO;
 			goto finally;
@@ -179,7 +179,7 @@ int evcpe_class_xml_elm_end_cb(void *data,
 			goto finally;
 		} else if ((schema->type == EVCPE_TYPE_OBJECT ||
 				    schema->type == EVCPE_TYPE_MULTIPLE)) {
-			if ((!schema->class || TAILQ_EMPTY(&schema->class->attrs))) {
+			if ((!schema->class || tqueue_empty(schema->class->attrs))) {
 				ERROR("missing sub-schema for object type");
 				rc = EPROTO;
 				goto finally;
@@ -274,14 +274,10 @@ int evcpe_class_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 				return EPROTO;
 			}
 
-			if (!evcpe_strncmp("true", value, value_len)) {
-				schema->inform = 1;
-			} else if (!evcpe_strncmp("false", value, value_len)) {
-				schema->inform = 1;
-			} else {
-				ERROR("'inform' value must be (true|false)': %.*s", value_len, value);
-				return EPROTO;
-			}
+			schema->inform = 1;
+			/* TODO: find better way to add this schema to inform schema list */
+			tqueue_insert(parser->root->class->inform_attrs, schema);
+
 			return 0;
 		}
 

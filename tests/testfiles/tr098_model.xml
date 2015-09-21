@@ -198,7 +198,7 @@
 			<schema name="NATDetected" type="boolean" />
 			<schema name="ManageableDeviceNotificationLimit" type="unsignedInt"
 				write="W" />
-			<schema name="AliasBasedAddressing" type="boolean" />
+			<schema name="AliasBasedAddressing" type="boolean" inform="true"/>
 			<schema name="InstanceMode" type="string"
 				constraint="InstanceNumber|InstanceAlias" write="W" />
 			<schema name="AutoCreateInstances" type="boolean" write="W"
@@ -1807,7 +1807,7 @@
 					<schema name="NATEnabled" type="boolean" />
 					<schema name="AddressingType" type="string" constraint="DHCP|STATIC"
 						write="W" />
-					<schema name="ExternalIPAddress" type="string" constraint="45"
+					<schema name="ExternalIPAddress" type="string" constraint="45" inform="true"
 						write="W" />
 					<schema name="SubnetMask" type="string" constraint="45"
 						write="W" />

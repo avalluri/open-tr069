@@ -73,7 +73,7 @@ int evcpe_repo_add_obj(struct evcpe_repo *repo, const char *name,
 int evcpe_repo_del_obj(struct evcpe_repo *repo, const char *name);
 
 int evcpe_repo_get_objs(struct evcpe_repo *repo, const char *name,
-		struct evcpe_obj_list **list, unsigned int *size);
+		struct tqueue **list, unsigned int *size);
 
 int evcpe_repo_add_event(struct evcpe_repo *repo,
 		const char *event_code, const char *command_key);

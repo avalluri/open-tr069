@@ -41,4 +41,8 @@ struct evcpe_get_param_names_response *evcpe_get_param_names_response_new(void);
 void evcpe_get_param_names_response_free(
 		struct evcpe_get_param_names_response *method);
 
+int evcpe_get_param_names_response_to_xml(
+		struct evcpe_get_param_names_response *method,
+		struct evbuffer *buffer);
+
 #endif /* EVCPE_GET_PARAM_NAMES_H_ */

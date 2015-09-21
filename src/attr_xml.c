@@ -38,7 +38,8 @@ static int evcpe_attr_obj_to_xml(struct evcpe_attr *attr, struct evcpe_obj *obj,
 {
 	int rc;
 	struct evcpe_attr *child;
-	struct evcpe_attr_schema *schema;
+	struct tqueue_element* elm = NULL;
+
 
 	if ((rc = evcpe_xml_add_indent(buffer, EVCPE_XML_INDENT, indent))) {
 		ERROR("failed to append indentation");
@@ -48,9 +49,10 @@ static int evcpe_attr_obj_to_xml(struct evcpe_attr *attr, struct evcpe_obj *obj,
 		ERROR("failed to append buffer");
 		goto finally;
 	}
-	TAILQ_FOREACH(schema, &attr->schema->class->attrs, entry) {
-		if ((rc = evcpe_obj_get(obj, schema->name,
-				strlen(schema->name), &child))) {
+	TQUEUE_FOREACH(elm, attr->schema->class->attrs) {
+		struct evcpe_attr_schema *schema = (struct evcpe_attr_schema *)elm->data;
+		if ((rc = evcpe_obj_get(obj, schema->name, strlen(schema->name),
+				&child))) {
 			ERROR("failed to get attribute: %s", schema->name);
 			goto finally;
 		}
@@ -77,8 +79,8 @@ int evcpe_attr_to_xml(struct evcpe_attr *attr,
 		unsigned int indent, struct evbuffer *buffer)
 {
 	int rc = 0;
-	struct evcpe_obj_item *item = NULL;
-	struct evcpe_access_list_item *entity = NULL, *last_entity = NULL;
+	struct tqueue_element* item = NULL;
+	struct evcpe_access *entity = NULL, *last_entity = NULL;
 
 	DEBUG("marshalling evcpe_attr");
 
@@ -91,11 +93,12 @@ int evcpe_attr_to_xml(struct evcpe_attr *attr,
 		}
 		break;
 	case EVCPE_TYPE_MULTIPLE:
-		if (TAILQ_EMPTY(&attr->value.multiple.list))
+		if (tqueue_empty(attr->value.multiple.list))
 			break;
-		TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
-			if (!item->obj) continue;
-			if ((rc = evcpe_attr_obj_to_xml(attr, item->obj, indent, buffer))) {
+		TQUEUE_FOREACH(item, attr->value.multiple.list) {
+			struct evcpe_obj* obj = item->data;
+			if (!obj) continue;
+			if ((rc = evcpe_attr_obj_to_xml(attr, obj, indent, buffer))) {
 				ERROR("failed to marshal evcpe_obj: %s", attr->schema->name);
 				goto finally;
 			}
@@ -134,7 +137,7 @@ int evcpe_attr_to_xml(struct evcpe_attr *attr,
 			}
 			TAILQ_FOREACH(entity, &attr->value.simple.access_list.head, entry) {
 				if ((rc = evcpe_add_buffer(buffer, "%s%c", entity->entity,
-						entity == last_entity ? "" : ","))) {
+						entity == last_entity ? 0 : ','))) {
 					ERROR("failed to add access entity: %s", attr->schema->name);
 					goto finally;
 				}
@@ -190,20 +193,20 @@ finally:
 int evcpe_attr_to_xml_obj_param_names(struct evcpe_obj *obj,
 		int next_level, struct evbuffer *buffer)
 {
-	int rc;
-	struct evcpe_attr *attr;
-	struct evcpe_attr_schema *schema;
+	int rc = 0;
+	struct evcpe_attr* attr = NULL;
+	struct tqueue_element* elm = NULL;
 
-	DEBUG("marshaling object to param names: %s",
-			obj->class->name);
 
-	TAILQ_FOREACH(schema, &obj->class->attrs, entry) {
+	DEBUG("marshaling object to param names: %s", obj->class->name);
+
+	TQUEUE_FOREACH(elm, obj->class->attrs) {
+		struct evcpe_attr_schema* schema = (struct evcpe_attr_schema *)elm->data;
 		if (next_level && (schema->type == EVCPE_TYPE_OBJECT ||
 				schema->type == EVCPE_TYPE_MULTIPLE))
 			continue;
-		if ((attr = evcpe_obj_find(obj, schema->name, strlen(schema->name))) &&
-				(rc = evcpe_attr_to_xml_param_names(
-						attr, next_level, buffer)))
+		if ((attr = evcpe_obj_find(obj, schema)) &&
+				(rc = evcpe_attr_to_xml_param_names(attr, next_level, buffer)))
 			goto finally;
 	}
 	rc = 0;
@@ -215,11 +218,10 @@ finally:
 int evcpe_attr_to_xml_param_names(struct evcpe_attr *attr, int next_level,
 		struct evbuffer *buffer)
 {
-	int rc;
-	struct evcpe_obj_item *item;
+	int rc = 0;
+	struct tqueue_element* item = NULL;
 
-	DEBUG("marshaling attribute to param name: %s",
-			attr->schema->name);
+	DEBUG("marshaling attribute to param name: %s", attr->schema->name);
 
 	switch (attr->schema->type) {
 	case EVCPE_TYPE_OBJECT:
@@ -231,13 +233,13 @@ int evcpe_attr_to_xml_param_names(struct evcpe_attr *attr, int next_level,
 			goto finally;
 		break;
 	case EVCPE_TYPE_MULTIPLE:
-		TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
-			if (!item->obj) continue;
-			if ((rc = evcpe_attr_to_xml_obj_param_name(
-					item->obj, buffer)))
+		TQUEUE_FOREACH(item, attr->value.multiple.list) {
+			struct evcpe_obj* obj = (struct evcpe_obj*)item->data;
+			if (!obj) continue;
+			if ((rc = evcpe_attr_to_xml_obj_param_name(obj, buffer)))
 				goto finally;
-			if ((rc = evcpe_attr_to_xml_obj_param_names(
-					item->obj, next_level, buffer)))
+			if ((rc = evcpe_attr_to_xml_obj_param_names(obj, next_level,
+					buffer)))
 				goto finally;
 		}
 		break;
@@ -273,7 +275,7 @@ int evcpe_attr_count_xml_obj_param_names(struct evcpe_obj *obj,
 		if (next_level && (schema->type == EVCPE_TYPE_OBJECT ||
 				schema->type == EVCPE_TYPE_MULTIPLE))
 			continue;
-		if ((attr = evcpe_obj_find(obj, schema->name, strlen(schema->name))) &&
+		if ((attr = evcpe_obj_find(obj, schema)) &&
 				(rc = evcpe_attr_count_xml_param_names(
 						attr, next_level, count)))
 			goto finally;

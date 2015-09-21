@@ -30,6 +30,7 @@ struct evcpe_dns_entry {
 	char *address;
 	struct event ev;
 	struct timeval tv;
+	struct evdns_base *dns_base;
 	RB_ENTRY(evcpe_dns_entry) entry;
 };
 

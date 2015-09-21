@@ -70,29 +70,11 @@ void evcpe_constraint_enums_clear(struct evcpe_constraint_enums *enums)
 int evcpe_constraint_set_enums(struct evcpe_constraint *cons,
 		const char *str_enums, unsigned len)
 {
-	int rc = 0;
-	const char *start = NULL, *end = NULL;
-
-	TAILQ_INIT(&cons->value.enums);
-	for (start = end = str_enums; end < str_enums + len; end++) {
-		if (*end == '|') {
-			if ((rc = evcpe_constraint_enums_add(&cons->value.enums, start,
-					end - start))) {
-				ERROR("failed to add enum constraint");
-				goto finally;
-			}
-			start = end + 1;
-		}
-	}
-	if ((rc = evcpe_constraint_enums_add(&cons->value.enums, start,
-			end - start))) {
-		ERROR("failed to add enum constraint");
-		goto finally;
-	}
 	cons->type = EVCPE_CONSTRAINT_ENUM;
-
-finally:
-	return rc;
+	TAILQ_INIT(&cons->value.enums);
+	return evcpe_str_split(str_enums, len, '|',
+			(evcpe_str_split_cb)evcpe_constraint_enums_add,
+			&cons->value.enums);
 }
 
 int evcpe_constraint_get_enums(struct evcpe_constraint *cons,

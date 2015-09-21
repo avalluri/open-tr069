@@ -28,7 +28,7 @@
 
 #include "log.h"
 #include "util.h"
-#include "msg_xml.h"
+#include "msg.h"
 #include "method.h"
 
 #include "session.h"

@@ -20,7 +20,7 @@
 
 #include "test_suite.h"
 
-#include "cpe.h"
+#include "evcpe.h"
 
 static struct event_base *evbase;
 static struct evcpe *cpe;

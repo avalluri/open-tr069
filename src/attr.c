@@ -23,6 +23,7 @@
 #include <errno.h>
 
 #include "log.h"
+#include "data.h"
 #include "util.h"
 #include "obj.h"
 #include "fault.h"
@@ -93,7 +94,8 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 					"%s", attr->schema->number);
 			goto finally;
 		}
-		TAILQ_INIT(&attr->value.multiple.list);
+		attr->value.multiple.list = tqueue_new(NULL,
+				(tqueue_free_func)evcpe_obj_free);
 		break;
 
 	case EVCPE_TYPE_OBJECT:
@@ -166,7 +168,7 @@ void evcpe_attr_unset(struct evcpe_attr *attr)
 		}
 		break;
 	case EVCPE_TYPE_MULTIPLE:
-		evcpe_obj_list_clear(&attr->value.multiple.list);
+		tqueue_free(attr->value.multiple.list);
 		attr->value.multiple.size = 0;
 		break;
 	default:
@@ -286,7 +288,8 @@ int evcpe_attr_get_obj(struct evcpe_attr *attr, struct evcpe_obj **child)
 int evcpe_attr_add_obj(struct evcpe_attr *attr,
 		struct evcpe_obj **child, unsigned int *index)
 {
-	struct evcpe_obj_item *iter = NULL, *item = NULL;
+	struct tqueue_element *iter = NULL, *item = NULL;
+	struct evcpe_obj* obj = NULL;
 	int rc = 0;
 
 	if (!attr) return EINVAL;
@@ -307,28 +310,26 @@ int evcpe_attr_add_obj(struct evcpe_attr *attr,
 	}
 	item = NULL;
 	*index = 0;
-	TAILQ_FOREACH(iter, &attr->value.multiple.list, entry) {
-		if (!iter->obj) {
+	TQUEUE_FOREACH(iter, attr->value.multiple.list) {
+		if (!iter->data) {
 			item = iter;
 			break;
 		}
 		(*index) ++;
 	}
-	if (!item) {
-		if (!(item = calloc(1, sizeof(struct evcpe_obj_item)))) {
-			ERROR("failed to calloc evcpe_obj_item");
-			rc = ENOMEM;
-			goto finally;
-		}
-		TAILQ_INSERT_TAIL(&attr->value.multiple.list, item, entry);
+	if (!item && !(item = tqueue_insert(attr->value.multiple.list, NULL))) {
+		ERROR("failed to calloc evcpe_obj_item");
+		rc = ENOMEM;
+		goto finally;
 	}
-	if (!(item->obj = evcpe_obj_new(attr->schema->class, attr))) {
+
+	if (!(item->data = obj = evcpe_obj_new(attr->schema->class, attr))) {
 		ERROR("failed to create evcpe_obj");
 		rc = ENOMEM;
 		goto finally;
 	}
-	item->obj->index = *index;
-	if ((rc = evcpe_obj_init(item->obj))) {
+	obj->index = *index;
+	if ((rc = evcpe_obj_init(obj))) {
 		ERROR("failed to init obj: %s", attr->schema->name);
 		goto finally;
 	}
@@ -340,9 +341,9 @@ int evcpe_attr_add_obj(struct evcpe_attr *attr,
 				attr->schema->number);
 		goto finally;
 	}
-	*child = item->obj;
+	*child = obj;
 	if (attr->cb)
-		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_ADDED, item->obj, attr->cbarg);
+		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_ADDED, obj, attr->cbarg);
 
 finally:
 	return rc;
@@ -351,8 +352,8 @@ finally:
 int evcpe_attr_idx_obj(struct evcpe_attr *attr,
 		unsigned int index, struct evcpe_obj **child)
 {
-	struct evcpe_obj_item *item;
-	int rc;
+	struct tqueue_element* item = NULL;
+	int rc = 0;
 
 	if (!attr) return EINVAL;
 
@@ -363,13 +364,13 @@ int evcpe_attr_idx_obj(struct evcpe_attr *attr,
 		rc = EVCPE_CPE_INVALID_PARAM_NAME;
 		goto finally;
 	}
-	item = evcpe_obj_list_get(&attr->value.multiple.list, index);
-	if (!item || !item->obj) {
+	item = tqueue_nth_element(attr->value.multiple.list, index);
+	if (!item || !item->data) {
 		ERROR("multiple object attr doesn't exist: %d", index);
 		rc = EVCPE_CPE_INVALID_PARAM_NAME;
 		goto finally;
 	}
-	*child = item->obj;
+	*child = (struct evcpe_obj*)item->data;
 	rc = 0;
 
 finally:
@@ -378,29 +379,28 @@ finally:
 
 int evcpe_attr_del_obj(struct evcpe_attr *attr, unsigned int index)
 {
-	struct evcpe_obj *obj;
-	struct evcpe_obj_item *item;
+	struct evcpe_obj* obj = NULL;
+	struct tqueue_element* item = NULL;
 	int rc = 0;
 
 	if (!attr) return EINVAL;
 
-	DEBUG("deleting object from %s by index: %d",
-			attr->schema->name, index);
+	DEBUG("deleting object from %s by index: %d", attr->schema->name, index);
 
 	if (attr->schema->type != EVCPE_TYPE_MULTIPLE) {
 		ERROR("attr is not multiple object type");
 		rc = EINVAL;
 		goto finally;
 	}
-	item = evcpe_obj_list_get(&attr->value.multiple.list, index);
-	if (!item || !item->obj) {
+	item = tqueue_nth_element(attr->value.multiple.list, index);
+	if (!item || !item->data) {
 		ERROR("multiple object attr doesn't exist: %d", index);
 		rc = EINVAL;
 		goto finally;
 	}
 	attr->value.multiple.size --;
-	obj = item->obj;
-	item->obj = NULL;
+	obj = (struct evcpe_obj*)item->data;
+	item->data = NULL;
 	if (attr->cb)
 		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_DELETED, obj, attr->cbarg);
 	evcpe_obj_free(obj);
@@ -409,36 +409,64 @@ finally:
 	return rc;
 }
 
+int evcpe_attr_set_access_list(struct evcpe_attr *attr, const char *value,
+		unsigned len) {
+	if ((attr->schema->type == EVCPE_TYPE_OBJECT ||
+		attr->schema->type == EVCPE_TYPE_MULTIPLE)) {
+		ERROR("not a simple attribute: %s", attr->schema->name);
+		return -1;
+	}
+
+	return evcpe_str_split(value, len, ',',
+			(evcpe_str_split_cb)evcpe_access_list_add,
+			&attr->value.simple.access_list);
+}
+
+struct _attr_param_value_list_data
+{
+	struct evcpe_obj *obj;
+	struct evcpe_param_value_list *list;
+};
+
+static
+int _schema_to_param_value_list(struct evcpe_attr_schema *schema, void *userdata)
+{
+	struct evcpe_attr *attr = NULL;
+	struct _attr_param_value_list_data *data = userdata;
+	int rc = 0;
+
+	if ((rc = evcpe_obj_get(data->obj, schema->name, strlen(schema->name),
+			&attr))) {
+		ERROR("failed to get attribute: %s", schema->name);
+		return rc;
+	}
+	if ((rc = evcpe_attr_to_param_value_list(attr, data->list))) {
+		ERROR("failed to add attribute to param value list: %s", schema->name);
+		return rc;
+	}
+
+	return 0;
+}
+
+static
 int evcpe_attr_obj_to_param_value_list(struct evcpe_class *class,
 		struct evcpe_obj *obj, struct evcpe_param_value_list *list)
 {
-	int rc = 0;
-	struct evcpe_attr_schema *schema;
-	struct evcpe_attr *attr;
+	struct _attr_param_value_list_data userdata;
+	userdata.obj = obj;
+	userdata.list = list;
 
 	DEBUG("adding object to param list: %s", obj->path);
 
-	TAILQ_FOREACH(schema, &class->attrs, entry) {
-		if ((rc = evcpe_obj_get(obj, schema->name, strlen(schema->name), &attr))) {
-			ERROR("failed to get attribute: %s", schema->name);
-			goto finally;
-		}
-		if ((rc = evcpe_attr_to_param_value_list(attr, list))) {
-			ERROR("failed to add attribute to param value list: %s",
-					schema->name);
-			goto finally;
-		}
-	}
-
-finally:
-	return rc;
+	return tqueue_foreach(class->attrs,
+			(tqueue_foreach_func)_schema_to_param_value_list, &userdata);
 }
 
 int evcpe_attr_to_param_value_list(struct evcpe_attr *attr,
 		struct evcpe_param_value_list *list)
 {
 	int rc = 0;
-	struct evcpe_obj_item *item = NULL;
+	struct tqueue_element *item = NULL;
 	struct evcpe_param_value *param = NULL;
 	const char *value = NULL;
 	unsigned int len = 0;
@@ -456,11 +484,12 @@ int evcpe_attr_to_param_value_list(struct evcpe_attr *attr,
 		}
 		break;
 	case EVCPE_TYPE_MULTIPLE:
-		TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
-			if (!item->obj) continue;
+		TQUEUE_FOREACH(item, attr->value.multiple.list) {
+			struct evcpe_obj *obj = NULL;
+			if (!(obj = item->data)) continue;
 			if ((rc = evcpe_attr_obj_to_param_value_list(attr->schema->class,
-					item->obj, list))) {
-				ERROR("failed to add to param list: %s", item->obj->path);
+					obj, list))) {
+				ERROR("failed to add to param list: %s", obj->path);
 				goto finally;
 			}
 		}
@@ -495,9 +524,8 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 {
 	int rc = 0, len = 0;
 	struct evcpe_param_info *param = NULL;
-	struct evcpe_obj_item *item = NULL;
-	struct evcpe_attr_schema *schema = NULL;
 	struct evcpe_attr *child = NULL;
+	struct tqueue_element *elm = NULL;
 
 	if (attr->schema->extension) return 0;
 
@@ -513,11 +541,12 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 				goto finally;
 			}
 		}
-		TAILQ_FOREACH(schema, &attr->schema->class->attrs, entry) {
+		TQUEUE_FOREACH(elm, attr->schema->class->attrs) {
+			struct evcpe_attr_schema* schema =
+					(struct evcpe_attr_schema*)elm->data;
 			if ((rc = evcpe_obj_get(attr->value.object,
 					schema->name, strlen(schema->name), &child))) {
-				ERROR("failed to get child attribute: %s",
-						schema->name);
+				ERROR("failed to get child attribute: %s",	schema->name);
 				goto finally;
 			}
 			if (next_level) {
@@ -532,15 +561,14 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 					}
 				} else {
 					if ((rc = evcpe_param_info_list_add(list, &param,
-							child->path, child->pathlen,
-							schema->write == 'W' ? 1 : 0))) {
+							child->path, child->pathlen, schema->write))) {
 						ERROR("failed to add param info");
 						goto finally;
 					}
 				}
 			} else if ((rc = evcpe_attr_to_param_info_list(child, list, next_level))) {
-				ERROR("failed to add child object "
-						"to param info list: %s", schema->name);
+				ERROR("failed to add child object to param info list: %s",
+						schema->name);
 				goto finally;
 			}
 		}
@@ -554,18 +582,20 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 		}
 		if (next_level)
 			break;
-		TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
-			if (!item->obj) continue;
-			if ((rc = evcpe_param_info_list_add(list, &param,
-					item->obj->path, item->obj->pathlen,
-					attr->schema->write == 'W' ? 1 : 0))) {
+		TQUEUE_FOREACH(elm, attr->value.multiple.list) {
+			struct evcpe_obj *obj = NULL;
+			struct tqueue_element *attr_elm = NULL;
+			if (!(obj = elm->data)) continue;
+			if ((rc = evcpe_param_info_list_add(list, &param, obj->path,
+					obj->pathlen, attr->schema->write))) {
 				ERROR("failed to add param info");
 				goto finally;
 			}
-			TAILQ_FOREACH(schema, &attr->schema->class->attrs, entry) {
-				if ((rc = evcpe_obj_get(item->obj, schema->name, strlen(schema->name), &child))) {
-					ERROR("failed to get child attribute: %s",
-							schema->name);
+			TQUEUE_FOREACH(attr_elm, attr->schema->class->attrs) {
+				struct evcpe_attr_schema *schema = attr_elm->data;
+				if ((rc = evcpe_obj_get(obj, schema->name,
+						strlen(schema->name), &child))) {
+					ERROR("failed to get child attribute: %s", schema->name);
 					goto finally;
 				}
 				if ((rc = evcpe_attr_to_param_info_list(child, list, next_level))) {
@@ -577,9 +607,8 @@ int evcpe_attr_to_param_info_list(struct evcpe_attr *attr,
 		}
 		break;
 	default:
-		if ((rc = evcpe_param_info_list_add(list, &param,
-				attr->path, strlen(attr->path),
-				attr->schema->write == 'W' ? 1 : 0))) {
+		if ((rc = evcpe_param_info_list_add(list, &param, attr->path,
+				strlen(attr->path), attr->schema->write))) {
 			ERROR("failed to add param info");
 			goto finally;
 		}
@@ -597,12 +626,10 @@ int evcpe_attr_obj_to_param_attr_list(struct evcpe_attr_schema *schema,
 	int rc;
 	struct evcpe_attr *child;
 
-	DEBUG("adding object attribute to param list: %s",
-			schema->name);
+	DEBUG("adding object attribute to param list: %s", schema->name);
 
 	if ((rc = evcpe_obj_get(obj, schema->name, strlen(schema->name), &child))) {
-		ERROR("failed to get child attribute: %s",
-				schema->name);
+		ERROR("failed to get child attribute: %s", schema->name);
 		goto finally;
 	}
 	if (!schema->extension && schema->type != EVCPE_TYPE_OBJECT &&
@@ -619,36 +646,55 @@ finally:
 	return rc;
 }
 
+struct _attr_to_param_value_list_data
+{
+	struct evcpe_attr *attr;
+	struct evcpe_param_attr_list *list;
+};
+
+static
+int _attr_to_param_value_list(struct evcpe_attr_schema *schema, void *userdata)
+{
+	int rc = 0;
+	struct _attr_to_param_value_list_data *data = userdata;
+
+	if (schema->extension) return 0;
+
+	if ((rc = evcpe_attr_obj_to_param_attr_list(schema,
+			data->attr->value.object, data->list))) {
+		ERROR("failed to add child object to param list: %s", schema->name);
+	}
+
+	return rc;
+}
+
 int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 		struct evcpe_param_attr_list *list)
 {
 	int rc;
-	struct evcpe_obj_item *item;
+	struct tqueue_element *item;
 	struct evcpe_attr_schema *schema;
 	struct evcpe_param_attr *param;
+	struct _attr_to_param_value_list_data userdata;
 
 	if (attr->schema->extension) return 0;
 
-	DEBUG("adding attribute to param value list: %s",
-			attr->schema->name);
+	DEBUG("adding attribute to param value list: %s", attr->schema->name);
 
 	switch (attr->schema->type) {
 	case EVCPE_TYPE_OBJECT:
-		TAILQ_FOREACH(schema, &attr->schema->class->attrs, entry) {
-			if (schema->extension) continue;
-			if ((rc = evcpe_attr_obj_to_param_attr_list(schema,
-					attr->value.object, list))) {
-				ERROR("failed to add child object "
-						"to param list: %s", schema->name);
-				goto finally;
-			}
-		}
+		userdata.attr = attr;
+		userdata.list = list;
+		tqueue_foreach(attr->schema->class->attrs,
+				(tqueue_foreach_func)_attr_to_param_value_list, &userdata);
+
 		break;
 	case EVCPE_TYPE_MULTIPLE:
-		TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
-			if (!item->obj) continue;
-			if ((rc = evcpe_attr_obj_to_param_attr_list(attr->schema,
-					item->obj, list))) {
+		TQUEUE_FOREACH(item, attr->value.multiple.list) {
+			struct evcpe_obj* obj = NULL;
+			if (!(obj = item->data)) continue;
+			if ((rc = evcpe_attr_obj_to_param_attr_list(attr->schema, obj,
+					list))) {
 				ERROR("failed to add child object to param list: %s",
 						attr->schema->name);
 				goto finally;
@@ -661,8 +707,9 @@ int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 			ERROR("failed to add param value");
 			goto finally;
 		}
-		if ((rc = evcpe_access_list_clone(&attr->value.simple.access_list,
-				&param->access_list))) {
+		evcpe_access_list_clone(&attr->value.simple.access_list,
+				&param->access_list, &rc);
+		if (rc) {
 			ERROR("failed to clone access list");
 			evcpe_param_attr_list_remove(list, param);
 			goto finally;

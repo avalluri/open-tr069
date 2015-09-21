@@ -40,4 +40,8 @@ struct evcpe_get_param_values_response *evcpe_get_param_values_response_new(void
 void evcpe_get_param_values_response_free(
 		struct evcpe_get_param_values_response *method);
 
+int evcpe_get_param_values_response_to_xml(
+		struct evcpe_get_param_values_response *method,
+		struct evbuffer *buffer);
+
 #endif /* EVCPE_GET_PARAM_VALUES_H_ */

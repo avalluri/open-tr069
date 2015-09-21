@@ -49,4 +49,7 @@ struct evcpe_inform_response *evcpe_inform_response_new(void);
 
 void evcpe_inform_response_free(struct evcpe_inform_response *inform);
 
+int evcpe_inform_to_xml(struct evcpe_inform *method,
+		struct evbuffer *buffer);
+
 #endif /* EVCPE_INFORM_H_ */

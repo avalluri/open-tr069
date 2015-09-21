@@ -123,17 +123,15 @@ finally:
 int evcpe_repo_locate(struct evcpe_repo *repo, const char *name,
 		struct evcpe_obj **obj, struct evcpe_attr **attr, unsigned int *index)
 {
-	int rc;
+	int rc = 0;
 	const char *start, *end;
 
 	*obj = repo->root;
 	*attr = NULL;
 	start = end = name;
 	while(*end != '\0') {
-		if (*end != '.') {
-			end ++;
-			continue;
-		}
+		if (*end != '.') { end ++; continue; }
+
 		if (end == start) {
 			// expression neglecting root object (compatible to all
 			// TR-069 enabled device
@@ -141,37 +139,28 @@ int evcpe_repo_locate(struct evcpe_repo *repo, const char *name,
 			*obj = (*attr)->value.object;
 		} else if ((*attr) && (*attr)->schema->type == EVCPE_TYPE_MULTIPLE) {
 			if (!(*index = atoi(start)) && errno) {
-				ERROR("failed to convert to integer: "
-						"%.*s", (int)(end - start), start);
+				ERROR("failed to convert to integer: %.*s",
+						(int)(end - start), start);
 				rc = ENOMEM;
 				goto finally;
 			}
 			if (*index <= 0) {
-				ERROR("invalid instance number: "
-						"%d", *index);
+				ERROR("invalid instance number: %d", *index);
 				rc = ENOMEM;
 				goto finally;
 			}
 			if ((rc = evcpe_attr_idx_obj(*attr, (*index) - 1, obj))) {
-				ERROR("indexed object doesn't exist: "
-						"[%d]", (*index) - 1);
+				ERROR("indexed object doesn't exist: [%d]", (*index) - 1);
 				goto finally;
 			}
 		} else if ((rc = evcpe_obj_get(*obj, start, end - start, attr))) {
-			ERROR("failed to get attribute: %.*s",
-					(int)(end - start), start);
+			ERROR("failed to get attribute: %.*s", (int)(end - start), start);
 			goto finally;
-//		} else if (!(*attr)) {
-//			ERROR("attribute doesn't exist: %.*s",
-//					end - start, start);
-//			rc = EINVAL;
-//			goto finally;
 		} else if ((*attr)->schema->type == EVCPE_TYPE_MULTIPLE) {
 		} else if ((*attr)->schema->type == EVCPE_TYPE_OBJECT) {
 			*obj = (*attr)->value.object;
 		} else {
-			ERROR("not an object/multiple attribute: %s",
-					(*attr)->schema->name);
+			ERROR("not an object/multiple attribute: %s", (*attr)->schema->name);
 			rc = EVCPE_CPE_INVALID_PARAM_NAME;
 			goto finally;
 		}
@@ -179,18 +168,15 @@ int evcpe_repo_locate(struct evcpe_repo *repo, const char *name,
 	}
 	if (start != end) {
 		if ((rc = evcpe_obj_get(*obj, start, end - start, attr))) {
-			ERROR("failed to get attribute: %.*s",
-					(int)(end - start), start);
+			ERROR("failed to get attribute: %.*s", (int)(end - start), start);
 			goto finally;
 		} else if ((*attr)->schema->type == EVCPE_TYPE_OBJECT ||
 				(*attr)->schema->type == EVCPE_TYPE_MULTIPLE) {
-			ERROR("not a simple attribute: %.*s",
-					(int)(end - start), start);
+			ERROR("not a simple attribute: %.*s", (int)(end - start), start);
 			rc = EVCPE_CPE_INVALID_PARAM_NAME;
 			goto finally;
 		}
 	}
-	rc = 0;
 
 finally:
 	return rc;
@@ -199,10 +185,10 @@ finally:
 int evcpe_repo_get_obj(struct evcpe_repo *repo, const char *name,
 		struct evcpe_obj **ptr)
 {
-	int rc;
-	struct evcpe_obj *obj;
-	struct evcpe_attr *attr;
-	unsigned int index;
+	int rc = 0;
+	struct evcpe_obj *obj = NULL;
+	struct evcpe_attr *attr = NULL;
+	unsigned int index = 0;
 
 	INFO("getting object: %s", name);
 
@@ -228,7 +214,6 @@ int evcpe_repo_get_obj(struct evcpe_repo *repo, const char *name,
 		rc = EINVAL;
 		goto finally;
 	}
-	rc = 0;
 
 finally:
 	return rc;
@@ -237,34 +222,31 @@ finally:
 int evcpe_repo_get(struct evcpe_repo *repo, const char *name,
 		const char **value, unsigned int *len)
 {
-	int rc;
-	struct evcpe_obj *obj;
-	struct evcpe_attr *attr;
-	unsigned int index;
+	int rc = 0;
+	struct evcpe_obj *obj = NULL;
+	struct evcpe_attr *attr = NULL;
+	unsigned int index = 0;
 
 	DEBUG("getting parameter: %s", name);
 
 	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, &index))) {
 		ERROR("failed to locate object: %s", name);
-		goto finally;
 	}
-	if ((rc = evcpe_attr_get(attr, value, len))) {
+	else if ((rc = evcpe_attr_get(attr, value, len))) {
 		ERROR("failed to get value: %s", name);
 		rc = EINVAL;
 	}
-	rc = 0;
 
-finally:
 	return rc;
 }
 
 int evcpe_repo_set(struct evcpe_repo *repo, const char *name,
 		const char *value, unsigned int len)
 {
-	int rc;
-	struct evcpe_obj *obj;
-	struct evcpe_attr *attr;
-	unsigned int index;
+	int rc = 0;
+	struct evcpe_obj *obj = NULL;
+	struct evcpe_attr *attr = NULL;
+	unsigned int index = 0;
 
 	DEBUG("setting parameter: %s => %.*s", name, len, value);
 
@@ -276,7 +258,6 @@ int evcpe_repo_set(struct evcpe_repo *repo, const char *name,
 		ERROR("failed to set value: %s", name);
 		rc = EINVAL;
 	}
-	rc = 0;
 
 finally:
 	return rc;
@@ -285,21 +266,19 @@ finally:
 int evcpe_repo_getcpy(struct evcpe_repo *repo, const char *name,
 		char *value, unsigned int len)
 {
-	int rc;
+	int rc = 0;
 	const char *ptr;
 	unsigned int ptrlen;
 
 	if ((rc = evcpe_repo_get(repo, name, &ptr, &ptrlen)))
 		goto finally;
 	if (ptrlen >= len) {
-		ERROR("value exceeds string limit: %d >= %d",
-				ptrlen, len);
+		ERROR("value exceeds string limit: %d >= %d", ptrlen, len);
 		rc = EOVERFLOW;
 		goto finally;
 	}
 	memcpy(value, ptr, ptrlen);
 	value[ptrlen] = '\0';
-	rc = 0;
 
 finally:
 	return rc;
@@ -402,7 +381,7 @@ finally:
 }
 
 int evcpe_repo_get_objs(struct evcpe_repo *repo, const char *name,
-		struct evcpe_obj_list **list, unsigned int *size)
+		struct tqueue **list, unsigned int *size)
 {
 	int rc;
 	struct evcpe_obj *obj;
@@ -420,7 +399,7 @@ int evcpe_repo_get_objs(struct evcpe_repo *repo, const char *name,
 		rc = EVCPE_CPE_INVALID_PARAM_NAME;
 		goto finally;
 	}
-	*list = &attr->value.multiple.list;
+	*list = attr->value.multiple.list;
 	*size = attr->value.multiple.size;
 	rc = 0;
 
@@ -454,8 +433,8 @@ void evcpe_repo_attr_cb(struct evcpe_attr *attr, enum evcpe_attr_event event,
 void evcpe_repo_set_obj_attr_cb(struct evcpe_repo *repo,
 		struct evcpe_obj *obj)
 {
-	struct evcpe_obj_item *item;
-	struct evcpe_attr *attr;
+	struct tqueue_element *item = NULL;
+	struct evcpe_attr *attr = NULL;
 
 	DEBUG("setting callback on attributes of %s", obj->path);
 
@@ -466,9 +445,9 @@ void evcpe_repo_set_obj_attr_cb(struct evcpe_repo *repo,
 			evcpe_repo_set_obj_attr_cb(repo, attr->value.object);
 			break;
 		case EVCPE_TYPE_MULTIPLE:
-			TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
-				if (!item->obj) continue;
-				evcpe_repo_set_obj_attr_cb(repo, item->obj);
+			TQUEUE_FOREACH(item, attr->value.multiple.list) {
+				if (!item->data) continue;
+				evcpe_repo_set_obj_attr_cb(repo, (struct evcpe_obj*)item->data);
 			}
 			break;
 		default:
@@ -532,21 +511,22 @@ finally:
 	return rc;
 }
 
-static int evcpe_repo_find_event(struct evcpe_obj_list *list,
+static int evcpe_repo_find_event(struct tqueue *list,
 		const char *event_code, struct evcpe_obj **obj)
 {
-	int rc;
-	struct evcpe_obj_item *item;
+	int rc = 0;
+	struct tqueue_element* item = NULL;
 	struct evcpe_attr *param;
 	const char *code, *name = "EventCode";
-	unsigned int len;
+	unsigned int len = 0;
 
 	DEBUG("finding event: %s", event_code);
 
 	*obj = NULL;
-	TAILQ_FOREACH(item, list, entry) {
-		if (!item->obj) continue;
-		if ((rc = evcpe_obj_get(item->obj, name, strlen(name), &param))) {
+	TQUEUE_FOREACH(item, list) {
+		struct evcpe_obj* tmp_obj = NULL;
+		if (!(tmp_obj = item->data)) continue;
+		if ((rc = evcpe_obj_get(tmp_obj, name, strlen(name), &param))) {
 			ERROR("failed to get parameter: %s", name);
 			goto finally;
 		}
@@ -555,11 +535,10 @@ static int evcpe_repo_find_event(struct evcpe_obj_list *list,
 			goto finally;
 		}
 		if (!strcmp(event_code, code)) {
-			*obj = item->obj;
+			*obj = tmp_obj;
 			break;
 		}
 	}
-	rc = 0;
 
 finally:
 	return rc;
@@ -586,7 +565,7 @@ int evcpe_repo_del_event(struct evcpe_repo *repo,
 		rc = EINVAL;
 		goto finally;
 	}
-	while (!(rc = evcpe_repo_find_event(&attr->value.multiple.list,
+	while (!(rc = evcpe_repo_find_event(attr->value.multiple.list,
 			event_code, &child)) && child) {
 		if ((rc = evcpe_attr_del_obj(attr, child->index))) {
 			ERROR("failed to delete object: %s", child->path);
@@ -606,46 +585,24 @@ finally:
 static int evcpe_repo_to_inform_param_value_list(struct evcpe_obj *obj,
 		struct evcpe_param_value_list *list)
 {
-	int rc;
-	struct evcpe_attr_schema *schema;
-	struct evcpe_attr *attr;
-	struct evcpe_obj_item *item;
+	int rc = 0;
+	struct evcpe_attr*     attr = NULL;
+	struct tqueue_element* elm = NULL;
 
-	TAILQ_FOREACH(schema, &obj->class->attrs, entry) {
-		if ((rc = evcpe_obj_get(obj, schema->name, strlen(schema->name),
-				&attr))) {
-			ERROR("failed to get object attribute: %s",
-					schema->name);
+	TQUEUE_FOREACH(elm, obj->class->inform_attrs) {
+		struct evcpe_attr_schema *schema = (struct evcpe_attr_schema *)elm->data;
+		if (!(attr = evcpe_obj_find_deep(obj, schema))) {
+			WARN("missing inform attribute '%s' in object", schema->name);
+			continue;
+		}
+
+		/* sanity check */
+		if (!schema->inform) break;
+		if ((rc = evcpe_attr_to_param_value_list(attr, list))) {
+			ERROR("failed to add param to value list");
 			goto finally;
 		}
-		switch (schema->type) {
-		case EVCPE_TYPE_OBJECT:
-			if ((rc = evcpe_repo_to_inform_param_value_list(
-					attr->value.object, list))) {
-				ERROR("failed to add object to value list");
-				goto finally;
-			}
-			break;
-		case EVCPE_TYPE_MULTIPLE:
-			TAILQ_FOREACH(item, &attr->value.multiple.list, entry) {
-				if (!item->obj) continue;
-				if ((rc = evcpe_repo_to_inform_param_value_list(
-						item->obj, list))) {
-					ERROR("failed to add object to value list");
-					goto finally;
-				}
-			}
-			break;
-		default:
-			if (!schema->inform) break;
-			if ((rc = evcpe_attr_to_param_value_list(attr, list))) {
-				ERROR("failed to add param to value list");
-				goto finally;
-			}
-			break;
-		}
 	}
-	rc = 0;
 
 finally:
 	return rc;
@@ -653,10 +610,10 @@ finally:
 
 int evcpe_repo_to_inform(struct evcpe_repo *repo, struct evcpe_inform *inform)
 {
-	int rc;
-	struct evcpe_obj_list *objs;
+	int rc = 0;
+	struct tqueue *objs = NULL;
+	struct tqueue_element *item = NULL;
 	unsigned int count;
-	struct evcpe_obj_item *item;
 	struct evcpe_attr *attr;
 	const char *code, *command;
 	unsigned int len;
@@ -697,19 +654,21 @@ int evcpe_repo_to_inform(struct evcpe_repo *repo, struct evcpe_inform *inform)
 		ERROR("failed to get events");
 		goto finally;
 	}
-	TAILQ_FOREACH(item, objs, entry) {
-		if (!item->obj) continue;
-		if ((rc = evcpe_obj_get(item->obj, "EventCode", strlen("EventCode"),
+	TQUEUE_FOREACH(item, objs) {
+		struct evcpe_obj* obj = (struct evcpe_obj*)item->data;
+		if (!obj) continue;
+		if ((rc = evcpe_obj_get(obj, "EventCode", strlen("EventCode"),
 				&attr)) || (rc = evcpe_attr_get(attr, &code, &len))) {
 			ERROR("failed to get event code");
 			goto finally;
 		}
-		if ((rc = evcpe_obj_get(item->obj, "CommandKey", strlen("CommandKey"),
+		if ((rc = evcpe_obj_get(obj, "CommandKey", strlen("CommandKey"),
 				&attr)) || (rc = evcpe_attr_get(attr, &command, &len))) {
 			ERROR("failed to get command key");
 			goto finally;
 		}
-		if ((rc = evcpe_event_list_add(&inform->event, &event, code, command))) {
+		if ((rc = evcpe_event_list_add(&inform->event, &event, code ? code : "",
+				command ? command : ""))) {
 			ERROR("failed to add event: %s", code);
 			goto finally;
 		}

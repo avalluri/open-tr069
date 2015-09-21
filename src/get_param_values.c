@@ -64,3 +64,13 @@ void evcpe_get_param_values_response_free(
 	evcpe_param_value_list_clear(&method->parameter_list);
 	free(method);
 }
+
+int evcpe_get_param_values_response_to_xml(
+		struct evcpe_get_param_values_response *method,
+		struct evbuffer *buffer)
+{
+	DEBUG("marshaling evcpe_get_param_values_response");
+	return evcpe_param_value_list_to_xml(&method->parameter_list,
+			"ParameterList", buffer);
+}
+

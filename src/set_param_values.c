@@ -61,3 +61,12 @@ void evcpe_set_param_values_response_free(struct evcpe_set_param_values_response
 
 	free(method);
 }
+
+int evcpe_set_param_values_response_to_xml(
+		struct evcpe_set_param_values_response *method,
+		struct evbuffer *buffer)
+{
+	DEBUG("marshaling evcpe_set_param_values_response");
+	return evcpe_xml_add_xsd_int(buffer, "Status", method->status);
+}
+

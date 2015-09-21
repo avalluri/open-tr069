@@ -182,15 +182,14 @@ int evcpe_method_list_to_xml(struct evcpe_method_list *list, const char *node,
 		struct evbuffer *buffer)
 {
 	int rc;
-	struct evcpe_method_list_item *item;
+	struct evcpe_method *item = NULL;
 
 	if ((rc = evcpe_add_buffer(buffer,
 			"<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\"xsd:string[%d]\">\n",
 			node, evcpe_method_list_size(list))))
 		goto finally;
 	TAILQ_FOREACH(item, &list->head, entry) {
-		if ((rc = evcpe_xml_add_string(buffer, "string",
-				item->name)))
+		if ((rc = evcpe_xml_add_string(buffer, "string", item->name)))
 			goto finally;
 	}
 	if ((rc = evcpe_add_buffer(buffer, "</%s>\n", node)))

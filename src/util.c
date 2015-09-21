@@ -133,3 +133,22 @@ int evcpe_strdup(const char *string, unsigned len, char **ptr)
 	(*ptr)[len] = '\0';
 	return 0;
 }
+
+
+int evcpe_str_split(const char *string, unsigned len, char delim,
+		evcpe_str_split_cb cb, void *cb_data)
+{
+	int rc = 0;
+	const char *start = NULL, *end = NULL;
+
+	if (!string || !len || !cb) return -1;
+
+	for (start = end = string; end < string + len; end++) {
+		if (*end == delim) {
+			if ((rc = cb(cb_data, start, end-start)) != 0) return rc;
+			start = end + 1;
+		}
+	}
+
+	return cb(cb_data, start, end - start);
+}

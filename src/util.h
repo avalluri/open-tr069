@@ -41,4 +41,8 @@ char *evcpe_ltoa(long value);
 
 int evcpe_strdup(const char *string, unsigned len, char **ptr);
 
+typedef int (*evcpe_str_split_cb)(void *, const char *sub_string, unsigned len);
+int evcpe_str_split(const char *string, unsigned lem, char delim,
+		evcpe_str_split_cb cb, void *data);
+
 #endif /* EVCPE_UTIL_H_ */

@@ -27,6 +27,12 @@
 
 #include "class.h"
 
+static
+int _find_schema_by_name(struct evcpe_attr_schema *schema, const char *name)
+{
+	return evcpe_strncmp(schema->name, name, strlen(name));
+}
+
 struct evcpe_class *evcpe_class_new(const char *name)
 {
 	struct evcpe_class *class = NULL;
@@ -38,48 +44,49 @@ struct evcpe_class *evcpe_class_new(const char *name)
 		return NULL;
 	}
 	class->name = name;
-	TAILQ_INIT(&class->attrs);
+	class->attrs = tqueue_new((tqueue_compare_func)_find_schema_by_name,
+			(tqueue_free_func)evcpe_attr_schema_free);
+	class->inform_attrs =  tqueue_new(NULL, NULL);
+
 	return class;
 }
 
 void evcpe_class_free(struct evcpe_class *class)
 {
-	struct evcpe_attr_schema *schema;
-
 	if (!class) return;
 
 	TRACE("destructing evcpe_class: %s", class->name);
 
-	while((schema = TAILQ_FIRST(&class->attrs))) {
-		TAILQ_REMOVE(&class->attrs, schema, entry);
-		evcpe_attr_schema_free(schema);
-	}
+	tqueue_free(class->attrs);
+	tqueue_free(class->inform_attrs);
+
 	free(class);
 }
 
 int evcpe_class_add_new_schema(struct evcpe_class *class,
 		struct evcpe_attr_schema **schema)
 {
-	TRACE("adding attribute to class: %s", class->name);
+	TRACE("adding attribute to class: %s\n", class->name);
 
 	if (!(*schema = evcpe_attr_schema_new(class))) return ENOMEM;
 
-	TAILQ_INSERT_TAIL(&class->attrs, *schema, entry);
+	tqueue_insert(class->attrs, *schema);
 
 	return 0;
 }
 
+
 struct evcpe_attr_schema *evcpe_class_find(struct evcpe_class *class,
 		const char *name, unsigned len)
 {
-	struct evcpe_attr_schema *schema = NULL;
+	char str_name[256];
+	struct tqueue_element *elm = NULL;
 
-	if (!class) return NULL;
+	if (!class || !name || !len) return NULL;
 
-	TAILQ_FOREACH(schema, &class->attrs, entry) {
-		if (!evcpe_strncmp(schema->name, name, len))
-			return schema;
-	}
+	if (len > 255) len = 255;
+	snprintf(str_name, len+1, "%s", name);
 
-	return NULL;
+	elm = tqueue_find(class->attrs, str_name, NULL);
+	return elm ? elm->data : NULL;
 }

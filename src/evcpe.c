@@ -18,257 +18,1072 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <signal.h>
-#include <mcheck.h>
-#include <stdio.h>
-#include <getopt.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <stdlib.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <time.h>
 
-#include <evcpe.h>
 #include <evdns.h>
 
-#include "cpe.h"
-#include "class_xml.h"
-#include "obj_xml.h"
-#include "persister.h"
-#include "evcpe-config.h"
 #include "log.h"
+#include "util.h"
+#include "msg.h"
+#include "data.h"
+#include "fault.h"
+#include "inform.h"
+#include "get_rpc_methods.h"
+#include "get_param_names.h"
+#include "get_param_values.h"
+#include "get_param_attrs.h"
+#include "add_object.h"
+#include "set_param_values.h"
 
-static struct {
-	struct event_base *evbase;
+#include "evcpe.h"
+
+static void evcpe_creq_cb(struct evhttp_request *req, void *arg);
+
+static void evcpe_session_message_cb(struct evcpe_session *session,
+		enum evcpe_msg_type type, enum evcpe_method_type method_type,
+				void *request, void *response, void *arg);
+
+static void evcpe_session_terminate_cb(struct evcpe_session *session,
+		int code, void *arg);
+
+static void evcpe_dns_cb(int result, char type, int count, int ttl,
+	    void *addresses, void *arg);
+
+static inline void evcpe_dns_timer_cb(int fd, short event, void *arg);
+
+static int evcpe_dns_entry_resolve(struct evcpe_dns_entry *entry,
+		const char *hostname);
+
+static int evcpe_dns_add(struct evcpe *cpe, const char *hostname);
+
+static inline int evcpe_handle_request(struct evcpe *cpe,
+		struct evcpe_session *session,
+		enum evcpe_method_type method_type, void *request);
+
+static inline int evcpe_handle_response(struct evcpe *cpe,
+		enum evcpe_method_type method_type, void *request, void *response);
+
+static inline int evcpe_handle_get_rpc_methods(struct evcpe *cpe,
+		struct evcpe_get_rpc_methods *req, struct evcpe_msg *msg);
+
+static inline int evcpe_handle_get_param_names(struct evcpe *cpe,
+		struct evcpe_get_param_names *req,
+		struct evcpe_msg *msg);
+
+static inline int evcpe_handle_get_param_values(struct evcpe *cpe,
+		struct evcpe_get_param_values *req,
+		struct evcpe_msg *msg);
+
+static inline int evcpe_handle_get_param_attrs(struct evcpe *cpe,
+		struct evcpe_get_param_attrs *req,
+		struct evcpe_msg *msg);
+
+static inline int evcpe_handle_add_object(struct evcpe *cpe,
+		struct evcpe_add_object *req,
+		struct evcpe_msg *msg);
+
+static inline int evcpe_handle_set_param_values(struct evcpe *cpe,
+		struct evcpe_set_param_values *req,
+		struct evcpe_msg *msg);
+
+static inline int evcpe_handle_inform_response(struct evcpe *cpe,
+		struct evcpe_inform *req, struct evcpe_inform_response *resp);
+
+static int evcpe_retry_session(struct evcpe *cpe);
+
+static void evcpe_start_session_cb(int fd, short event, void *arg);
+
+static int evcpe_start_session(struct evcpe *cpe);
+
+struct evcpe *evcpe_new(struct event_base *evbase,
+		evcpe_request_cb cb, evcpe_error_cb error_cb, void *cbarg)
+{
 	struct evcpe *cpe;
-	struct evcpe_class *cls;
-	struct evcpe_obj *obj;
-	struct evcpe_persister *persist;
-	struct evcpe_repo *repo;
-} this;
 
-static void sig_handler(int signum);
+	DEBUG("constructing evcpe");
 
-static void error_cb(struct evcpe *cpe, enum evcpe_error_type type, int code,
-		const char *reason, void *cbarg);
+	if ((cpe = calloc(1, sizeof(struct evcpe))) == NULL) {
+		ERROR("failed to calloc evcpe");
+		return NULL;
+	}
+	RB_INIT(&cpe->dns_cache);
+	cpe->evbase = evbase;
+	cpe->dnsbase = 	evdns_base_new(evbase, 1);
+	cpe->cb = cb;
+	cpe->error_cb = error_cb;
+	cpe->cbarg = cbarg;
 
-static int load_file(const char *filename, struct evbuffer *buffer);
-
-static int shutdown_cpe(int code);
-
-static void help(FILE *stream)
-{
-	fprintf(stream, "evcpe, version "EVCPE_VERSION"\n\n"
-			"Usage: evcpe [options]\n\n"
-			" Options are:\n"
-			"  -m REPO_MODEL\tmodel of TR-069 repository\n"
-			"  -d REPO_DATA\tdata of TR-069 repository\n"
-			"  -v\t\tdisplay more logs\n"
-			"  -s\t\tsuppress logs\n"
-			"\n");
+	return cpe;
 }
 
-void error_cb(struct evcpe *cpe, enum evcpe_error_type type, int code,
-		const char *reason, void *cbarg)
+void evcpe_free(struct evcpe *cpe)
 {
-	ERROR("type: %d, code: %d, reason: %s", type, code, reason);
-	shutdown_cpe(code);
+	if (cpe == NULL) return;
+
+	DEBUG("destructing evcpe");
+
+	if (event_initialized(&cpe->retry_ev) &&
+			evtimer_pending(&cpe->retry_ev, NULL)) {
+		event_del(&cpe->retry_ev);
+	}
+	if (event_initialized(&cpe->periodic_ev) &&
+			evtimer_pending(&cpe->periodic_ev, NULL)) {
+		event_del(&cpe->periodic_ev);
+	}
+	if (cpe->session) evcpe_session_free(cpe->session);
+	if (cpe->http) evhttp_free(cpe->http);
+	if (cpe->acs_url) evcpe_url_free(cpe->acs_url);
+	if (cpe->proxy_url) evcpe_url_free(cpe->proxy_url);
+	if (cpe->creq_url) evcpe_url_free(cpe->creq_url);
+	if (cpe->dnsbase) evdns_base_free(cpe->dnsbase, 1);
+
+	evcpe_dns_cache_clear(&cpe->dns_cache);
+	free(cpe);
 }
 
-int main(int argc, char **argv)
+int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 {
-	int c, rc, bootstrap;
-	enum evcpe_log_level level;
-	struct sigaction action;
-	const char *repo_model, *repo_data;
-	struct evbuffer *buffer = NULL;
+	int rc, number;
+	const char *value;
+	unsigned int len;
 
-	repo_model = repo_data = NULL;
-	level = EVCPE_LOG_INFO;
-	while ((c = getopt(argc, argv, "m:d:sv")) != -1)
-		switch (c) {
-		case 'm':
-			repo_model = optarg;
-			break;
-		case 'd':
-			repo_data = optarg;
-			break;
-		case 's':
-			level ++;
-			break;
-		case 'v':
-			if (level > EVCPE_LOG_TRACE)
-				level --;
-			break;
-		}
-	argv += optind;
-	argc -= optind;
-
-	if (argc == 0 ) {
-		help(stderr);
-		exit(EINVAL);
-	} else if (!strcmp("start", argv[0])) {
-		bootstrap = 0;
-	} else if (!strcmp("bootstrap", argv[0])) {
-		bootstrap = 1;
-	} else {
-		help(stderr);
-		exit(EINVAL);
+	if ((rc = evcpe_repo_get(repo,
+			".ManagementServer.Authentication", &value, &len))) {
+		ERROR("failed to get ACS authentication");
+		goto finally;
 	}
-
-	if (bootstrap) {
-		//FIXME: notify '0 BOOTSTRAP' Event to ACS
-	}
-
-	if (!repo_model || !repo_data) {
-		help(stderr);
+	if (!strcmp("NONE", value))
+		cpe->acs_auth = EVCPE_AUTH_NONE;
+	else if (!strcmp("BASIC", value))
+		cpe->acs_auth = EVCPE_AUTH_NONE;
+	else if (!strcmp("DIGEST", value))
+		cpe->acs_auth = EVCPE_AUTH_NONE;
+	else {
+		ERROR("invalid authentication value: %s", value);
 		rc = EINVAL;
 		goto finally;
 	}
 
-	if (level <= EVCPE_LOG_FATAL)
-		evcpe_add_logger("stderr", level, EVCPE_LOG_FATAL,
-				NULL, evcpe_file_logger, stdout);
+	if ((rc = evcpe_repo_get(repo,
+			".ManagementServer.URL", &value, &len))) {
+		ERROR("failed to get ACS URL");
+		goto finally;
+	}
+	if (!(cpe->acs_url = evcpe_url_new())) {
+		ERROR("failed to create evcpe_url");
+		rc = ENOMEM;
+		goto finally;
+	}
+	if ((rc = evcpe_url_from_str(cpe->acs_url, value))) {
+		ERROR("failed to parse ACS URL: %s", value);
+		goto finally;
+	}
+	if ((rc = evcpe_dns_add(cpe, cpe->acs_url->host))) {
+		ERROR("failed to resolve ACS hostname");
+		goto finally;
+	}
+	cpe->acs_username = evcpe_repo_find(repo,
+			".ManagementServer.Username");
+	cpe->acs_password = evcpe_repo_find(repo,
+			".ManagementServer.Password");
+	if ((value = evcpe_repo_find(repo,
+			".ManagementServer.Timeout"))) {
+		if ((number = atoi(value)) < 0) {
+			ERROR("invalid ACS timeout: %d, falling back to default timeout",
+					number);
+			cpe->acs_timeout = EVCPE_ACS_TIMEOUT;
+		}
+		else cpe->acs_timeout = number;
+	} else {
+		cpe->acs_timeout = EVCPE_ACS_TIMEOUT;
+	}
 
-	INFO("initializing evcpe");
-
-	mtrace();
-
-	if (!(buffer = evbuffer_new())) {
-		ERROR("failed to create evbuffer");
-		rc = ENOMEM;
-		goto finally;
+	if ((value = evcpe_repo_find(repo, ".ManagementServer.ProxyURL"))) {
+		if (!(cpe->proxy_url = evcpe_url_new())) {
+			ERROR("failed to create evcpe_url");
+			rc = ENOMEM;
+			goto finally;
+		}
+		if ((rc = evcpe_url_from_str(cpe->proxy_url, value))) {
+			ERROR("failed to parse proxy URL: %s", value);
+			goto finally;
+		}
+		if ((rc = evcpe_dns_add(cpe, cpe->proxy_url->host))) {
+			ERROR("failed to resolve HTTP proxy hostname");
+			goto finally;
+		}
+		cpe->proxy_username = evcpe_repo_find(repo,
+				".ManagementServer.ProxyUsername");
+		cpe->proxy_password = evcpe_repo_find(repo,
+				".ManagementServer.ProxyPassword");
 	}
 
-	bzero(&this, sizeof(this));
+	if ((value = evcpe_repo_find(repo,
+			".ManagementServer.ConnectionRequestURL"))) {
+		if (!(cpe->creq_url = evcpe_url_new())) {
+			ERROR("failed to create evcpe_url");
+			rc = ENOMEM;
+			goto finally;
+		}
+		if ((rc = evcpe_url_from_str(cpe->creq_url, value))) {
+			ERROR("failed to parse ACS URL");
+			goto finally;
+		}
+		cpe->creq_username = evcpe_repo_find(repo,
+				".ManagementServer.ConnectionRequestUsername");
+		cpe->creq_password = evcpe_repo_find(repo,
+				".ManagementServer.ConnectionRequestPassword");
+		if ((value = evcpe_repo_find(repo,
+				".ManagementServer.ConnectionRequestInterval"))) {
+			if ((number = atoi(value)) < 0) {
+				ERROR("invalid connection request interval: %d", number);
+				rc = EINVAL;
+				goto finally;
+			}
+			cpe->creq_interval = number;
+		} else {
+			cpe->creq_interval = EVCPE_CREQ_INTERVAL;
+		}
+	}
 
-	if ((rc = load_file(repo_model, buffer))) {
-		ERROR("failed to load model: %s", repo_model);
-		goto finally;
+	if ((value = evcpe_repo_find(repo,
+			".ManagementServer.PeriodicInformEnable")) &&
+			!strcmp("1", value)) {
+		if (!(value = evcpe_repo_find(repo,
+				".ManagementServer.PeriodicInformInterval"))) {
+			ERROR("periodic inform interval was not set");
+			rc = EINVAL;
+			goto finally;
+		}
+		if ((number = atoi(value)) < 0) {
+			ERROR("invalid periodic inform interval: %d", number);
+			rc = EINVAL;
+			goto finally;
+		}
+		evtimer_set(&cpe->periodic_ev, evcpe_start_session_cb, cpe);
+		if ((rc = event_base_set(cpe->evbase, &cpe->periodic_ev))) {
+			ERROR("failed to set event base");
+			goto finally;
+		}
+		evutil_timerclear(&cpe->periodic_tv);
+		cpe->periodic_tv.tv_sec = number;
+		INFO("scheduling periodic inform in %ld second(s)",
+				cpe->periodic_tv.tv_sec);
+		if ((rc = event_add(&cpe->periodic_ev, &cpe->periodic_tv))) {
+			ERROR("failed to schedule periodic inform");
+			goto finally;
+		}
 	}
-	if (!(this.cls = evcpe_class_new(NULL))) {
-		ERROR("failed to create evcpe_class");
+	cpe->repo = repo;
+
+finally:
+	return rc;
+}
+
+void evcpe_creq_cb(struct evhttp_request *req, void *arg)
+{
+	time_t curtime;
+	struct evcpe *cpe = arg;
+
+	if (req->type != EVHTTP_REQ_GET || (cpe->creq_url->uri &&
+			strncmp(cpe->creq_url->uri,
+			evhttp_request_uri(req), strlen(cpe->creq_url->uri)))) {
+		evhttp_send_reply(req, 404, "Not Found", NULL);
+		return;
+	} else {
+		curtime = time(NULL);
+		if (cpe->creq_last && difftime(curtime, cpe->creq_last) <
+				cpe->creq_interval) {
+			evhttp_send_reply(req, 503, "Service Unavailable", NULL);
+			return;
+		} else {
+			if (cpe->session) {
+				evhttp_send_reply(req, 503, "Session in Progress", NULL);
+				return;
+			}
+			// TODO: handle auth
+			if (evcpe_repo_add_event(cpe->repo, "6 CONNECTION REQUEST", "")) {
+				ERROR("failed to add connection request event");
+				evhttp_send_reply(req, 501, "Internal Server Error", NULL);
+				return;
+			}
+			if (evcpe_start_session(cpe)) {
+				ERROR("failed to start session");
+				evhttp_send_reply(req, 501, "Internal Server Error", NULL);
+				return;
+			} else {
+				cpe->creq_last = curtime;
+				evhttp_send_reply(req, 200, "OK", NULL);
+				return;
+			}
+		}
+	}
+}
+
+int evcpe_bind(struct evcpe *cpe)
+{
+	int rc;
+	struct evhttp *http;
+
+	INFO("binding %s on port: %d",
+			cpe->creq_url->protocol, cpe->creq_url->port);
+
+	// TODO: SSL
+
+	if (!(http = evhttp_new(cpe->evbase))) {
+		ERROR("failed to create evhttp");
 		rc = ENOMEM;
 		goto finally;
 	}
-	if ((rc = evcpe_class_from_xml(this.cls, buffer))) {
-		ERROR("failed to parse model: %s", repo_model);
+	if ((rc = evhttp_bind_socket(http, "0.0.0.0", cpe->creq_url->port)) != 0) {
+		ERROR("failed to bind evhttp on port:%d",
+				cpe->creq_url->port);
+		evhttp_free(http);
 		goto finally;
 	}
-	if (!(this.obj = evcpe_obj_new(this.cls, NULL))) {
-		ERROR("failed to create root object");
-		rc = ENOMEM;
+
+	if (cpe->http) evhttp_free(cpe->http);
+	cpe->http = http;
+	INFO("accepting connection request: %s", cpe->creq_url->uri);
+	evhttp_set_gencb(cpe->http, evcpe_creq_cb, cpe);
+
+finally:
+	return rc;
+}
+
+#if 0
+static
+void evcpe_send_error(struct evcpe *cpe, enum evcpe_error_type type,
+		int code, const char *reason)
+{
+	ERROR("%d type error: %d %s", type, code, reason);
+	if (cpe->error_cb)
+		(*cpe->error_cb)(cpe, type, code, reason, cpe->cbarg);
+}
+#endif
+
+int evcpe_retry_session(struct evcpe *cpe)
+{
+	int rc, base, secs;
+
+	if (evtimer_pending(&cpe->retry_ev, NULL)) {
+		ERROR("another session retry has been scheduled");
+		rc = EINVAL;
 		goto finally;
 	}
-	if ((rc = evcpe_obj_init(this.obj))) {
-		ERROR("failed to init root object");
-		goto finally;
+
+	if (cpe->retry_count == 0) {
+		secs = 0;
+	} else {
+		switch (cpe->retry_count) {
+		case 1:
+			base = 5;
+			break;
+		case 2:
+			base = 10;
+			break;
+		case 3:
+			base = 20;
+			break;
+		case 4:
+			base = 40;
+			break;
+		case 5:
+			base = 80;
+			break;
+		case 6:
+			base = 160;
+			break;
+		case 7:
+			base = 320;
+			break;
+		case 8:
+			base = 640;
+			break;
+		case 9:
+			base = 1280;
+			break;
+		default:
+			base = 2560;
+			break;
+		}
+		secs = base + rand() % base;
 	}
-	if ((rc = load_file(repo_data, buffer))) {
-		ERROR("failed to load data: %s", repo_data);
-		goto finally;
-	}
-	if ((rc = evcpe_obj_from_xml(this.obj, buffer))) {
-		ERROR("failed to parse data: %s", repo_data);
-		goto finally;
-	}
-	if (!(this.repo = evcpe_repo_new(this.obj))) {
-		ERROR("failed to create repo");
-		rc = ENOMEM;
-		goto finally;
-	}
-	if ((this.evbase = event_init()) == NULL) {
-		ERROR("failed to init event");
-		rc = ENOMEM;
-		goto finally;
-	}
-	if (!(this.persist = evcpe_persister_new(this.evbase))) {
-		ERROR("failed to create persister");
-		rc = ENOMEM;
-		goto finally;
-	}
-	if ((rc = evcpe_persister_set(this.persist, this.repo, repo_data))) {
-		ERROR("failed to set persister");
-		goto finally;
-	}
-	if ((rc = evdns_init())) {
-		ERROR("failed to initialize DNS");
-		goto finally;
-	}
-	if ((this.cpe = evcpe_new(this.evbase, NULL, error_cb, NULL)) == NULL) {
-		ERROR("failed to create evcpe");
-		rc = ENOMEM;
-		goto finally;
-	}
-	if ((rc = evcpe_set(this.cpe, this.repo))) {
-		ERROR("failed to set evcpe");
-		goto finally;
-	}
-	INFO("configuring signal action");
-	action.sa_handler = sig_handler;
-	sigemptyset (&action.sa_mask);
-	action.sa_flags = 0;
-	if ((rc = sigaction(SIGINT, &action, NULL)) != 0) {
-		ERROR("failed to configure signal action");
+
+	INFO("scheduling session retry in %d second(s)", secs);
+
+	evutil_timerclear(&cpe->retry_tv);
+	cpe->retry_tv.tv_sec = secs;
+	if ((rc = event_add(&cpe->retry_ev, &cpe->retry_tv)))
+		ERROR("failed to add timer event");
+
+finally:
+	return rc;
+}
+
+int evcpe_start(struct evcpe *cpe)
+{
+	int rc;
+
+	if (!cpe->repo) {
+		ERROR("evcpe is not initialized");
+		rc = EINVAL;
 		goto finally;
 	}
 
 	INFO("starting evcpe");
-	if ((rc = evcpe_start(this.cpe))) {
-		ERROR("failed to start evcpe");
+
+	if ((rc = evcpe_repo_add_event(cpe->repo, "1 BOOT", ""))) {
+		ERROR("failed to add boot event");
 		goto finally;
 	}
-
-	INFO("dispatching event base");
-	if ((rc = event_dispatch()) != 0) {
-		ERROR("failed to dispatch event base");
+	if (cpe->creq_url && (rc = evcpe_bind(cpe))) {
+		ERROR("failed to bind for connection request");
 		goto finally;
 	}
-
-finally:
-	if (buffer) evbuffer_free(buffer);
-	return rc;
-}
-
-int load_file(const char *filename, struct evbuffer *buffer)
-{
-	FILE *file;
-	int rc, fd, len;
-
-	if(!(file = fopen(filename, "r"))) {
-		rc = errno;
+	evtimer_set(&cpe->retry_ev, evcpe_start_session_cb, cpe);
+	if ((rc = evcpe_start_session(cpe))) {
+		ERROR("failed to start session");
 		goto finally;
 	}
-	fd = fileno(file);
-	evbuffer_drain(buffer, evbuffer_get_length(buffer));
-	do {
-		len = evbuffer_read(buffer, fd, -1);
-	} while(len > 0);
-
-	rc = len < 0 ? -1 : 0;
-	fclose(file);
+	rc = 0;
 
 finally:
 	return rc;
 }
 
-void sig_handler(int signal)
+void evcpe_start_session_cb(int fd, short ev, void *arg)
 {
-	INFO("signal caught: %d", signal);
-	if (signal == SIGINT)
-		shutdown_cpe(0);
+	int rc;
+	struct evcpe *cpe = arg;
+	if (!cpe->session && (rc = evcpe_start_session(cpe))) {
+		ERROR("failed to start session");
+	}
+	if (event_initialized(&cpe->periodic_ev) &&
+			!evtimer_pending(&cpe->periodic_ev, NULL)) {
+		INFO("scheduling periodic inform in %ld second(s)",
+				cpe->periodic_tv.tv_sec);
+		if ((rc = event_add(&cpe->periodic_ev, &cpe->periodic_tv)))
+			ERROR("failed to schedule periodic inform");
+	}
 }
 
-int shutdown_cpe(int code)
+int evcpe_start_session(struct evcpe *cpe)
 {
-	INFO("shuting down with code: %d (%s)", code, strerror(code));
-	event_base_loopbreak(this.evbase);
-	evcpe_free(this.cpe);
-	evdns_shutdown(0);
-	evcpe_persister_free(this.persist);
-	event_base_free(this.evbase);
-	evcpe_repo_free(this.repo);
-	evcpe_obj_free(this.obj);
-	evcpe_class_free(this.cls);
+	int rc;
+	struct evcpe_inform *inform;
+	struct evcpe_msg *msg;
+	const char *hostname, *address;
+	u_short port;
+	struct evhttp_connection *conn;
 
-	muntrace();
-	exit(code);
+	if (cpe->session) {
+		ERROR("session in progress");
+		rc = EINVAL;
+		goto finally;
+	}
+
+	INFO("starting session");
+
+	msg = NULL;
+	conn = NULL;
+
+	hostname = cpe->proxy_url ? cpe->proxy_url->host : cpe->acs_url->host;
+	port = cpe->proxy_url ? cpe->proxy_url->port : cpe->acs_url->port;
+	if (!(address = evcpe_dns_cache_get(&cpe->dns_cache, hostname))) {
+		INFO("hostname not resolved: %s", hostname);
+		cpe->retry_count ++;
+		if ((rc = evcpe_retry_session(cpe)))
+			ERROR("failed to schedule session retry");
+		goto finally;
+	}
+	if (!(msg = evcpe_msg_new())) {
+		ERROR("failed to create evcpe_msg");
+		rc = ENOMEM;
+		goto exception;
+	}
+	if (!(msg->session = evcpe_ltoa(random()))) {
+		ERROR("failed to create session string");
+		rc = ENOMEM;
+		goto exception;
+	}
+	msg->major = 1;
+	msg->minor = 0;
+	if (!(msg->data = inform = evcpe_inform_new())) {
+		ERROR("failed to create inform request");
+		rc = ENOMEM;
+		goto exception;
+	}
+	msg->type = EVCPE_MSG_REQUEST;
+	msg->method_type = EVCPE_INFORM;
+	if ((rc = evcpe_repo_to_inform(cpe->repo, inform))) {
+		ERROR("failed to prepare inform message");
+		goto exception;
+	}
+	inform->retry_count = cpe->retry_count;
+
+	if (!(conn = evhttp_connection_new(address, port))) {
+		ERROR("failed to create evhttp_connection");
+		rc = ENOMEM;
+		goto exception;
+	}
+	evhttp_connection_set_base(conn, cpe->evbase);
+	evhttp_connection_set_timeout(conn, cpe->acs_timeout);
+	if (!(cpe->session = evcpe_session_new(conn, cpe->acs_url,
+			evcpe_session_message_cb, cpe))) {
+		ERROR("failed to create evcpe_session");
+		rc = ENOMEM;
+		goto exception;
+	}
+	evcpe_session_set_close_cb(cpe->session, evcpe_session_terminate_cb, cpe);
+	if ((rc = evcpe_session_send(cpe->session, msg))) {
+		ERROR("failed to send inform message");
+		goto exception;
+	}
+	if ((rc = evcpe_session_start(cpe->session))) {
+		ERROR("failed to start session");
+		goto finally;
+	}
+	rc = 0;
+	goto finally;
+
+exception:
+	if (msg) evcpe_msg_free(msg);
+	if (conn) evhttp_connection_free(conn);
+	if (cpe->session) {
+		evcpe_session_free(cpe->session);
+		cpe->session = NULL;
+	}
+
+finally:
+	return rc;
+}
+
+void evcpe_session_terminate_cb(struct evcpe_session *session, int rc,
+		void *arg)
+{
+	struct evcpe *cpe = arg;
+	evhttp_connection_free(session->conn);
+	evcpe_session_free(cpe->session);
+	cpe->session = NULL;
+	if (rc) {
+		ERROR("session failed: %d - %s", rc, strerror(rc));
+		cpe->retry_count ++;
+		if (evcpe_retry_session(cpe)) {
+			ERROR("failed to schedule session retry");
+		}
+	} else {
+		cpe->retry_count = 0;
+	}
+}
+
+void evcpe_session_message_cb(struct evcpe_session *session,
+		enum evcpe_msg_type type, enum evcpe_method_type method_type,
+				void *request, void *response, void *arg)
+{
+	int rc;
+	struct evcpe *cpe = arg;
+
+	INFO("handling %s %s message from ACS",
+			evcpe_method_type_to_str(method_type), evcpe_msg_type_to_str(type));
+
+	switch(type) {
+	case EVCPE_MSG_REQUEST:
+		if ((rc = evcpe_handle_request(cpe, session, method_type, request))) {
+			ERROR("failed to handle request");
+			goto close_session;
+		}
+		break;
+	case EVCPE_MSG_RESPONSE:
+		if ((rc = evcpe_handle_response(cpe, method_type, request, response))) {
+			ERROR("failed to handle response");
+			goto close_session;
+		}
+		break;
+	case EVCPE_MSG_FAULT:
+		ERROR("CWMP fault encountered: %d - %s",
+				((struct evcpe_fault *)request)->code,
+				((struct evcpe_fault *)request)->string);
+		// TODO: notifies
+		goto close_session;
+	default:
+		ERROR("unexpected message type: %d", type);
+		rc = EINVAL;
+		goto close_session;
+	}
+	return;
+
+close_session:
+	evcpe_session_close(cpe->session, rc);
+}
+
+int evcpe_handle_request(struct evcpe *cpe, struct evcpe_session *session,
+		enum evcpe_method_type method_type, void *request)
+{
+	int rc;
+	struct evcpe_msg *msg;
+	struct evcpe_fault *fault;
+
+	if (!(msg = evcpe_msg_new())) {
+		ERROR("failed to create evcpe_msg");
+		rc = ENOMEM;
+		goto finally;
+	}
+	msg->method_type = method_type;
+	switch(method_type) {
+	case EVCPE_GET_RPC_METHODS:
+		rc = evcpe_handle_get_rpc_methods(cpe, request, msg);
+		break;
+	case EVCPE_GET_PARAMETER_NAMES:
+		rc = evcpe_handle_get_param_names(cpe, request, msg);
+		break;
+	case EVCPE_GET_PARAMETER_ATTRIBUTES:
+		rc = evcpe_handle_get_param_attrs(cpe, request, msg);
+		break;
+	case EVCPE_GET_PARAMETER_VALUES:
+		rc = evcpe_handle_get_param_values(cpe, request, msg);
+		break;
+	case EVCPE_ADD_OBJECT:
+		rc = evcpe_handle_add_object(cpe, request, msg);
+		break;
+	case EVCPE_SET_PARAMETER_VALUES:
+		rc = evcpe_handle_set_param_values(cpe, request, msg);
+		break;
+	default:
+		ERROR("unexpected method type: %s",
+				evcpe_method_type_to_str(method_type));
+		rc = EVCPE_CPE_METHOD_NOT_SUPPORTED;
+		break;
+	}
+	if (rc) {
+		if (!(msg->data = fault = evcpe_fault_new())) {
+			rc = ENOMEM;
+			goto finally;
+		}
+		msg->type = EVCPE_MSG_FAULT;
+		if (rc >= EVCPE_CPE_FAULT_MIN && rc <= EVCPE_CPE_FAULT_MAX)
+			fault->code = rc;
+//		else if (rc == ENOMEM)
+//			fault->code = EVCPE_CPE_RESOUCES_EXCEEDS;
+		else
+			fault->code = EVCPE_CPE_INTERNAL_ERROR;
+	}
+	if ((rc = evcpe_session_send(session, msg))) {
+		ERROR("failed to send CWMP %s message",
+				evcpe_method_type_to_str(msg->method_type));
+		evcpe_msg_free(msg);
+		goto finally;
+	}
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+int evcpe_handle_response(struct evcpe *cpe,
+		enum evcpe_method_type method_type, void *request, void *response)
+{
+	int rc;
+
+	switch(method_type) {
+	case EVCPE_INFORM:
+		if ((rc = evcpe_handle_inform_response(cpe, request, response)))
+			goto finally;
+		break;
+	default:
+		ERROR("unexpected method type: %d", method_type);
+		rc = EINVAL;
+		goto finally;
+	}
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+int evcpe_handle_get_rpc_methods(struct evcpe *cpe,
+		struct evcpe_get_rpc_methods *req,
+		struct evcpe_msg *msg)
+{
+	int rc;
+	struct evcpe_get_rpc_methods_response *method;
+
+	msg->type = EVCPE_MSG_RESPONSE;
+	if (!(msg->data = method = evcpe_get_rpc_methods_response_new())) {
+		ERROR("failed to create "
+				"evcpe_get_rpc_methods_response");
+		rc = ENOMEM;
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"GetRPCMethods"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"GetParameterNames"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"GetParameterValues"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"SetParameterValues"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"GetParameterAttributes"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"SetParameterAttributes"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"AddObject"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"DeleteObject"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"Download"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"Upload"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"Reboot"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"FactoryReset"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"GetQueuedTransfers"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	if ((rc = evcpe_method_list_add_method(&method->method_list,
+			"ScheduleInform"))) {
+		ERROR("failed to add method");
+		goto finally;
+	}
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+int evcpe_handle_get_param_names(struct evcpe *cpe,
+		struct evcpe_get_param_names *req,
+		struct evcpe_msg *msg)
+{
+	int rc;
+	struct evcpe_get_param_names_response *resp;
+
+	msg->type = EVCPE_MSG_RESPONSE;
+	if (!(msg->data = resp = evcpe_get_param_names_response_new())) {
+		ERROR("failed to create "
+				"evcpe_get_param_names_response");
+		rc = ENOMEM;
+		goto finally;
+	}
+	if ((rc = evcpe_repo_to_param_info_list(cpe->repo,
+			req->parameter_path, &resp->parameter_list, req->next_level))) {
+		ERROR("failed to get param names: %s",
+				req->parameter_path);
+		evcpe_get_param_names_response_free(resp);
+		goto finally;
+	}
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+int evcpe_handle_get_param_values(struct evcpe *cpe,
+		struct evcpe_get_param_values *req,
+		struct evcpe_msg *msg)
+{
+	int rc;
+	struct evcpe_param_name *param;
+	struct evcpe_get_param_values_response *resp;
+
+	msg->type = EVCPE_MSG_RESPONSE;
+	if (!(msg->data = resp = evcpe_get_param_values_response_new())) {
+		ERROR("failed to create "
+				"evcpe_get_param_values_response");
+		rc = ENOMEM;
+		goto finally;
+	}
+	TAILQ_FOREACH(param, &req->parameter_names.head, entry) {
+		if ((rc = evcpe_repo_to_param_value_list(cpe->repo,
+				param->name, &resp->parameter_list))) {
+			ERROR("failed to get param values: %s",
+					param->name);
+			evcpe_get_param_values_response_free(resp);
+			goto finally;
+		}
+	}
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+int evcpe_handle_get_param_attrs(struct evcpe *cpe,
+		struct evcpe_get_param_attrs *req,
+		struct evcpe_msg *msg)
+{
+	int rc;
+	struct evcpe_param_name *param;
+	struct evcpe_get_param_attrs_response *resp;
+
+	msg->type = EVCPE_MSG_RESPONSE;
+	if (!(msg->data = resp = evcpe_get_param_attrs_response_new())) {
+		ERROR("failed to create "
+				"evcpe_get_param_attrs_response");
+		rc = ENOMEM;
+		goto finally;
+	}
+	TAILQ_FOREACH(param, &req->parameter_names.head, entry) {
+		if ((rc = evcpe_repo_to_param_attr_list(cpe->repo,
+				param->name, &resp->parameter_list))) {
+			ERROR("failed to get param values: %s",
+					param->name);
+			evcpe_get_param_attrs_response_free(resp);
+			goto finally;
+		}
+	}
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+int evcpe_handle_add_object(struct evcpe *cpe,
+		struct evcpe_add_object *req,
+		struct evcpe_msg *msg)
+{
+	int rc;
+	unsigned int index;
+	struct evcpe_add_object_response *resp;
+
+	if ((rc = evcpe_repo_add_obj(cpe->repo, req->object_name, &index))) {
+		ERROR("failed to add object: %s", req->object_name);
+		goto finally;
+	}
+	// TODO: set ParameterKey
+	msg->type = EVCPE_MSG_RESPONSE;
+	if (!(msg->data = resp = evcpe_add_object_response_new())) {
+		ERROR("failed to create add_object_response");
+		rc = ENOMEM;
+		goto finally;
+	}
+	resp->instance_number = index;
+	resp->status = 0;
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+int evcpe_handle_set_param_values(struct evcpe *cpe,
+		struct evcpe_set_param_values *req,
+		struct evcpe_msg *msg)
+{
+	int rc;
+	struct evcpe_set_param_value *param;
+	struct evcpe_set_param_values_response *resp;
+
+	TAILQ_FOREACH(param, &req->parameter_list.head, entry) {
+		if ((rc = evcpe_repo_set(cpe->repo, param->name,
+				param->data, param->len))) {
+			ERROR("failed to set param: %s", param->name);
+			// TODO: error codes
+			goto finally;
+		}
+	}
+	// TODO: set ParameterKey
+	msg->type = EVCPE_MSG_RESPONSE;
+	if (!(msg->data = resp = evcpe_set_param_values_response_new())) {
+		ERROR("failed to create "
+				"evcpe_get_param_values_response");
+		rc = ENOMEM;
+		goto finally;
+	}
+	resp->status = 0;
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+int evcpe_handle_inform_response(struct evcpe *cpe,
+		struct evcpe_inform *req, struct evcpe_inform_response *resp)
+{
+	if (resp->max_envelopes != 1) {
+		ERROR("invalid max envelopes: %d", resp->max_envelopes);
+		return EPROTO;
+	}
+	evcpe_repo_del_event(cpe->repo, "0 BOOTSTRAP");
+	evcpe_repo_del_event(cpe->repo, "1 BOOT");
+	return 0;
+}
+
+int evcpe_dns_entry_resolve(struct evcpe_dns_entry *entry, const char *hostname)
+{
+	DEBUG("resolving DNS: %s", hostname);
+	if (evdns_base_resolve_ipv4(entry->dns_base, hostname, 0, evcpe_dns_cb,
+			entry) == NULL) {
+		ERROR("failed to resolve IPv4 address: %s", entry->name);
+		return -1;
+	}
+
+	return 0;
+}
+
+int evcpe_dns_add(struct evcpe *cpe, const char *hostname)
+{
+	int rc;
+	struct evcpe_dns_entry *entry;
+	struct in_addr addr;
+
+	DEBUG("adding hostname: %s", hostname);
+
+	if ((rc = evcpe_dns_cache_add(&cpe->dns_cache, hostname, &entry))) {
+		ERROR("failed to create DNS entry: %s", hostname);
+		goto finally;
+	}
+	entry->dns_base = cpe->dnsbase;
+	if (inet_aton(hostname, &addr)) {
+		if (!(entry->address = strdup(hostname))) {
+			ERROR("failed to duplicate address");
+			rc = ENOMEM;
+			evcpe_dns_cache_remove(&cpe->dns_cache, entry);
+			goto finally;
+		}
+	} else {
+		if ((rc = evcpe_dns_entry_resolve(entry, entry->name))) {
+			ERROR("failed to resolve entry: %s", hostname);
+			goto finally;
+		}
+		evtimer_set(&entry->ev, evcpe_dns_timer_cb, entry);
+		event_base_set(cpe->evbase, &entry->ev);
+	}
+	rc = 0;
+
+finally:
+	return rc;
+}
+
+void evcpe_dns_timer_cb(int fd, short event, void *arg)
+{
+	if (evcpe_dns_entry_resolve(arg, ((struct evcpe_dns_entry *)arg)->name))
+		ERROR("failed to start DNS resolution: %s",
+				((struct evcpe_dns_entry *)arg)->name);
+}
+
+void evcpe_dns_cb(int result, char type, int count, int ttl,
+    void *addresses, void *arg)
+{
+	struct evcpe_dns_entry *entry = arg;
+	const char *address;
+
+	DEBUG("starting DNS callback");
+
+	switch(result) {
+	case DNS_ERR_NONE:
+		break;
+	case DNS_ERR_SERVERFAILED:
+	case DNS_ERR_FORMAT:
+	case DNS_ERR_TRUNCATED:
+	case DNS_ERR_NOTEXIST:
+	case DNS_ERR_NOTIMPL:
+	case DNS_ERR_REFUSED:
+	case DNS_ERR_TIMEOUT:
+	default:
+		ERROR("DNS resolution failed: %d", result);
+		goto exception;
+	}
+
+	DEBUG("type: %d, count: %d, ttl: %d: ", type, count, ttl);
+	switch (type) {
+	case DNS_IPv6_AAAA: {
+		// TODO
+		break;
+	}
+	case DNS_IPv4_A: {
+		struct in_addr *in_addrs = addresses;
+		/* a resolution that's not valid does not help */
+		if (ttl < 0) {
+			ERROR("invalid DNS TTL: %d", ttl);
+			goto exception;
+		}
+		if (count == 0) {
+			ERROR("zero DNS address count");
+			goto exception;
+		} else if (count == 1) {
+			address = inet_ntoa(in_addrs[0]);
+		} else {
+			address = inet_ntoa(in_addrs[rand() % count]);
+		}
+		if (!(entry->address = strdup(address))) {
+			ERROR("failed to duplicate address string");
+			goto exception;
+		}
+		DEBUG("address resolved for entry \"%s\": %s", entry->name, address);
+		entry->tv.tv_sec = ttl;
+		break;
+	}
+	case DNS_PTR:
+		/* may get at most one PTR */
+		if (count != 1) {
+			ERROR("invalid PTR count: %d", count);
+			goto exception;
+		}
+		address = *(char **)addresses;
+		if (evcpe_dns_entry_resolve(entry, address)) {
+			ERROR("failed to start DNS resolve: %s", address);
+			goto exception;
+		}
+		break;
+	default:
+		ERROR("unexpected type: %d", type);
+		goto exception;
+	}
+	goto finally;
+
+exception:
+	entry->tv.tv_sec = 0;
+
+finally:
+	INFO("next DNS resolution in %ld seconds: %s",
+			entry->tv.tv_sec, entry->name);
+	if (event_add(&entry->ev, &entry->tv)) {
+		ERROR("failed to schedule DNS resolution");
+	}
 }

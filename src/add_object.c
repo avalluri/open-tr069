@@ -63,3 +63,15 @@ void evcpe_add_object_response_free(struct evcpe_add_object_response *method)
 	DEBUG("destructing evcpe_add_object_response");
 	free(method);
 }
+
+int evcpe_add_object_response_to_xml(struct evcpe_add_object_response *method,
+		struct evbuffer *buffer)
+{
+	int rc = 0;
+	DEBUG("marshaling evcpe_add_object_response");
+	if ((rc = evcpe_xml_add_xsd_unsigned_int(buffer, "InstanceNumber",
+			method->instance_number)))
+		return rc;
+	return evcpe_xml_add_xsd_int(buffer, "Status", method->status);
+}
+

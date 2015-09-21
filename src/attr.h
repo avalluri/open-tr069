@@ -25,7 +25,7 @@
 
 #include "data.h"
 #include "class.h"
-#include "obj_list.h"
+#include "tqueue.h"
 
 struct evcpe_attr;
 
@@ -53,7 +53,7 @@ struct evcpe_attr {
 		} simple;
 		struct evcpe_obj *object;
 		struct {
-			struct evcpe_obj_list list;
+			struct tqueue* list;
 			unsigned size;
 			unsigned max;
 		} multiple;
@@ -78,6 +78,9 @@ void evcpe_attr_set_cb(struct evcpe_attr *attr, evcpe_attr_cb cb, void *arg);
 
 int evcpe_attr_set_notification(struct evcpe_attr *attr,
 		enum evcpe_notification notification);
+
+int evcpe_attr_set_access_list(struct evcpe_attr *attr, const char *value,
+		unsigned len);
 
 void evcpe_attr_unset(struct evcpe_attr *attr);
 

@@ -78,7 +78,7 @@ static void test_tr098(void)
 	struct evcpe_param_info_list info_list;
 	struct evcpe_param_attr *pattr;
 	struct evcpe_param_attr_list pattr_list;
-	struct evcpe_access_list_item *entity;
+	struct evcpe_access *entity;
 	unsigned int count;
 
 	test_load("testfiles/tr098_model.xml");

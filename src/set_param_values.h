@@ -40,4 +40,8 @@ struct evcpe_set_param_values_response *evcpe_set_param_values_response_new(void
 void evcpe_set_param_values_response_free(
 		struct evcpe_set_param_values_response *method);
 
+int evcpe_set_param_values_response_to_xml(
+		struct evcpe_set_param_values_response *method,
+		struct evbuffer *buffer);
+
 #endif /* EVCPE_SET_PARAM_VALUES_H_ */

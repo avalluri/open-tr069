@@ -60,8 +60,8 @@ void evcpe_obj_free(struct evcpe_obj *obj)
 int evcpe_obj_init(struct evcpe_obj *obj)
 {
 	int rc = 0;
-	struct evcpe_attr_schema *schema = NULL;
 	struct evcpe_attr *attr = NULL;
+	struct tqueue_element* elm = NULL;
 
 	TRACE("initializing object: %s", obj->class->name);
 
@@ -85,9 +85,10 @@ int evcpe_obj_init(struct evcpe_obj *obj)
 		goto finally;
 	}
 
-	TAILQ_FOREACH(schema, &obj->class->attrs, entry) {
+	TQUEUE_FOREACH(elm, obj->class->attrs) {
+		struct evcpe_attr_schema *schema = (struct evcpe_attr_schema *)elm->data;
 		DEBUG("adding attribute: %s", schema->name);
-		if ((attr = evcpe_obj_find(obj, schema->name, strlen(schema->name)))) {
+		if ((attr = evcpe_obj_find(obj, schema))) {
 			ERROR("duplicated attribute in %s: %s", obj->class->name,
 					schema->name);
 			rc = EINVAL;
@@ -112,33 +113,66 @@ finally:
 }
 
 struct evcpe_attr *evcpe_obj_find(struct evcpe_obj *obj,
-		const char *name, unsigned len)
+		struct evcpe_attr_schema *schema)
 {
 	struct evcpe_attr find;
-	struct evcpe_attr_schema schema;
 
-	if (len >= sizeof(buffer)) {
-		ERROR("attribute name exceeds limit: %u >= %lu", len, sizeof(buffer));
-		return NULL;
+	TRACE("finding attribute: %s", schema->name);
+
+	find.schema = schema;
+	return RB_FIND(evcpe_attrs, &obj->attrs, &find);
+}
+
+struct evcpe_attr * _find_attr_by_schema(struct evcpe_attr *attr,
+		struct evcpe_attr_schema *schema) {
+	struct evcpe_attr *tmp_attr = NULL;
+	if (!attr) return NULL;
+
+	if (attr->schema == schema) return attr;
+	if (attr->schema->type == EVCPE_TYPE_OBJECT) {
+		if ((tmp_attr = evcpe_obj_find_deep(attr->value.object, schema)) != NULL)
+			return tmp_attr;
+	} else if(attr->schema->type == EVCPE_TYPE_MULTIPLE) {
+		struct tqueue_element* item = NULL;
+		TQUEUE_FOREACH(item, attr->value.multiple.list) {
+			struct evcpe_obj *obj = (struct evcpe_obj*)item->data;
+			if (obj &&
+			    (tmp_attr = evcpe_obj_find_deep(obj, schema)) != NULL)
+				return tmp_attr;
+		}
 	}
 
-	TRACE("finding attribute: %.*s", len, name);
+	if ((tmp_attr =_find_attr_by_schema(RB_RIGHT(attr, entry), schema)) != NULL)
+		return tmp_attr;
+	if ((tmp_attr =_find_attr_by_schema(RB_LEFT(attr, entry), schema)) != NULL)
+		return tmp_attr;
 
-	memcpy(buffer, name, len);
-	buffer[len] = '\0';
-	schema.name = buffer;
-	find.schema = &schema;
-	return RB_FIND(evcpe_attrs, &obj->attrs, &find);
+	return NULL;
+}
+
+struct evcpe_attr * evcpe_obj_find_deep(struct evcpe_obj *obj,
+		struct evcpe_attr_schema *schema)
+{
+  return _find_attr_by_schema(RB_ROOT(&obj->attrs), schema);
 }
 
 int evcpe_obj_get(struct evcpe_obj *obj, const char *name, unsigned len,
 		struct evcpe_attr **attr)
 {
+	struct evcpe_attr_schema schema;
 	if (!obj || !name || !len) return EINVAL;
 
 	DEBUG("getting attribute: %.*s", len, name);
+	if (len >= sizeof(buffer)) {
+		ERROR("attribute name exceeds limit: %u >= %lu", len, sizeof(buffer));
+		return EVCPE_CPE_INVALID_PARAM_NAME;
+	}
 
-	if (!(*attr = evcpe_obj_find(obj, name, len))) {
+	memcpy(buffer, name, len);
+	buffer[len] = '\0';
+	schema.name = buffer;
+
+	if (!(*attr = evcpe_obj_find(obj, &schema))) {
 		ERROR("attribute of %s doesn't exist: %.*s", obj->class->name, len,
 				name);
 		return EVCPE_CPE_INVALID_PARAM_NAME;

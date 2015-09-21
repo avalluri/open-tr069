@@ -21,7 +21,7 @@
 #ifndef EVCPE_ATTR_SCHEMA_H_
 #define EVCPE_ATTR_SCHEMA_H_
 
-#include <sys/queue.h>
+//#include <sys/queue.h>
 
 #include "type.h"
 #include "data.h"
@@ -51,7 +51,7 @@ struct evcpe_attr_schema {
 	char *pattern; // regex pattern
 	evcpe_attr_getter getter;
 	evcpe_attr_setter setter;
-	TAILQ_ENTRY(evcpe_attr_schema) entry;
+	//TAILQ_ENTRY(evcpe_attr_schema) entry;
 };
 
 struct evcpe_attr_schema *evcpe_attr_schema_new(struct evcpe_class *owner);

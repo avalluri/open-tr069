@@ -22,12 +22,16 @@
 #define EVCPE_CLASS_H_
 
 #include "attr_schema.h"
+#include "tqueue.h"
 
-TAILQ_HEAD(evcpe_attr_schemas, evcpe_attr_schema);
+//TAILQ_HEAD(evcpe_attr_schemas, evcpe_attr_schema);
 
 struct evcpe_class {
 	const char *name;
-	struct evcpe_attr_schemas attrs;
+	//struct evcpe_attr_schemas attrs;
+	//struct evcpe_attr_schemas inform_attrs;
+	struct tqueue *attrs;
+	struct tqueue *inform_attrs;
 };
 
 struct evcpe_class *evcpe_class_new(const char *name);

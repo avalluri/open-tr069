@@ -42,7 +42,10 @@ void evcpe_obj_free(struct evcpe_obj *obj);
 int evcpe_obj_init(struct evcpe_obj *obj);
 
 struct evcpe_attr *evcpe_obj_find(struct evcpe_obj *obj,
-		const char *name, unsigned len);
+		struct evcpe_attr_schema *schema);
+
+struct evcpe_attr * evcpe_obj_find_deep(struct evcpe_obj *obj,
+		struct evcpe_attr_schema *schema);
 
 int evcpe_obj_get(struct evcpe_obj *obj,
 		const char *name, unsigned len, struct evcpe_attr **attr);

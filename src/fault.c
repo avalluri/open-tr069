@@ -41,3 +41,17 @@ void evcpe_fault_free(struct evcpe_fault *fault)
 	DEBUG("destructing evcpe_fault");
 	free(fault);
 }
+
+int evcpe_fault_to_xml(struct evcpe_fault *fault, struct evbuffer *buffer)
+{
+	int rc = 0;
+
+	DEBUG("marshaling fault");
+
+	if ((rc = evcpe_xml_add_int(buffer, "FaultCode", fault->code)))
+		return rc;
+
+	return evcpe_xml_add_string(buffer, "FaultString", fault->string);
+
+}
+

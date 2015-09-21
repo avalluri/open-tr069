@@ -39,4 +39,7 @@ struct evcpe_add_object_response *evcpe_add_object_response_new(void);
 
 void evcpe_add_object_response_free(struct evcpe_add_object_response *method);
 
+int evcpe_add_object_response_to_xml(struct evcpe_add_object_response *method,
+		struct evbuffer *buffer);
+
 #endif /* EVCPE_ADD_OBJECT_H_ */

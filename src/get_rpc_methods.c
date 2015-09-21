@@ -64,3 +64,14 @@ void evcpe_get_rpc_methods_response_free(
 	evcpe_method_list_clear(&method->method_list);
 	free(method);
 }
+
+
+int evcpe_get_rpc_methods_response_to_xml(
+		struct evcpe_get_rpc_methods_response *method,
+		struct evbuffer *buffer)
+{
+	DEBUG("marshaling evcpe_get_rpc_methods_response");
+	return evcpe_method_list_to_xml(&method->method_list, "MethodList",
+			buffer);
+}
+

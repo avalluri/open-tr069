@@ -84,6 +84,8 @@ int evcpe_obj_from_xml(struct evcpe_obj *obj, struct evbuffer *buffer)
 		ERROR("pending stack: %.*s", elm->len, elm->name);
 		free(elm);
 	}
+
+  //evcpe_obj_dump(obj);
 	return rc;
 }
 
@@ -124,30 +126,16 @@ int evcpe_obj_xml_elm_begin_cb(void *data, const char *ns, unsigned nslen,
 		goto finally;
 	}
 
-#if 0
-	if (!evcpe_strncmp("Value", name, len)) {
-	} else if (!evcpe_strncmp("Notification", name, len)) {
-	} else if (!evcpe_strncmp("AccessList", name, len)) {
-	} else if (!evcpe_strncmp("string", name, len)) {
-		if (evcpe_strncmp("AccessList", parent->name, parent->len)) {
-			ERROR("unexpected parent element: %.*s", parent->len, parent->name);
-			rc = EPROTO;
+	if ((rc = evcpe_obj_get(obj, name, len, &attr))) {
+		ERROR("failed to find attribute in class: %.*s", len, name);
+		goto finally;
+	}
+	if (attr->schema->type == EVCPE_TYPE_OBJECT)
+		obj = attr->value.object;
+	else if (attr->schema->type == EVCPE_TYPE_MULTIPLE) {
+		if ((rc = evcpe_attr_add_obj(attr, &obj, &index))) {
+			ERROR("failed to add object: %.*s", len, name);
 			goto finally;
-		}
-	} else
-#endif
-	{
-		if ((rc = evcpe_obj_get(obj, name, len, &attr))) {
-			ERROR("failed to find attribute in class: %.*s", len, name);
-			goto finally;
-		}
-		if (attr->schema->type == EVCPE_TYPE_OBJECT)
-			obj = attr->value.object;
-		else if (attr->schema->type == EVCPE_TYPE_MULTIPLE) {
-			if ((rc = evcpe_attr_add_obj(attr, &obj, &index))) {
-				ERROR("failed to add object: %.*s", len, name);
-				goto finally;
-			}
 		}
 	}
 
@@ -187,7 +175,7 @@ int evcpe_obj_xml_data_cb(void *data, const char *text, unsigned len)
 	struct evcpe_xml_element *elm = NULL;
 	struct evcpe_obj *obj = NULL;
 	struct evcpe_attr *attr = NULL;
-	struct evcpe_access_list_item *item = NULL;
+	struct evcpe_access *item = NULL;
 
 	if (!len) return 0;
 
@@ -223,7 +211,9 @@ int evcpe_obj_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 		const char *name, unsigned name_len,
 		const char *value, unsigned value_len)
 {
+	int rc = 0;
 	struct evcpe_xml_element *elm = NULL;
+	struct evcpe_obj *obj = NULL;
 	struct evcpe_obj_parser *parser = data;
 
 	TRACE("attribute %.*s=%.*s", name_len, name, value_len, value);
@@ -233,49 +223,39 @@ int evcpe_obj_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 		ERROR("Stack is empty");
 		return -1;
 	}
-#if 0
+
+	obj = elm->data;
 	if (!evcpe_strncmp("notification", name, name_len)) {
 		long n = 0;
-		if ((rc = evcpe_obj_get((struct evcpe_obj *)elm->data, elm->name,
-				elm->len, &attr))) {
-			ERROR("failed to get attribute: %.*s", elm->len, elm->name);
-			goto finally;
-		}
+		struct evcpe_attr *attr = NULL;
+
 		if ((rc = evcpe_atol(value, value_len, &n))) {
 			ERROR("failed to convert to integer: %.*s", value_len, value);
-			goto finally;
+			return rc;
+		}
+		if ((rc = evcpe_obj_get(obj, elm->name, elm->len, &attr))) {
+			ERROR("failed to get attribute: %.*s", elm->len, elm->name);
+			return rc;
 		}
 		if ((rc = evcpe_attr_set_notification(attr, n))) {
 			ERROR("failed to set notification: %ld", n);
-			goto finally;
+			return rc;
 		}
-	} else if (!evcpe_strncmp("string", elm->name, elm->len)) {
-		if (!(parent = evcpe_xml_stack_up(parent))) {
-			ERROR("no parent element");
-			return -1;
+	} else if (!evcpe_strncmp("accesslist", name, name_len)) {
+		struct evcpe_attr *attr = NULL;
+
+		if ((rc = evcpe_obj_get(obj, elm->name, elm->len, &attr))) {
+			ERROR("failed to get attribute: %.*s",elm->len, elm->name);
+			return rc;
 		}
-		if ((rc = evcpe_obj_get(obj, parent->name, parent->len, &attr))) {
-			ERROR("failed to get attribute: %.*s",
-					parent->len, parent->name);
-			goto finally;
-		}
-		if ((attr->schema->type == EVCPE_TYPE_OBJECT ||
-				attr->schema->type == EVCPE_TYPE_MULTIPLE)) {
-			ERROR("not a simple attribute: %s", attr->schema->name);
-			rc = -1;
-			goto finally;
-		}
-		if ((rc = evcpe_access_list_add(
-				&attr->value.simple.access_list, &item, text, len))) {
-			ERROR("failed to add access list: %.*s", len, text);
-			goto finally;
-		}
-	} else if (len > 0) {
-		ERROR("unexpected element with text: %.*s", elm->len, elm->name);
-		rc = EPROTO;
-		goto finally;
+
+		return evcpe_attr_set_access_list(attr, value, value_len);
+	} else
+	{
+		ERROR("unexpected attribute %.*s with value :%.*s",
+				name_len, name, value_len, value);
+		return EPROTO;
 	}
-#endif
 
 	return 0;
 }

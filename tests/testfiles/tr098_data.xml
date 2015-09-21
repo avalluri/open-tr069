@@ -17,6 +17,30 @@
     </Event>
     <Event>
         <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
         <CommandKey></CommandKey>
     </Event>
     <LANDeviceNumberOfEntries>1</LANDeviceNumberOfEntries>
@@ -69,7 +93,7 @@
         <URL>http://localhost:7547/tr69/tr69.cgi</URL>
         <Timeout>10</Timeout>
         <PeriodicInformEnable>1</PeriodicInformEnable>
-        <PeriodicInformInterval>60</PeriodicInformInterval>
+        <PeriodicInformInterval>10</PeriodicInformInterval>
         <PeriodicInformTime>0001-01-01T00:00:00</PeriodicInformTime>
         <ConnectionRequestURL>http://localhost:7548/cwmp/creq</ConnectionRequestURL>
         <ConnectionRequestUsername>testuser</ConnectionRequestUsername>

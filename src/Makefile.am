@@ -30,6 +30,7 @@ libevcpe_la_SOURCES = \
 	obj.c obj.h \
 	obj_xml.c \
 	persister.c \
+	plugin.c plugin.h \
 	repo.c \
 	response.c xml_\
 	session.c session.h \

@@ -25,6 +25,7 @@
 
 #include "type.h"
 #include "data.h"
+#include "plugin.h"
 
 struct evcpe_class;
 
@@ -51,6 +52,7 @@ struct evcpe_attr_schema {
 	char *pattern; // regex pattern
 	evcpe_attr_getter getter;
 	evcpe_attr_setter setter;
+	evcpe_plugin* plugin;
 	//TAILQ_ENTRY(evcpe_attr_schema) entry;
 };
 

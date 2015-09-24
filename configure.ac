@@ -33,6 +33,11 @@ PKG_CHECK_MODULES(LIBEVENT, libevent)
 AC_SUBST(LIBEVENT_CFLAGS)
 AC_SUBST(LIBEVENT_LIBS)
 
+AC_ARG_ENABLE(plugins-dir,
+              [  --enable-plugins-dir specifiy the directory to load plugins from],
+              [plugins_dir=$enableval], [plugins_dir="$ac_default_prefix/evcpe/plugins"])
+AC_DEFINE_UNQUOTED(PLUGINS_DIR, ["$plugins_dir"], [Evcpe plugins location])
+
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  embunit/Makefile

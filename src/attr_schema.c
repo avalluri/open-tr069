@@ -51,6 +51,7 @@ void evcpe_attr_schema_free(struct evcpe_attr_schema *schema)
 	if (schema->value) free(schema->value);
 	if (schema->number) free(schema->number);
 	if (schema->constraint) evcpe_constraint_free(schema->constraint);
+	if (schema->plugin) evcpe_plugin_unref(schema->plugin);
 	free(schema);
 }
 
@@ -276,6 +277,6 @@ int evcpe_attr_schema_set_pattern(struct evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
 	if (!schema || !value || !len) return EPROTO;
-
+	// TODO: Add support for regex
 	return evcpe_strdup(value, len, &schema->pattern);
 }

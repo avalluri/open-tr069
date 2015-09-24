@@ -53,6 +53,7 @@ int evcpe_class_from_xml(struct evcpe_class *class, struct evbuffer *buffer)
 	root.name = NULL;
 	root.class = class;
 	root.type = EVCPE_TYPE_OBJECT;
+	root.plugin = NULL;
 	if (!(parser.dynlib = dlopen(NULL, RTLD_LAZY|RTLD_GLOBAL))) {
 		ERROR("failed to open current process as dynamic lib: %s", dlerror());
 		return -1;
@@ -127,6 +128,8 @@ int evcpe_class_xml_elm_begin_cb(void *data,
 			goto finally;
 		}
 		evcpe_attr_schema_set_extension(schema, extension);
+		schema->plugin = ! parent_schema->plugin ? NULL:
+						  	  evcpe_plugin_ref(parent_schema->plugin);
 		elm->data = schema;
 	} else {
 		ERROR("unexpected element: %.*s", len, name);
@@ -238,7 +241,6 @@ int evcpe_class_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 	}
 
 	if (!evcpe_strncmp("pattern", name, name_len)) {
-		// TODO: Add support for regex
 		return evcpe_attr_schema_set_pattern(schema, value, value_len);
 	}
 
@@ -251,7 +253,7 @@ int evcpe_class_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 	}
 
 	if(!evcpe_strncmp("description", name, name_len)) {
-		// ignore descriotion
+		// ignore description
 		return 0;
 	}
 
@@ -267,49 +269,48 @@ int evcpe_class_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 			return evcpe_attr_schema_set_write(schema, 1);
 		}
 
-		if (!evcpe_strncmp("inform", name, name_len)) {
-			if (schema->type == EVCPE_TYPE_OBJECT ||
-					schema->type == EVCPE_TYPE_MULTIPLE) {
-				ERROR("'inform' is not applicable to type: %d", schema->type);
-				return EPROTO;
-			}
-
-			schema->inform = 1;
-			/* TODO: find better way to add this schema to inform schema list */
-			tqueue_insert(parser->root->class->inform_attrs, schema);
-
-			return 0;
-		}
-
 		if (!evcpe_strncmp("notification", name, name_len)) {
 			return evcpe_attr_schema_set_notification(schema, value, value_len);
 		}
 
-		if ((getter = !evcpe_strncmp("getter", name, name_len)) ||
-			!evcpe_strncmp("setter", name, name_len)) {
-			char symbol_name[256];
-			void *symbol = NULL;
-			if (schema->type == EVCPE_TYPE_OBJECT ||
-				schema->type == EVCPE_TYPE_MULTIPLE) {
-				ERROR("'notification' is not applicable to type: %d",
-						schema->type);
-				return EPROTO;
+		if (schema->type == EVCPE_TYPE_OBJECT ||
+			schema->type == EVCPE_TYPE_MULTIPLE) {
+
+			if (! evcpe_strncmp("plugin", name, name_len)) {
+				char plugin_name[256];
+				snprintf(plugin_name, sizeof(plugin_name), "%.*s", value_len,
+						value);
+				return evcpe_plugin_load(plugin_name, &schema->plugin);
+			}
+		} else {
+			if (!evcpe_strncmp("inform", name, name_len)) {
+				schema->inform = 1;
+				/* TODO: find better way to add this schema to inform schema list */
+				tqueue_insert(parser->root->class->inform_attrs, schema);
+				return 0;
 			}
 
-			snprintf(symbol_name, sizeof(symbol_name), "%.*s", value_len, value);
-			if (!(symbol = dlsym(parser->dynlib, symbol_name)) &&
+			if ((getter = !evcpe_strncmp("getter", name, name_len)) ||
+  						  !evcpe_strncmp("setter", name, name_len)) {
+				char symbol_name[256];
+				void *symbol = NULL;
+
+				snprintf(symbol_name, sizeof(symbol_name), "%.*s", value_len,
+						value);
+				if (!(symbol = dlsym(parser->dynlib, symbol_name)) &&
 					(error = dlerror())) {
-				ERROR("failed to load symbol: %s", error);
-				return -1;
+					ERROR("failed to load symbol: %s", error);
+					return -1;
+				}
+
+				if (getter) schema->getter = symbol;
+				else schema->setter = symbol;
+
+				return 0;
 			}
-
-			if (getter) schema->getter = symbol;
-			else schema->setter = symbol;
-
-			return 0;
 		}
 	}
-
-	ERROR("unexpected attribute: %.*s", name_len, name);
+	ERROR("unexpected attribute: %.*s for schema type: %d", name_len, name,
+			schema->type);
 	return EPROTO;
 }

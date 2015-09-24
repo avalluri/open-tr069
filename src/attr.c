@@ -206,15 +206,28 @@ int evcpe_attr_set(struct evcpe_attr *attr, const char *value, unsigned len)
 					attr->path, len, value);
 			goto finally;
 		}
-	} else {
-		if (attr->value.simple.string) free(attr->value.simple.string);
-		if ((rc = evcpe_strdup(value, len, &attr->value.simple.string))) {
-			ERROR("failed to duplicate value: %.*s", len, value);
-			goto finally;
-		}
+	} else if(attr->schema->plugin &&
+			  attr->schema->plugin->set_parameter_value) {
+		char str_value[256];
+		snprintf(str_value, sizeof(str_value), "%.*s", len, value);
+		if ((rc = attr->schema->plugin->set_parameter_value(
+				attr->schema->plugin, attr->schema->name, str_value))) {
+			/* plugin set_value failed, so saving it locally */
+			WARN("Failed to set attribute value : %s => %.*s",
+					attr->schema->name, len, value);
+
+		} else return 0;
 	}
-	if (attr->cb)
-		(*attr->cb)(attr, EVCPE_ATTR_EVENT_PARAM_SET,
+
+	if (attr->value.simple.string) free(attr->value.simple.string);
+	if ((rc = evcpe_strdup(value, len, &attr->value.simple.string))) {
+		ERROR("failed to duplicate value: %.*s", len, value);
+		goto finally;
+	}
+
+	DEBUG("%s: %.*s", attr->path, len, value);
+
+	if (attr->cb) (*attr->cb)(attr, EVCPE_ATTR_EVENT_PARAM_SET,
 				attr->value.simple.string, attr->cbarg);
 
 finally:
@@ -225,8 +238,9 @@ int evcpe_attr_get(struct evcpe_attr *attr, const char **value, unsigned int *le
 {
 	int rc = 0;
 
-	TRACE("getting simple value of %s", attr->schema->name);
+	DEBUG("getting simple value of %s", attr->schema->name);
 
+	*value = *len = 0;
 	if (attr->schema->type == EVCPE_TYPE_OBJECT
 			|| attr->schema->type == EVCPE_TYPE_MULTIPLE) {
 		ERROR("attr is not simple type");
@@ -237,10 +251,16 @@ int evcpe_attr_get(struct evcpe_attr *attr, const char **value, unsigned int *le
 			ERROR("failed to get value by getter: %s", attr->path);
 			goto finally;
 		}
-	} else {
-		*value = attr->value.simple.string;
-		*len = *value ? strlen(*value) : 0;
+	} else if (attr->schema->plugin &&
+			   attr->schema->plugin->get_paramter_value) {
+		*value = attr->schema->plugin->get_paramter_value(
+				attr->schema->plugin, attr->schema->name);
 	}
+	/* fallback to default */
+	if (!*value) *value = attr->value.simple.string;
+	*len = *value ? strlen(*value) : 0;
+
+	DEBUG("%.*s => %.*s", attr->pathlen, attr->path, len, *value);
 
 finally:
 	return rc;

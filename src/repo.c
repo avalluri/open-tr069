@@ -31,9 +31,6 @@
 static int evcpe_repo_get_attr(struct evcpe_repo *repo, const char *name,
 		struct evcpe_attr **attr);
 
-static int evcpe_repo_locate(struct evcpe_repo *repo, const char *name,
-		struct evcpe_obj **obj, struct evcpe_attr **attr, unsigned int *index);
-
 static void evcpe_repo_set_obj_attr_cb(struct evcpe_repo *repo,
 		struct evcpe_obj *obj);
 
@@ -120,11 +117,13 @@ finally:
 	return rc;
 }
 
-int evcpe_repo_locate(struct evcpe_repo *repo, const char *name,
-		struct evcpe_obj **obj, struct evcpe_attr **attr, unsigned int *index)
+static
+int evcpe_repo_locate(struct evcpe_repo* repo, const char* name,
+		struct evcpe_obj** obj, struct evcpe_attr** attr)
 {
 	int rc = 0;
 	const char *start, *end;
+	unsigned index;
 
 	*obj = repo->root;
 	*attr = NULL;
@@ -138,61 +137,54 @@ int evcpe_repo_locate(struct evcpe_repo *repo, const char *name,
 			*attr = RB_ROOT(&repo->root->attrs);
 			*obj = (*attr)->value.object;
 		} else if ((*attr) && (*attr)->schema->type == EVCPE_TYPE_MULTIPLE) {
-			if (!(*index = atoi(start)) && errno) {
+			if (!(index = atoi(start)) && errno) {
 				ERROR("failed to convert to integer: %.*s",
 						(int)(end - start), start);
-				rc = ENOMEM;
-				goto finally;
+				return EVCPE_CPE_INVALID_PARAM_NAME;
 			}
-			if (*index <= 0) {
-				ERROR("invalid instance number: %d", *index);
-				rc = ENOMEM;
-				goto finally;
+			if (index <= 0) {
+				ERROR("invalid instance number: %d", index);
+				return EVCPE_CPE_INVALID_PARAM_NAME;
 			}
-			if ((rc = evcpe_attr_idx_obj(*attr, (*index) - 1, obj))) {
-				ERROR("indexed object doesn't exist: [%d]", (*index) - 1);
-				goto finally;
+			if ((rc = evcpe_attr_idx_obj(*attr, index - 1, obj))) {
+				ERROR("indexed object doesn't exist: [%d]", index - 1);
+				return rc;
 			}
 		} else if ((rc = evcpe_obj_get(*obj, start, end - start, attr))) {
 			ERROR("failed to get attribute: %.*s", (int)(end - start), start);
-			goto finally;
+			return rc;
 		} else if ((*attr)->schema->type == EVCPE_TYPE_MULTIPLE) {
 		} else if ((*attr)->schema->type == EVCPE_TYPE_OBJECT) {
 			*obj = (*attr)->value.object;
 		} else {
 			ERROR("not an object/multiple attribute: %s", (*attr)->schema->name);
-			rc = EVCPE_CPE_INVALID_PARAM_NAME;
-			goto finally;
+			return EVCPE_CPE_INVALID_PARAM_NAME;
 		}
 		start = ++ end;
 	}
 	if (start != end) {
 		if ((rc = evcpe_obj_get(*obj, start, end - start, attr))) {
 			ERROR("failed to get attribute: %.*s", (int)(end - start), start);
-			goto finally;
+			return rc;
 		} else if ((*attr)->schema->type == EVCPE_TYPE_OBJECT ||
 				(*attr)->schema->type == EVCPE_TYPE_MULTIPLE) {
 			ERROR("not a simple attribute: %.*s", (int)(end - start), start);
-			rc = EVCPE_CPE_INVALID_PARAM_NAME;
-			goto finally;
+			return EVCPE_CPE_INVALID_PARAM_NAME;
 		}
 	}
 
-finally:
-	return rc;
+	return 0;
 }
 
 int evcpe_repo_get_obj(struct evcpe_repo *repo, const char *name,
-		struct evcpe_obj **ptr)
+		struct evcpe_obj **obj)
 {
 	int rc = 0;
-	struct evcpe_obj *obj = NULL;
 	struct evcpe_attr *attr = NULL;
-	unsigned int index = 0;
 
 	INFO("getting object: %s", name);
 
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, &index))) {
+	if ((rc = evcpe_repo_locate(repo, name, obj, &attr))) {
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
@@ -201,14 +193,12 @@ int evcpe_repo_get_obj(struct evcpe_repo *repo, const char *name,
 		rc = EINVAL;
 		goto finally;
 	} else if (attr->schema->type == EVCPE_TYPE_OBJECT) {
-		*ptr = attr->value.object;
 	} else if (attr->schema->type == EVCPE_TYPE_MULTIPLE) {
-		if (obj->class != attr->schema->class) {
+		if ((*obj)->class != attr->schema->class) {
 			ERROR("missing instance number: %s", name);
 			rc = EINVAL;
 			goto finally;
 		}
-		*ptr = obj;
 	} else {
 		ERROR("not an object/multiple attribute: %s", name);
 		rc = EINVAL;
@@ -225,11 +215,10 @@ int evcpe_repo_get(struct evcpe_repo *repo, const char *name,
 	int rc = 0;
 	struct evcpe_obj *obj = NULL;
 	struct evcpe_attr *attr = NULL;
-	unsigned int index = 0;
 
 	DEBUG("getting parameter: %s", name);
 
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, &index))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
 		ERROR("failed to locate object: %s", name);
 	}
 	else if ((rc = evcpe_attr_get(attr, value, len))) {
@@ -246,14 +235,14 @@ int evcpe_repo_set(struct evcpe_repo *repo, const char *name,
 	int rc = 0;
 	struct evcpe_obj *obj = NULL;
 	struct evcpe_attr *attr = NULL;
-	unsigned int index = 0;
 
 	DEBUG("setting parameter: %s => %.*s", name, len, value);
 
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, &index))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
+	if (!attr->schema->write) return EVCPE_CPE_NON_WRITABLE_PARAM;
 	if ((rc = evcpe_attr_set(attr, value, len))) {
 		ERROR("failed to set value: %s", name);
 		rc = EINVAL;
@@ -288,12 +277,12 @@ const char *evcpe_repo_find(struct evcpe_repo *repo, const char *name)
 {
 	struct evcpe_obj *obj;
 	struct evcpe_attr *attr;
-	unsigned int index, len;
+	unsigned int len;
 	const char *value;
 
 	DEBUG("finding parameter: %s", name);
 
-	if (evcpe_repo_locate(repo, name, &obj, &attr, &index))
+	if (evcpe_repo_locate(repo, name, &obj, &attr))
 		return NULL;
 	if (evcpe_attr_get(attr, &value, &len))
 		return NULL;
@@ -305,11 +294,10 @@ int evcpe_repo_get_attr(struct evcpe_repo *repo, const char *name,
 {
 	int rc;
 	struct evcpe_obj *obj;
-	unsigned int index;
 
 	DEBUG("getting attribute: %s", name);
 
-	if ((rc = evcpe_repo_locate(repo, name, &obj, attr, &index))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, attr))) {
 		ERROR("failed to locate: %s", name);
 		goto finally;
 	}
@@ -328,12 +316,12 @@ int evcpe_repo_add_obj(struct evcpe_repo *repo, const char *name,
 		unsigned int *index)
 {
 	int rc;
-	struct evcpe_obj *obj;
-	struct evcpe_attr *attr;
+	struct evcpe_obj *obj = NULL;
+	struct evcpe_attr *attr = NULL;
 
 	DEBUG("adding object: %s", name);
 
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, index))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
@@ -355,13 +343,12 @@ finally:
 int evcpe_repo_del_obj(struct evcpe_repo *repo, const char *name)
 {
 	int rc;
-	struct evcpe_obj *obj;
-	struct evcpe_attr *attr;
-	unsigned int index;
+	struct evcpe_obj *obj = NULL;
+	struct evcpe_attr *attr = NULL;
 
 	DEBUG("deleting object: %s", name);
 
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, &index))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
@@ -370,7 +357,7 @@ int evcpe_repo_del_obj(struct evcpe_repo *repo, const char *name)
 		rc = EINVAL;
 		goto finally;
 	}
-	if ((rc = evcpe_attr_del_obj(attr, index))) {
+	if ((rc = evcpe_attr_del_obj(attr, obj->index))) {
 		ERROR("failed to delete object: %s", name);
 		goto finally;
 	}
@@ -386,11 +373,10 @@ int evcpe_repo_get_objs(struct evcpe_repo *repo, const char *name,
 	int rc;
 	struct evcpe_obj *obj;
 	struct evcpe_attr *attr;
-	unsigned int index;
 
 	DEBUG("getting multiple objects: %s", name);
 
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, &index))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
@@ -460,15 +446,15 @@ int evcpe_repo_add_event(struct evcpe_repo *repo,
 		const char *event_code, const char *command_key)
 {
 	int rc;
-	unsigned int index;
 	const char *name;
 	struct evcpe_obj *obj;
 	struct evcpe_attr *attr, *param;
+	unsigned index = 0;
 
 	DEBUG("adding event: %s - %s", event_code, command_key);
 
 	name = ".Event.";
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, &index))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
@@ -548,7 +534,6 @@ int evcpe_repo_del_event(struct evcpe_repo *repo,
 		const char *event_code)
 {
 	int rc;
-	unsigned int index;
 	const char *name;
 	struct evcpe_obj *obj, *child;
 	struct evcpe_attr *attr;
@@ -556,7 +541,7 @@ int evcpe_repo_del_event(struct evcpe_repo *repo,
 	DEBUG("deleting event: %s", event_code);
 
 	name = ".Event.";
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr, &index))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
@@ -618,33 +603,52 @@ int evcpe_repo_to_inform(struct evcpe_repo *repo, struct evcpe_inform *inform)
 	const char *code, *command;
 	unsigned int len;
 	struct evcpe_event *event;
+	const char* value = NULL;
+	struct evcpe_obj* devinfo_obj = NULL;
 
 	DEBUG("filling inform request");
 
-	if ((rc = evcpe_repo_getcpy(repo, ".DeviceInfo.Manufacturer",
-			inform->device_id.manufacturer,
-			sizeof(inform->device_id.manufacturer)))) {
+	if ((rc = evcpe_repo_get_obj(repo, ".DeviceInfo.", &devinfo_obj))) {
+		ERROR("failed to get manufacturer");
+		return rc;
+	}
+	if (!(rc = evcpe_obj_get_attr_value(devinfo_obj, "Manufacturer", &value,
+			&len))) {
+		snprintf(inform->device_id.manufacturer,
+				sizeof(inform->device_id.manufacturer), "%.*s", len, value);
+	} else {
 		ERROR("failed to get manufacturer");
 		goto finally;
 	}
-	if ((rc = evcpe_repo_getcpy(repo, ".DeviceInfo.ManufacturerOUI",
-			inform->device_id.oui,
-			sizeof(inform->device_id.oui)))) {
+
+	if (!(rc = evcpe_obj_get_attr_value(devinfo_obj, "ManufacturerOUI", &value,
+					&len))) {
+		snprintf(inform->device_id.oui, sizeof(inform->device_id.oui),
+				"%.*s", len, value);
+	} else {
 		ERROR("failed to get manufacturer OUI");
 		goto finally;
 	}
-	if ((rc = evcpe_repo_getcpy(repo, ".DeviceInfo.ProductClass",
-			inform->device_id.product_class,
-			sizeof(inform->device_id.product_class)))) {
+
+	if (!(rc = evcpe_obj_get_attr_value(devinfo_obj, "ProductClass", &value,
+			&len))) {
+		snprintf(inform->device_id.product_class,
+				sizeof(inform->device_id.product_class), "%.*s", len, value);
+
+	} else {
 		ERROR("failed to get product class");
 		goto finally;
 	}
-	if ((rc = evcpe_repo_getcpy(repo, ".DeviceInfo.SerialNumber",
-			inform->device_id.serial_number,
-			sizeof(inform->device_id.serial_number)))) {
+
+	if (!(rc = evcpe_obj_get_attr_value(devinfo_obj, "SerialNumber", &value,
+			&len))) {
+		snprintf(inform->device_id.serial_number,
+			sizeof(inform->device_id.serial_number), "%.*s", len, value);
+	} else {
 		ERROR("failed to get serial number");
 		goto finally;
 	}
+
 	if ((rc = evcpe_repo_getcpy(repo, ".Time.CurrentLocalTime",
 			inform->current_time, sizeof(inform->current_time)))) {
 		ERROR("failed to get current local time");
@@ -657,13 +661,11 @@ int evcpe_repo_to_inform(struct evcpe_repo *repo, struct evcpe_inform *inform)
 	TQUEUE_FOREACH(item, objs) {
 		struct evcpe_obj* obj = (struct evcpe_obj*)item->data;
 		if (!obj) continue;
-		if ((rc = evcpe_obj_get(obj, "EventCode", strlen("EventCode"),
-				&attr)) || (rc = evcpe_attr_get(attr, &code, &len))) {
+		if ((rc = evcpe_obj_get_attr_value(obj, "EventCode", &code, &len))) {
 			ERROR("failed to get event code");
 			goto finally;
 		}
-		if ((rc = evcpe_obj_get(obj, "CommandKey", strlen("CommandKey"),
-				&attr)) || (rc = evcpe_attr_get(attr, &command, &len))) {
+		if ((rc = evcpe_obj_get_attr_value(obj, "CommandKey", &command, &len))){
 			ERROR("failed to get command key");
 			goto finally;
 		}

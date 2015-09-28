@@ -50,4 +50,7 @@ struct evcpe_attr * evcpe_obj_find_deep(struct evcpe_obj *obj,
 int evcpe_obj_get(struct evcpe_obj *obj,
 		const char *name, unsigned len, struct evcpe_attr **attr);
 
+int evcpe_obj_get_attr_value(struct evcpe_obj* obj, const char* attr_name,
+		const char** value, unsigned* value_len);
+
 #endif /* EVCPE_OBJ_H_ */

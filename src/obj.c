@@ -181,6 +181,22 @@ int evcpe_obj_get(struct evcpe_obj *obj, const char *name, unsigned len,
 	return 0;
 }
 
+int evcpe_obj_get_attr_value(struct evcpe_obj* obj, const char *attr_name,
+		const char** value, unsigned* value_len)
+{
+	int rc = 0;
+	struct evcpe_attr* attr = NULL;
+	struct evcpe_attr_schema schema;
+
+	schema.name = (char*)attr_name;
+	if (!(attr = evcpe_obj_find(obj, &schema))) {
+		ERROR("attribute of %s doesn't exist: %s", obj->class->name, attr_name);
+		return EVCPE_CPE_INVALID_PARAM_NAME;
+	}
+
+	return evcpe_attr_get(attr, value, value_len);
+}
+
 int evcpe_obj_set_int(struct evcpe_obj *obj, const char *name, unsigned len,
 		long value)
 {

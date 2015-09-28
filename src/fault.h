@@ -24,6 +24,7 @@
 #include <event.h>
 
 enum evcpe_fault_code {
+	EVCEP_FAULT_CODE_NONE = 0,
 	EVCPE_ACS_FAULT_MIN = 8000,
 	EVCPE_ACS_METHOD_NOT_SUPPORTED = 8000,
 	EVCPE_ACS_REQUEST_DENIED = 8001,

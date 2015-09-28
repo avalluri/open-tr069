@@ -41,6 +41,9 @@
     </Event>
     <Event>
         <EventCode>1 BOOT</EventCode>
+    </Event>
+    <Event>
+        <EventCode>1 BOOT</EventCode>
         <CommandKey></CommandKey>
     </Event>
     <LANDeviceNumberOfEntries>1</LANDeviceNumberOfEntries>

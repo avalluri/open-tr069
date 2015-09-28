@@ -192,13 +192,13 @@ int evcpe_attr_set(struct evcpe_attr *attr, const char *value, unsigned len)
 			|| attr->schema->type == EVCPE_TYPE_MULTIPLE) {
 		ERROR("not simple type: %s (%s)", attr->schema->name,
 				evcpe_type_to_str(attr->schema->type));
-		return EINVAL;
+		return EVCPE_CPE_INVALID_PARAM_TYPE;
 	}
 	if ((rc = evcpe_type_validate(attr->schema->type, value, len,
 			attr->schema->constraint, attr->schema->pattern))) {
 		ERROR("not a valid value for %s (%s): %.*s", attr->schema->name,
 				evcpe_type_to_str(attr->schema->type), len, value);
-		goto finally;
+		return EVCPE_CPE_INVALID_PARAM_VALUE;
 	}
 	if (attr->schema->setter) {
 		if ((rc = (*attr->schema->setter)(attr, value, len))) {

@@ -150,28 +150,36 @@ void evcpe_free(struct evcpe *cpe)
 int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 {
 	int rc, number;
-	const char *value;
+	const char *value = NULL;
 	unsigned int len;
+	struct evcpe_obj *server_obj = NULL;
+	unsigned i = 0;
 
-	if ((rc = evcpe_repo_get(repo,
-			".ManagementServer.Authentication", &value, &len))) {
-		ERROR("failed to get ACS authentication");
-		goto finally;
-	}
-	if (!strcmp("NONE", value))
-		cpe->acs_auth = EVCPE_AUTH_NONE;
-	else if (!strcmp("BASIC", value))
-		cpe->acs_auth = EVCPE_AUTH_NONE;
-	else if (!strcmp("DIGEST", value))
-		cpe->acs_auth = EVCPE_AUTH_NONE;
-	else {
-		ERROR("invalid authentication value: %s", value);
-		rc = EINVAL;
-		goto finally;
+	if ((rc = evcpe_repo_get_obj(repo, ".ManagementServer.", &server_obj))) {
+		ERROR("Failed to locate ManagementServer object");
+		return rc;
 	}
 
-	if ((rc = evcpe_repo_get(repo,
-			".ManagementServer.URL", &value, &len))) {
+	if (!(rc = evcpe_obj_get_attr_value(server_obj, "Authentication", &value,
+			&len))) {
+		if (!strcmp("NONE", value))
+			cpe->acs_auth = EVCPE_AUTH_NONE;
+		else if (!strcmp("BASIC", value))
+			cpe->acs_auth = EVCPE_AUTH_NONE;
+		else if (!strcmp("DIGEST", value))
+			cpe->acs_auth = EVCPE_AUTH_NONE;
+		else {
+			ERROR("invalid authentication value: %s", value);
+			rc = EINVAL;
+			goto finally;
+		}
+	} else {
+		ERROR("Failed to get 'Authentication' value: %d", rc);
+		return rc;
+	}
+
+	if ((rc = evcpe_obj_get_attr_value(server_obj, "URL", &value, &len)) ||
+			!value) {
 		ERROR("failed to get ACS URL");
 		goto finally;
 	}
@@ -188,12 +196,9 @@ int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 		ERROR("failed to resolve ACS hostname");
 		goto finally;
 	}
-	cpe->acs_username = evcpe_repo_find(repo,
-			".ManagementServer.Username");
-	cpe->acs_password = evcpe_repo_find(repo,
-			".ManagementServer.Password");
-	if ((value = evcpe_repo_find(repo,
-			".ManagementServer.Timeout"))) {
+	evcpe_obj_get_attr_value(server_obj, "Username", &cpe->acs_username, &len);
+	evcpe_obj_get_attr_value(server_obj, "Password", &cpe->acs_password, &len);
+	if (!(rc = evcpe_obj_get_attr_value(server_obj, "Timeout", &value, &len))) {
 		if ((number = atoi(value)) < 0) {
 			ERROR("invalid ACS timeout: %d, falling back to default timeout",
 					number);
@@ -204,7 +209,8 @@ int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 		cpe->acs_timeout = EVCPE_ACS_TIMEOUT;
 	}
 
-	if ((value = evcpe_repo_find(repo, ".ManagementServer.ProxyURL"))) {
+	if (! evcpe_obj_get_attr_value(server_obj, "ProxyURL", &value, &len)
+			&& value) {
 		if (!(cpe->proxy_url = evcpe_url_new())) {
 			ERROR("failed to create evcpe_url");
 			rc = ENOMEM;
@@ -218,14 +224,14 @@ int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 			ERROR("failed to resolve HTTP proxy hostname");
 			goto finally;
 		}
-		cpe->proxy_username = evcpe_repo_find(repo,
-				".ManagementServer.ProxyUsername");
-		cpe->proxy_password = evcpe_repo_find(repo,
-				".ManagementServer.ProxyPassword");
+		evcpe_obj_get_attr_value(server_obj, "ProxyUsername",
+				&cpe->proxy_username, &len);
+		evcpe_obj_get_attr_value(server_obj, "ProxyPassword",
+				&cpe->proxy_password, &len);
 	}
 
-	if ((value = evcpe_repo_find(repo,
-			".ManagementServer.ConnectionRequestURL"))) {
+	if (! evcpe_obj_get_attr_value(server_obj, "ConnectionRequestURL", &value,
+			&len) && value) {
 		if (!(cpe->creq_url = evcpe_url_new())) {
 			ERROR("failed to create evcpe_url");
 			rc = ENOMEM;
@@ -235,12 +241,12 @@ int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 			ERROR("failed to parse ACS URL");
 			goto finally;
 		}
-		cpe->creq_username = evcpe_repo_find(repo,
-				".ManagementServer.ConnectionRequestUsername");
-		cpe->creq_password = evcpe_repo_find(repo,
-				".ManagementServer.ConnectionRequestPassword");
-		if ((value = evcpe_repo_find(repo,
-				".ManagementServer.ConnectionRequestInterval"))) {
+		evcpe_obj_get_attr_value(server_obj, "ConnectionRequestUsername",
+				&cpe->creq_username, &len);
+		evcpe_obj_get_attr_value(server_obj, "ConnectionRequestPassword",
+				&cpe->creq_password, &len);
+		if (! evcpe_obj_get_attr_value(server_obj, "ConnectionRequestInterval",
+				&value, &len)) {
 			if ((number = atoi(value)) < 0) {
 				ERROR("invalid connection request interval: %d", number);
 				rc = EINVAL;
@@ -252,11 +258,11 @@ int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 		}
 	}
 
-	if ((value = evcpe_repo_find(repo,
-			".ManagementServer.PeriodicInformEnable")) &&
-			!strcmp("1", value)) {
-		if (!(value = evcpe_repo_find(repo,
-				".ManagementServer.PeriodicInformInterval"))) {
+	if (! evcpe_obj_get_attr_value(server_obj, "PeriodicInformEnable",
+			&value, &len) &&
+			value && !strcmp("1", value)) {
+		if (evcpe_obj_get_attr_value(server_obj,"PeriodicInformInterval",
+				&value, &len) || !value) {
 			ERROR("periodic inform interval was not set");
 			rc = EINVAL;
 			goto finally;
@@ -834,16 +840,14 @@ int evcpe_handle_get_param_values(struct evcpe *cpe,
 
 	msg->type = EVCPE_MSG_RESPONSE;
 	if (!(msg->data = resp = evcpe_get_param_values_response_new())) {
-		ERROR("failed to create "
-				"evcpe_get_param_values_response");
+		ERROR("failed to create evcpe_get_param_values_response");
 		rc = ENOMEM;
 		goto finally;
 	}
 	TAILQ_FOREACH(param, &req->parameter_names.head, entry) {
 		if ((rc = evcpe_repo_to_param_value_list(cpe->repo,
 				param->name, &resp->parameter_list))) {
-			ERROR("failed to get param values: %s",
-					param->name);
+			ERROR("failed to get param values: %s", param->name);
 			evcpe_get_param_values_response_free(resp);
 			goto finally;
 		}
@@ -864,16 +868,14 @@ int evcpe_handle_get_param_attrs(struct evcpe *cpe,
 
 	msg->type = EVCPE_MSG_RESPONSE;
 	if (!(msg->data = resp = evcpe_get_param_attrs_response_new())) {
-		ERROR("failed to create "
-				"evcpe_get_param_attrs_response");
+		ERROR("failed to create evcpe_get_param_attrs_response");
 		rc = ENOMEM;
 		goto finally;
 	}
 	TAILQ_FOREACH(param, &req->parameter_names.head, entry) {
 		if ((rc = evcpe_repo_to_param_attr_list(cpe->repo,
 				param->name, &resp->parameter_list))) {
-			ERROR("failed to get param values: %s",
-					param->name);
+			ERROR("failed to get param values: %s", param->name);
 			evcpe_get_param_attrs_response_free(resp);
 			goto finally;
 		}

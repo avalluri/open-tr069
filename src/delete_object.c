@@ -43,3 +43,20 @@ void evcpe_delete_object_free(struct evcpe_delete_object *method)
 	DEBUG("destructing evcpe_delete_object");
 	free(method);
 }
+
+struct evcpe_delete_object_response *evcpe_delete_object_response_new(void)
+{
+	return (struct evcpe_delete_object_response *) calloc(1,
+			sizeof(struct evcpe_delete_object_response));
+}
+
+void evcpe_delete_object_response_free(struct evcpe_delete_object_response *resp)
+{
+	if (resp) free(resp);
+}
+
+int evcpe_delete_object_response_to_xml(struct evcpe_delete_object_response *resp,
+		struct evbuffer *buffer)
+{
+	return evcpe_xml_add_xsd_int(buffer, "Status", resp->status);
+}

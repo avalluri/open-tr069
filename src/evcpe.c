@@ -39,6 +39,7 @@
 #include "get_param_values.h"
 #include "get_param_attrs.h"
 #include "add_object.h"
+#include "delete_object.h"
 #include "set_param_values.h"
 
 #include "evcpe.h"
@@ -47,13 +48,13 @@ static void evcpe_creq_cb(struct evhttp_request *req, void *arg);
 
 static void evcpe_session_message_cb(struct evcpe_session *session,
 		enum evcpe_msg_type type, enum evcpe_method_type method_type,
-				void *request, void *response, void *arg);
+		void *request, void *response, void *arg);
 
 static void evcpe_session_terminate_cb(struct evcpe_session *session,
 		int code, void *arg);
 
 static void evcpe_dns_cb(int result, char type, int count, int ttl,
-	    void *addresses, void *arg);
+		void *addresses, void *arg);
 
 static inline void evcpe_dns_timer_cb(int fd, short event, void *arg);
 
@@ -87,6 +88,9 @@ static inline int evcpe_handle_get_param_attrs(struct evcpe *cpe,
 static inline int evcpe_handle_add_object(struct evcpe *cpe,
 		struct evcpe_add_object *req,
 		struct evcpe_msg *msg);
+
+static inline int evcpe_handle_delete_object(struct evcpe *cpe,
+		struct evcpe_delete_object* req, struct evcpe_msg* msg);
 
 static inline int evcpe_handle_set_param_values(struct evcpe *cpe,
 		struct evcpe_set_param_values *req,
@@ -288,7 +292,7 @@ int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 	}
 	cpe->repo = repo;
 
-finally:
+	finally:
 	return rc;
 }
 
@@ -299,7 +303,7 @@ void evcpe_creq_cb(struct evhttp_request *req, void *arg)
 
 	if (req->type != EVHTTP_REQ_GET || (cpe->creq_url->uri &&
 			strncmp(cpe->creq_url->uri,
-			evhttp_request_uri(req), strlen(cpe->creq_url->uri)))) {
+					evhttp_request_uri(req), strlen(cpe->creq_url->uri)))) {
 		evhttp_send_reply(req, 404, "Not Found", NULL);
 		return;
 	} else {
@@ -359,7 +363,7 @@ int evcpe_bind(struct evcpe *cpe)
 	INFO("accepting connection request: %s", cpe->creq_url->uri);
 	evhttp_set_gencb(cpe->http, evcpe_creq_cb, cpe);
 
-finally:
+	finally:
 	return rc;
 }
 
@@ -429,7 +433,7 @@ int evcpe_retry_session(struct evcpe *cpe)
 	if ((rc = event_add(&cpe->retry_ev, &cpe->retry_tv)))
 		ERROR("failed to add timer event");
 
-finally:
+	finally:
 	return rc;
 }
 
@@ -460,7 +464,7 @@ int evcpe_start(struct evcpe *cpe)
 	}
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
 
@@ -559,7 +563,7 @@ int evcpe_start_session(struct evcpe *cpe)
 	rc = 0;
 	goto finally;
 
-exception:
+	exception:
 	if (msg) evcpe_msg_free(msg);
 	if (conn) evhttp_connection_free(conn);
 	if (cpe->session) {
@@ -567,7 +571,7 @@ exception:
 		cpe->session = NULL;
 	}
 
-finally:
+	finally:
 	return rc;
 }
 
@@ -591,7 +595,7 @@ void evcpe_session_terminate_cb(struct evcpe_session *session, int rc,
 
 void evcpe_session_message_cb(struct evcpe_session *session,
 		enum evcpe_msg_type type, enum evcpe_method_type method_type,
-				void *request, void *response, void *arg)
+		void *request, void *response, void *arg)
 {
 	int rc;
 	struct evcpe *cpe = arg;
@@ -625,7 +629,7 @@ void evcpe_session_message_cb(struct evcpe_session *session,
 	}
 	return;
 
-close_session:
+	close_session:
 	evcpe_session_close(cpe->session, rc);
 }
 
@@ -633,34 +637,44 @@ int evcpe_handle_request(struct evcpe *cpe, struct evcpe_session *session,
 		enum evcpe_method_type method_type, void *request)
 {
 	int rc;
-	struct evcpe_msg *msg;
+	struct evcpe_msg *reply = NULL;
 	struct evcpe_fault *fault;
 
-	if (!(msg = evcpe_msg_new())) {
+
+	if (!(reply = evcpe_msg_new())) {
 		ERROR("failed to create evcpe_msg");
 		rc = ENOMEM;
 		goto finally;
 	}
-	msg->method_type = method_type;
+	reply->type = EVCPE_MSG_RESPONSE;
+	reply->method_type = method_type;
 	switch(method_type) {
 	case EVCPE_GET_RPC_METHODS:
-		rc = evcpe_handle_get_rpc_methods(cpe, request, msg);
+		rc = evcpe_handle_get_rpc_methods(cpe, request, reply);
 		break;
 	case EVCPE_GET_PARAMETER_NAMES:
-		rc = evcpe_handle_get_param_names(cpe, request, msg);
+		rc = evcpe_handle_get_param_names(cpe, request, reply);
 		break;
 	case EVCPE_GET_PARAMETER_ATTRIBUTES:
-		rc = evcpe_handle_get_param_attrs(cpe, request, msg);
+		rc = evcpe_handle_get_param_attrs(cpe, request, reply);
 		break;
 	case EVCPE_GET_PARAMETER_VALUES:
-		rc = evcpe_handle_get_param_values(cpe, request, msg);
-		break;
-	case EVCPE_ADD_OBJECT:
-		rc = evcpe_handle_add_object(cpe, request, msg);
+		rc = evcpe_handle_get_param_values(cpe, request, reply);
 		break;
 	case EVCPE_SET_PARAMETER_VALUES:
-		rc = evcpe_handle_set_param_values(cpe, request, msg);
+		rc = evcpe_handle_set_param_values(cpe, request, reply);
 		break;
+	case EVCPE_ADD_OBJECT:
+		rc = evcpe_handle_add_object(cpe, request, reply);
+		break;
+	case EVCPE_DELETE_OBJECT:
+		rc = evcpe_handle_delete_object(cpe, request, reply);
+		break;
+	case EVCPE_DOWNLOAD:
+		//TODO: Handle Download
+	case EVCPE_REBOOT:
+		//TODO: Handle Reboot
+
 	default:
 		ERROR("unexpected method type: %s",
 				evcpe_method_type_to_str(method_type));
@@ -668,27 +682,27 @@ int evcpe_handle_request(struct evcpe *cpe, struct evcpe_session *session,
 		break;
 	}
 	if (rc) {
-		if (!(msg->data = fault = evcpe_fault_new())) {
+		if (!(reply->data = fault = evcpe_fault_new())) {
 			rc = ENOMEM;
 			goto finally;
 		}
-		msg->type = EVCPE_MSG_FAULT;
+		reply->type = EVCPE_MSG_FAULT;
 		if (rc >= EVCPE_CPE_FAULT_MIN && rc <= EVCPE_CPE_FAULT_MAX)
 			fault->code = rc;
-//		else if (rc == ENOMEM)
-//			fault->code = EVCPE_CPE_RESOUCES_EXCEEDS;
+		//		else if (rc == ENOMEM)
+		//			fault->code = EVCPE_CPE_RESOUCES_EXCEEDS;
 		else
 			fault->code = EVCPE_CPE_INTERNAL_ERROR;
 	}
-	if ((rc = evcpe_session_send(session, msg))) {
+	if ((rc = evcpe_session_send(session, reply))) {
 		ERROR("failed to send CWMP %s message",
-				evcpe_method_type_to_str(msg->method_type));
-		evcpe_msg_free(msg);
+				evcpe_method_type_to_str(reply->method_type));
+		evcpe_msg_free(reply);
 		goto finally;
 	}
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
 
@@ -709,137 +723,122 @@ int evcpe_handle_response(struct evcpe *cpe,
 	}
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
-
+#if 0
+static
+struct MethodInfo {
+	enum evcpe_method_type type;
+	void* create();
+	void  free(void* data);
+	int   handle(struct evcpe *cpe, void* data, struct evcpe_msg* reply);
+} supported_methods[] = {
+	{ EVCPE_GET_RPC_METHODS, evcpe_get_rpc_methods_new,
+	  evcpe_get_rpc_methods_free, evcpe_handle_get_rpc_methods
+	},
+	{ EVCPE_SET_PARAMETER_VALUES, evcpe_set_param_values_new,
+	  evcpe_set_param_values_free, evcpe_handle_get_param_values
+	},
+	{ EVCPE_GET_PARAMETER_VALUES, evcpe_get_param_values_new,
+	  evcpe_get_param_values_free, evcpe_handle_get_param_values
+	},
+	{ EVCPE_GET_PARAMETER_NAMES, evcpe_get_param_names_new,
+	  evcpe_get_param_names_free, evcpe_handle_get_param_names
+	},
+	{ EVCPE_SET_PARAMETER_ATTRIBUTES, evcpe_set_param_attrs_new,
+	  evcpe_set_param_attrs_free, evcpe_handle_set_param_attrs
+	},
+	{ EVCPE_GET_PARAMETER_ATTRIBUTES, evcpe_get_param_attrs_new,
+	  evcpe_get_param_attrs_free, evcpe_handle_get_param_attrs
+	},
+	{ EVCPE_ADD_OBJECT, evcpe_add_object_new, evcpe_add_object_free,
+	  evcpe_handle_add_object
+	},
+	{ EVCPE_DELETE_OBJECT, evcpe_delete_object_new, evcpe_delete_object_free,
+	  evcpe_handle_delete_object
+	},
+	{ EVCPE_DOWNLOAD, evcpe_download_new, evcpe_download_free,
+	  evcpe_handle_download
+	},
+	{ EVCPE_REBOOT, NULL, NULL, NULL }
+};
+#endif
 int evcpe_handle_get_rpc_methods(struct evcpe *cpe,
 		struct evcpe_get_rpc_methods *req,
-		struct evcpe_msg *msg)
+		struct evcpe_msg *reply)
 {
-	int rc;
-	struct evcpe_get_rpc_methods_response *method;
+	int rc = 0, i;
+	struct evcpe_get_rpc_methods_response *resp = NULL;
+	int supported_methods[] = {
+			EVCPE_GET_RPC_METHODS,
+			EVCPE_SET_PARAMETER_VALUES,
+			EVCPE_GET_PARAMETER_VALUES,
+			EVCPE_GET_PARAMETER_NAMES,
+			EVCPE_SET_PARAMETER_ATTRIBUTES,
+			EVCPE_GET_PARAMETER_ATTRIBUTES,
+			EVCPE_ADD_OBJECT,
+			EVCPE_DELETE_OBJECT,
+			EVCPE_DOWNLOAD,
+			EVCPE_REBOOT
+	};
 
-	msg->type = EVCPE_MSG_RESPONSE;
-	if (!(msg->data = method = evcpe_get_rpc_methods_response_new())) {
-		ERROR("failed to create "
-				"evcpe_get_rpc_methods_response");
+	if (!(resp = evcpe_get_rpc_methods_response_new())) {
+		ERROR("failed to create evcpe_get_rpc_methods_response");
 		rc = ENOMEM;
 		goto finally;
 	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"GetRPCMethods"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"GetParameterNames"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"GetParameterValues"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"SetParameterValues"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"GetParameterAttributes"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"SetParameterAttributes"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"AddObject"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"DeleteObject"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"Download"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"Upload"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"Reboot"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"FactoryReset"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"GetQueuedTransfers"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	if ((rc = evcpe_method_list_add_method(&method->method_list,
-			"ScheduleInform"))) {
-		ERROR("failed to add method");
-		goto finally;
-	}
-	rc = 0;
 
-finally:
+	for (i=0; i< sizeof(supported_methods)/sizeof(int); i++){
+		if ((rc = evcpe_method_list_add_method(&resp->method_list,
+				evcpe_method_type_to_str(supported_methods[i])))) {
+			evcpe_get_rpc_methods_response_free(resp);
+			resp = NULL;
+			ERROR("failed to add method");
+			goto finally;
+		}
+	}
+	reply->data = resp;
+
+	finally:
 	return rc;
 }
 
 int evcpe_handle_get_param_names(struct evcpe *cpe,
 		struct evcpe_get_param_names *req,
-		struct evcpe_msg *msg)
+		struct evcpe_msg *reply)
 {
-	int rc;
-	struct evcpe_get_param_names_response *resp;
+	int rc = 0;
+	struct evcpe_get_param_names_response *resp = NULL;
 
-	msg->type = EVCPE_MSG_RESPONSE;
-	if (!(msg->data = resp = evcpe_get_param_names_response_new())) {
-		ERROR("failed to create "
-				"evcpe_get_param_names_response");
+	if (!(resp = evcpe_get_param_names_response_new())) {
+		ERROR("failed to create evcpe_get_param_names_response");
 		rc = ENOMEM;
 		goto finally;
 	}
 	if ((rc = evcpe_repo_to_param_info_list(cpe->repo,
 			req->parameter_path, &resp->parameter_list, req->next_level))) {
-		ERROR("failed to get param names: %s",
-				req->parameter_path);
+		ERROR("failed to get param names: %s", req->parameter_path);
 		evcpe_get_param_names_response_free(resp);
+		resp = NULL;
 		goto finally;
 	}
+	reply->data = resp;
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
 
 int evcpe_handle_get_param_values(struct evcpe *cpe,
 		struct evcpe_get_param_values *req,
-		struct evcpe_msg *msg)
+		struct evcpe_msg *reply)
 {
-	int rc;
-	struct evcpe_param_name *param;
-	struct evcpe_get_param_values_response *resp;
+	int rc = 0;
+	struct evcpe_param_name *param = NULL;
+	struct evcpe_get_param_values_response *resp = NULL;
 
-	msg->type = EVCPE_MSG_RESPONSE;
-	if (!(msg->data = resp = evcpe_get_param_values_response_new())) {
+	if (!(resp = evcpe_get_param_values_response_new())) {
 		ERROR("failed to create evcpe_get_param_values_response");
 		rc = ENOMEM;
 		goto finally;
@@ -849,25 +848,26 @@ int evcpe_handle_get_param_values(struct evcpe *cpe,
 				param->name, &resp->parameter_list))) {
 			ERROR("failed to get param values: %s", param->name);
 			evcpe_get_param_values_response_free(resp);
+			resp = NULL;
 			goto finally;
 		}
 	}
+	reply->data = resp;
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
 
 int evcpe_handle_get_param_attrs(struct evcpe *cpe,
 		struct evcpe_get_param_attrs *req,
-		struct evcpe_msg *msg)
+		struct evcpe_msg *reply)
 {
-	int rc;
-	struct evcpe_param_name *param;
-	struct evcpe_get_param_attrs_response *resp;
+	int rc = 0;
+	struct evcpe_param_name *param = NULL;
+	struct evcpe_get_param_attrs_response *resp = NULL;
 
-	msg->type = EVCPE_MSG_RESPONSE;
-	if (!(msg->data = resp = evcpe_get_param_attrs_response_new())) {
+	if (!(resp = evcpe_get_param_attrs_response_new())) {
 		ERROR("failed to create evcpe_get_param_attrs_response");
 		rc = ENOMEM;
 		goto finally;
@@ -877,20 +877,22 @@ int evcpe_handle_get_param_attrs(struct evcpe *cpe,
 				param->name, &resp->parameter_list))) {
 			ERROR("failed to get param values: %s", param->name);
 			evcpe_get_param_attrs_response_free(resp);
+			resp = NULL;
 			goto finally;
 		}
 	}
+	reply->data = resp;
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
 
 int evcpe_handle_add_object(struct evcpe *cpe,
 		struct evcpe_add_object *req,
-		struct evcpe_msg *msg)
+		struct evcpe_msg *reply)
 {
-	int rc;
+	int rc = 0;
 	unsigned int index;
 	struct evcpe_add_object_response *resp;
 
@@ -898,52 +900,78 @@ int evcpe_handle_add_object(struct evcpe *cpe,
 		ERROR("failed to add object: %s", req->object_name);
 		goto finally;
 	}
-	// TODO: set ParameterKey
-	msg->type = EVCPE_MSG_RESPONSE;
-	if (!(msg->data = resp = evcpe_add_object_response_new())) {
+	evcpe_repo_set(cpe->repo, ".ManagementServer.ParameterKey",
+			req->parameter_key, strlen(req->parameter_key));
+
+	if (!(reply->data = resp = evcpe_add_object_response_new())) {
 		ERROR("failed to create add_object_response");
 		rc = ENOMEM;
 		goto finally;
 	}
 	resp->instance_number = index;
+	/* FIXME: Find a way to know if the object addition was validated
+	 * but not applied yet!!!
+	 */
 	resp->status = 0;
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
 
-int evcpe_handle_set_param_values(struct evcpe *cpe,
-		struct evcpe_set_param_values *req,
-		struct evcpe_msg *msg)
+int evcpe_handle_delete_object(struct evcpe* cpe,
+		struct evcpe_delete_object* req, struct evcpe_msg* reply)
 {
-	int rc, pk_len;
-	struct evcpe_set_param_value *param;
-	struct evcpe_set_param_values_response *resp;
+	int rc = 0;
+	struct evcpe_delete_object_response* resp = NULL;
+
+	if((rc = evcpe_repo_del_obj(cpe->repo, req->object_name))) {
+		ERROR("Failed to delete object: %s", req->object_name);
+		return rc;
+	}
+
+	evcpe_repo_set(cpe->repo, ".ManagementServer.ParameterKey",
+			req->parameter_key, strlen(req->parameter_key));
+
+	if (!(resp = evcpe_delete_object_response_new())) return ENOMEM;
+	/* FIXME: Find a way to know if the object deletion was validated
+	 * but not applied yet!!!
+	 */
+	resp->status = 0;
+
+	reply->data = resp;
+
+	return 0;
+}
+
+int evcpe_handle_set_param_values(struct evcpe *cpe,
+		struct evcpe_set_param_values *req, struct evcpe_msg *reply)
+{
+	int rc = 0;
+	struct evcpe_set_param_value *param = NULL;
+	struct evcpe_set_param_values_response *resp = NULL;
 
 	TAILQ_FOREACH(param, &req->parameter_list.head, entry) {
-		if ((rc = evcpe_repo_set(cpe->repo, param->name,
-				param->data, param->len))) {
+		if ((rc = evcpe_repo_set(cpe->repo, param->name, param->data,
+				param->len))) {
 			ERROR("failed to set param: %s", param->name);
 			// TODO: error codes
 			goto finally;
 		}
 	}
-	// TODO: set ParameterKey
-	pk_len = strlen(req->parameter_key);
+
 	evcpe_repo_set(cpe->repo, ".ManagementServer.ParameterKey",
-			req->parameter_key, pk_len);
-	msg->type = EVCPE_MSG_RESPONSE;
-	if (!(msg->data = resp = evcpe_set_param_values_response_new())) {
-		ERROR("failed to create "
-				"evcpe_get_param_values_response");
+			req->parameter_key, strlen(req->parameter_key));
+
+	if (!(reply->data = resp = evcpe_set_param_values_response_new())) {
+		ERROR("failed to create evcpe_get_param_values_response");
 		rc = ENOMEM;
 		goto finally;
 	}
 	resp->status = 0;
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
 
@@ -1001,7 +1029,7 @@ int evcpe_dns_add(struct evcpe *cpe, const char *hostname)
 	}
 	rc = 0;
 
-finally:
+	finally:
 	return rc;
 }
 
@@ -1013,7 +1041,7 @@ void evcpe_dns_timer_cb(int fd, short event, void *arg)
 }
 
 void evcpe_dns_cb(int result, char type, int count, int ttl,
-    void *addresses, void *arg)
+		void *addresses, void *arg)
 {
 	struct evcpe_dns_entry *entry = arg;
 	const char *address;
@@ -1082,10 +1110,10 @@ void evcpe_dns_cb(int result, char type, int count, int ttl,
 	}
 	goto finally;
 
-exception:
+	exception:
 	entry->tv.tv_sec = 0;
 
-finally:
+	finally:
 	INFO("next DNS resolution in %ld seconds: %s",
 			entry->tv.tv_sec, entry->name);
 	if (event_add(&entry->ev, &entry->tv)) {

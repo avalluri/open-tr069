@@ -720,13 +720,15 @@ int evcpe_repo_to_param_info_list(struct evcpe_repo *repo, const char *name,
 		ERROR("failed to get attribute: %s", name);
 		goto finally;
 	}
-	if (next_level && attr->schema->type != EVCPE_TYPE_OBJECT && attr->schema->type != EVCPE_TYPE_MULTIPLE) {
+	if (next_level && attr->schema->type != EVCPE_TYPE_OBJECT &&
+			attr->schema->type != EVCPE_TYPE_MULTIPLE) {
 		rc = EVCPE_CPE_INVALID_ARGUMENTS;
 		goto finally;
 	}
 	if (*name == '\0') {
 		if ((rc = evcpe_param_info_list_add(list, &param,
-				attr->value.object->path, strlen(attr->value.object->path), attr->schema->write == 'W' ? 1 : 0))) {
+				attr->value.object->path, strlen(attr->value.object->path),
+				attr->schema->write))) {
 			ERROR("failed to add param info");
 			goto finally;
 		}

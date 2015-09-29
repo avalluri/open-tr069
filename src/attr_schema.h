@@ -46,14 +46,13 @@ struct evcpe_attr_schema {
 	unsigned extension:1;
 	unsigned inform:1;
 	unsigned write:1;
-	unsigned notification:2; //enum evcpe_notification
+	unsigned notification:3; //enum evcpe_notification
 	char *number;
 	struct evcpe_constraint *constraint;
 	char *pattern; // regex pattern
 	evcpe_attr_getter getter;
 	evcpe_attr_setter setter;
 	evcpe_plugin* plugin;
-	//TAILQ_ENTRY(evcpe_attr_schema) entry;
 };
 
 struct evcpe_attr_schema *evcpe_attr_schema_new(struct evcpe_class *owner);

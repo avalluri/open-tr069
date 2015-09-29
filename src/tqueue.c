@@ -54,7 +54,8 @@ void tqueue_remove(struct tqueue* q, struct tqueue_element* elm)
 	}
 }
 
-struct tqueue_element* tqueue_find(struct tqueue* q, void* data, void* userdata)
+struct tqueue_element* tqueue_find(struct tqueue* q, const void* data,
+		void* userdata)
 {
 	struct tqueue_element* elm = NULL;
 	if (!q || !q->compare) return NULL;

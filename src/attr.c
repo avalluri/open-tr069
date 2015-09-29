@@ -264,32 +264,6 @@ finally:
 	return rc;
 }
 
-//int evcpe_attr_set_obj(struct evcpe_attr *attr, struct evcpe_obj **child)
-//{
-//	int rc;
-//
-//	if (!attr) return EINVAL;
-//
-//	DEBUG("setting object value");
-//
-//	if (attr->schema->type != EVCPE_TYPE_OBJECT) {
-//		ERROR("attr is not object type");
-//		rc = EINVAL;
-//		goto finally;
-//	}
-//	if (attr->value.object) evcpe_obj_free(attr->value.object);
-//	if (!(attr->value.object = evcpe_obj_new(attr->schema->class))) {
-//		ERROR("failed to create evcpe_obj");
-//		rc = ENOMEM;
-//		goto finally;
-//	}
-//	*child = attr->value.object;
-//	rc = 0;
-//
-//finally:
-//	return rc;
-//}
-
 int evcpe_attr_get_obj(struct evcpe_attr *attr, struct evcpe_obj **child)
 {
 	TRACE("getting object value of %s", attr->schema->name);

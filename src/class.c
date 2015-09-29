@@ -46,7 +46,8 @@ struct evcpe_class *evcpe_class_new(const char *name)
 	class->name = name;
 	class->attrs = tqueue_new((tqueue_compare_func)_find_schema_by_name,
 			(tqueue_free_func)evcpe_attr_schema_free);
-	class->inform_attrs =  tqueue_new(NULL, NULL);
+	/* Inform attributes are cached only in root class */
+	if (!name) class->inform_attrs =  tqueue_new(NULL, NULL);
 
 	return class;
 }
@@ -58,7 +59,7 @@ void evcpe_class_free(struct evcpe_class *class)
 	TRACE("destructing evcpe_class: %s", class->name);
 
 	tqueue_free(class->attrs);
-	tqueue_free(class->inform_attrs);
+	if (class->inform_attrs) tqueue_free(class->inform_attrs);
 
 	free(class);
 }

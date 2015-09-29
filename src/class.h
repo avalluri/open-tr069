@@ -28,8 +28,6 @@
 
 struct evcpe_class {
 	const char *name;
-	//struct evcpe_attr_schemas attrs;
-	//struct evcpe_attr_schemas inform_attrs;
 	struct tqueue *attrs;
 	struct tqueue *inform_attrs;
 };

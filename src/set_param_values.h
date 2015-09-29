@@ -25,6 +25,7 @@
 
 struct evcpe_set_param_values {
 	struct evcpe_set_param_value_list parameter_list;
+	char parameter_key[32];
 };
 
 struct evcpe_set_param_values *evcpe_set_param_values_new(void);

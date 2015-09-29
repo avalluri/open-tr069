@@ -917,7 +917,7 @@ int evcpe_handle_set_param_values(struct evcpe *cpe,
 		struct evcpe_set_param_values *req,
 		struct evcpe_msg *msg)
 {
-	int rc;
+	int rc, pk_len;
 	struct evcpe_set_param_value *param;
 	struct evcpe_set_param_values_response *resp;
 
@@ -930,6 +930,9 @@ int evcpe_handle_set_param_values(struct evcpe *cpe,
 		}
 	}
 	// TODO: set ParameterKey
+	pk_len = strlen(req->parameter_key);
+	evcpe_repo_set(cpe->repo, ".ManagementServer.ParameterKey",
+			req->parameter_key, pk_len);
 	msg->type = EVCPE_MSG_RESPONSE;
 	if (!(msg->data = resp = evcpe_set_param_values_response_new())) {
 		ERROR("failed to create "

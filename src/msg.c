@@ -117,7 +117,7 @@ void evcpe_msg_free(struct evcpe_msg *msg)
 				evcpe_inform_free(msg->data);
 				break;
 			default:
-				ERROR("unexpected request type: %d", msg->method_type);
+				ERROR("unexpected request type: %d", msg->method_type); break;
 			}
 			break;
 		case EVCPE_MSG_RESPONSE:
@@ -141,14 +141,14 @@ void evcpe_msg_free(struct evcpe_msg *msg)
 				evcpe_inform_response_free(msg->data);
 				break;
 			default:
-				ERROR("unexpected response type: %d", msg->method_type);
+				ERROR("unexpected response type: %d", msg->method_type); break;
 			}
 			break;
 		case EVCPE_MSG_FAULT:
 			evcpe_fault_free(msg->data);
 			break;
 		default:
-			ERROR("unexpected message type: %d", msg->type);
+			ERROR("unexpected message type: %d", msg->type); break;
 		}
 	}
 	if (msg->session) free(msg->session);
@@ -447,6 +447,11 @@ int evcpe_msg_xml_elm_begin_cb(void *data, const char *ns, unsigned nslen,
 		if (evcpe_strncmp("ParameterList", parent->name, parent->len)) {
 			goto unexpected_parent;
 		}
+	} else if (!evcpe_strncmp("ParamterKey", name, len)) {
+		if (evcpe_strncmp("SetParameterValues", parent->name, parent->len) &&
+				evcpe_strncmp("AddObject", parent->name, parent->len) &&
+				evcpe_strncmp("DeleteObject", parent->name, parent->len))
+			goto unexpected_parent;
 	} else if (!evcpe_strncmp("SetParameterAttributesStruct", name, len)) {
 		if (evcpe_strncmp("ParameterList", parent->name, parent->len)) {
 			goto unexpected_parent;
@@ -522,7 +527,8 @@ int evcpe_msg_xml_elm_begin_cb(void *data, const char *ns, unsigned nslen,
 			goto unexpected_parent;
 		}
 	} else if (!evcpe_strncmp("ParameterKey", name, len)) {
-		if (evcpe_strncmp("AddObject", parent->name, parent->len) &&
+		if (evcpe_strncmp("SetParameterValues", parent->name, parent->len) &&
+				evcpe_strncmp("AddObject", parent->name, parent->len) &&
 				evcpe_strncmp("DeleteObject", parent->name, parent->len)) {
 			goto unexpected_parent;
 		}
@@ -866,35 +872,35 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			delete_obj->object_name[len] = '\0';
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("ParameterKey", elm->name, elm->len)) {
+		char *key_holder = NULL;
 		switch (parser->msg->method_type) {
+		case EVCPE_SET_PARAMETER_VALUES:
+			set_params = parser->msg->data;
+			key_holder = set_params->parameter_key;
+			break;
 		case EVCPE_ADD_OBJECT:
 			add_obj = parser->msg->data;
-			if (len >= sizeof(add_obj->parameter_key)) {
-				rc = EOVERFLOW;
-				goto finally;
-			}
-			memcpy(add_obj->parameter_key, text, len);
-			add_obj->parameter_key[len] = '\0';
+			key_holder = add_obj->parameter_key;
 			break;
 		case EVCPE_DELETE_OBJECT:
 			delete_obj = parser->msg->data;
-			if (len >= sizeof(delete_obj->parameter_key)) {
-				rc = EOVERFLOW;
-				goto finally;
-			}
-			memcpy(delete_obj->parameter_key, text, len);
-			delete_obj->parameter_key[len] = '\0';
+			key_holder = delete_obj->parameter_key;
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
+
+		if (len >= sizeof(*key_holder)) {
+			rc = EOVERFLOW;
+			goto finally;
+		}
+		memcpy(key_holder, text, len);
+		key_holder[len] = '\0';
 	} else if (len > 0) {
 		ERROR("unexpected element: %.*s",
 				elm->len, elm->name);

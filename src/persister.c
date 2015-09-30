@@ -123,42 +123,6 @@ finally:
 	return;
 }
 
-#if 0
-int evcpe_persister_write(struct evcpe_persister *persist)
-{
-	int rc;
-
-	DEBUG("writing data in buffer");
-
-	if (evbuffer_get_length(persist->buffer) > persist->written) {
-	    if ((rc = write(persist->fd,
-	    		evbuffer_pullup(persist->buffer) + persist->written,
-	    		evbuffer_get_length(persist->buffer) - persist->written)) == -1) {
-		    if (errno == EAGAIN || errno == EINTR || errno == EINPROGRESS)
-			    goto reschedule;
-		    else
-				goto finally;
-	    }
-	    persist->written += rc;
-	}
-
-reschedule:
-	if (evbuffer_get_length(persist->buffer) > persist->written) {
-			if ((rc = event_add(&persist->write_ev, NULL))) {
-				ERROR("failed to add write event");
-				goto finally;
-			}
-	} else {
-		evbuffer_drain(persist->buffer, evbuffer_get_length(persist->buffer));
-		close(persist->fd);
-	}
-	rc = 0;
-
-finally:
-	return rc;
-}
-#endif
-
 int evcpe_persister_persist(struct evcpe_persister *persist)
 {
 	int rc, fd;
@@ -202,17 +166,4 @@ void evcpe_persister_timer_cb(int fd, short event, void *arg)
 	if (evcpe_persister_persist(persist))
 		ERROR("failed to persist");
 }
-#if 0
-void evcpe_persister_write_cb(int fd, short event, void *arg)
-{
-	struct evcpe_persister *persist = arg;
 
-	DEBUG("starting write callback");
-
-	if (evcpe_persister_write(persist)) {
-		ERROR("failed to write buffer");
-		close(persist->fd);
-		return;
-	}
-}
-#endif

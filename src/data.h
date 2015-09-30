@@ -77,7 +77,7 @@ struct evcpe_device_id {
 	char serial_number[65];
 };
 
-enum evcpe_event_code_type {
+enum evcpe_event_code {
   EVCPE_EVENT_0_BOOTSTRAP,
   EVCPE_EVENT_1_BOOT,
   EVCPE_EVENT_2_PERIODIC,
@@ -92,19 +92,25 @@ enum evcpe_event_code_type {
   EVCPE_EVENT_11_DU_STATE_CHANGE_COMPLETE,
   EVCPE_EVENT_12_AUTONOMOUS_DU_STATE_CHANGE_COMPLETE,
   EVCPE_EVENT_13_WAKEUP,
-  EVCPE_EVENT_MAX,
+  EVCPE_EVENT_M_REBOOT,
+  EVCPE_EVENT_M_SCHEDULE_INFORM,
+  EVCPE_EVENT_M_DOWNLOAD,
+  EVCPE_EVENT_M_SCHEDULE_DOWNLOAD,
+  EVCPE_EVENT_M_UPLOAD,
+  EVCPE_EVENT_M_CHANGE_DU_STATE,
+  EVCPE_EVENT_M_X_VENDOR_EVENT,
+  EVCPE_EVENT_MAX = 999
 };
 
 struct evcpe_event {
-  enum evcpe_event_code_type event_code_type;
-	char event_code[65];
+	enum evcpe_event_code code;
 	char command_key[33];
 	TAILQ_ENTRY(evcpe_event) entry;
 };
 
-struct evcpe_event* evcpe_event_new();
+struct evcpe_event* evcpe_event_new(enum evcpe_event_code c, const char* key);
 int evcpe_event_clone(struct evcpe_event *src, struct evcpe_event **dst);
-const char *evcpe_event_code_type_to_str(enum evcpe_event_code_type type);
+const char *evcpe_event_code_to_str(enum evcpe_event_code code);
 
 QLIST_DEFINE(evcpe_event);
 
@@ -112,16 +118,15 @@ QLIST_DEFINE(evcpe_event);
 #define evcpe_event_list_clear(list) \
 	QLIST_CLEAR((list), struct evcpe_event, free)
 #define evcpe_event_list_size(list) (list)->size
-#define evcpe_event_list_remove(list, event) QLIST_REMOVE(list, item, free)
+#define evcpe_event_list_remove(list, event) QLIST_REMOVE(list, event, free)
 #define evcpe_event_list_clone(src, dst, rc_out) \
 	QLIST_CLONE(src, dst, struct evcpe_event, evcpe_event_clone, rc_out)
 
 int evcpe_event_list_add(struct evcpe_event_list *list,
 		struct evcpe_event **event,
-		const char *event_code, const char *command_key);
-
-void evcpe_event_list_remove_event(struct evcpe_event_list *list,
-		const char *event_code);
+		enum evcpe_event_code code, const char *command_key);
+struct evcpe_event *evcpe_event_list_find(
+		struct evcpe_event_list *list, enum evcpe_event_code code);
 
 
 struct evcpe_param_info {
@@ -252,7 +257,7 @@ QLIST_DEFINE(evcpe_param_attr);
 	QLIST_CLEAR(list, struct evcpe_param_attr, free)
 #define evcpe_param_attr_list_size(list) QLIST_SIZE(list)
 #define evcpe_param_attr_list_remove(list, attr) \
-	QLIST_REMOVE(list, item, free)
+	QLIST_REMOVE(list, attr, free)
 
 int evcpe_param_attr_list_add(struct evcpe_param_attr_list *list,
 		struct evcpe_param_attr **attr, const char *name, unsigned len);

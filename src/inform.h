@@ -27,7 +27,7 @@
 
 struct evcpe_inform {
 	struct evcpe_device_id device_id;
-	struct evcpe_event_list event;
+	const struct evcpe_event_list* events;
 	unsigned int max_envelopes;
 	char current_time[26];
 	unsigned int retry_count;

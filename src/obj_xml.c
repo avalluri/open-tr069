@@ -249,7 +249,7 @@ int evcpe_obj_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 			return rc;
 		}
 
-		return evcpe_attr_set_access_list(attr, value, value_len);
+		return evcpe_attr_set_access_list_from_str(attr, value, value_len);
 	} else
 	{
 		ERROR("unexpected attribute %.*s with value :%.*s",

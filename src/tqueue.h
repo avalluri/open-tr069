@@ -19,7 +19,7 @@ struct tqueue_element
 };
 
 typedef int  (* tqueue_foreach_func)(void* element_data, void* userdata);
-typedef int  (* tqueue_compare_func)(void* element_data, void* find_data,
+typedef int  (* tqueue_compare_func)(void* element_data, const void* find_data,
 		void *userdata);
 typedef void (* tqueue_free_func)(void *data);
 

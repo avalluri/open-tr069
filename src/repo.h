@@ -21,9 +21,10 @@
 #ifndef EVCPE_REPO_H_
 #define EVCPE_REPO_H_
 
+#include "data.h"
 #include "obj.h"
-#include "persister.h"
 #include "inform.h"
+#include "tqueue.h"
 
 struct evcpe_repo;
 
@@ -33,19 +34,21 @@ typedef void (*evcpe_repo_listen_cb)(struct evcpe_repo *repo,
 struct evcpe_repo_listener {
 	evcpe_repo_listen_cb cb;
 	void *cbarg;
-	TAILQ_ENTRY(evcpe_repo_listener) entry;
 };
 
-TAILQ_HEAD(evcpe_repo_listeners, evcpe_repo_listener);
-
 struct evcpe_repo {
-	struct evcpe_obj *root;
-	struct evcpe_repo_listeners listeners;
+	struct evcpe_obj* root;
+	struct tqueue* forced_inform_attrs;
+	struct tqueue* changed_atts;
+	struct evcpe_event_list pending_events;
+	struct tqueue* listeners;
 };
 
 struct evcpe_repo *evcpe_repo_new(struct evcpe_obj *root);
 
 void evcpe_repo_free(struct evcpe_repo *repo);
+
+int evcpe_repo_init(struct evcpe_repo* repo);
 
 int evcpe_repo_listen(struct evcpe_repo *repo,
 		evcpe_repo_listen_cb cb, void *arg);
@@ -76,10 +79,9 @@ int evcpe_repo_get_objs(struct evcpe_repo *repo, const char *name,
 		struct tqueue **list, unsigned int *size);
 
 int evcpe_repo_add_event(struct evcpe_repo *repo,
-		const char *event_code, const char *command_key);
+		enum evcpe_event_code code, const char *command_key);
 
-int evcpe_repo_del_event(struct evcpe_repo *repo,
-		const char *event_code);
+int evcpe_repo_del_event(struct evcpe_repo *repo, enum evcpe_event_code code);
 
 int evcpe_repo_to_inform(struct evcpe_repo *repo, struct evcpe_inform *inform);
 
@@ -91,5 +93,7 @@ int evcpe_repo_to_param_attr_list(struct evcpe_repo *repo, const char *name,
 
 int evcpe_repo_to_param_value_list(struct evcpe_repo *repo, const char *name,
 		struct evcpe_param_value_list *list);
+
+void evcpe_repo_clear_pending_events(struct evcpe_repo* repo);
 
 #endif /* EVCPE_REPO_H_ */

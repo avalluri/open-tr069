@@ -23,8 +23,8 @@
 #include "log.h"
 #include "data.h"
 
-const char *evcpe_event_code_type_to_str(enum evcpe_event_code_type type) {
-  switch(type) {
+const char *evcpe_event_code_to_str(enum evcpe_event_code code) {
+  switch(code) {
     case EVCPE_EVENT_0_BOOTSTRAP: return "0 BOOTSTRAP";
     case EVCPE_EVENT_1_BOOT: return "1 BOOT";
     case EVCPE_EVENT_2_PERIODIC: return "2 PERIODIC";
@@ -39,35 +39,45 @@ const char *evcpe_event_code_type_to_str(enum evcpe_event_code_type type) {
     case EVCPE_EVENT_11_DU_STATE_CHANGE_COMPLETE: return "11 DU STATE CHANGE COMPLETE";
     case EVCPE_EVENT_12_AUTONOMOUS_DU_STATE_CHANGE_COMPLETE: return "12 AUTONOMOUS DU STATE CHANGE COMPLETE";
     case EVCPE_EVENT_13_WAKEUP: return "13 WAKEUP";
+    case EVCPE_EVENT_M_REBOOT: return "M Reboot";
     default: return NULL;
   }
 }
 
-struct evcpe_event *evcpe_event_new()
+struct evcpe_event *evcpe_event_new(enum evcpe_event_code code,
+		const char* command_key)
 {
-	return calloc(1, sizeof(struct evcpe_event));
+	struct evcpe_event* ev = calloc(1, sizeof(struct evcpe_event));
+	if (!ev) return NULL;
+
+	ev->code = code;
+	if (command_key) {
+		size_t len = sizeof(ev->command_key) - 1;
+		strncmp(ev->command_key, command_key, len);
+		ev->command_key[len] = '\0';
+	}
+
+	return ev;
 }
 
 int evcpe_event_clone(struct evcpe_event *src, struct evcpe_event **dst) {
 
 	if (!dst || !src) return EINVAL;
-	if ((*dst = evcpe_event_new()) == NULL) return ENOMEM;
-
-	strcpy((*dst)->command_key, src->command_key);
-	strcpy((*dst)->event_code, src->event_code);
+	if ((*dst = evcpe_event_new(src->code, src->command_key)) == NULL)
+		return ENOMEM;
 
 	return 0;
 }
 
 struct evcpe_event *evcpe_event_list_find(
-		struct evcpe_event_list *list, const char *event_code)
+		struct evcpe_event_list *list, enum evcpe_event_code code)
 {
 	struct evcpe_event *event;
 
-	TRACE("finding event: %s", event_code);
+	TRACE("finding event: %s", evcpe_event_code_to_str(code));
 
 	TAILQ_FOREACH(event, &list->head, entry) {
-		if (!strcmp(event_code, event->event_code))
+		if (code == event->code)
 			return event;
 	}
 	return NULL;
@@ -75,32 +85,29 @@ struct evcpe_event *evcpe_event_list_find(
 
 int evcpe_event_list_add(struct evcpe_event_list *list,
 		struct evcpe_event **event,
-		const char *event_code, const char *command_key)
+		enum evcpe_event_code code, const char *command_key)
 {
 	int rc;
 	struct evcpe_event *ev;
 
-	if (!event_code || !command_key) return EINVAL;
-	if (strlen(event_code) >= sizeof(ev->event_code) ||
-			strlen(command_key) >= sizeof(ev->command_key))
+	if (!command_key) return EINVAL;
+	if (strlen(command_key) >= sizeof(ev->command_key))
 		return EOVERFLOW;
 
-	if (strncmp("M ", event_code, 2) &&
-			(ev = evcpe_event_list_find(list, event_code))) {
+	if ((code <= EVCPE_EVENT_13_WAKEUP) &&
+		 evcpe_event_list_find(list, code) != NULL) {
 		return 0;
 	}
 
-	DEBUG("adding event: %s", event_code);
+	TRACE("adding event: %s", evcpe_event_code_to_str(code));
 
-	if (!(ev = evcpe_event_new())) {
+	if (!(ev = evcpe_event_new(code, command_key))) {
 		ERROR("failed to calloc evcpe_event");
 		rc = ENOMEM;
 		goto finally;
 	}
-	strcpy(ev->event_code, event_code);
-	strcpy(ev->command_key, command_key);
 	TAILQ_INSERT_TAIL(&list->head, ev, entry);
-	*event = ev;
+	if(event) *event = ev;
 	list->size ++;
 	rc = 0;
 
@@ -112,18 +119,21 @@ int evcpe_param_info_list_add(struct evcpe_param_info_list *list,
 		struct evcpe_param_info **param, const char *name, unsigned len,
 		int writable)
 {
+	struct evcpe_param_info *p = NULL;
 	if (!name || !len) return EINVAL;
 	if (len >= sizeof((*param)->name)) return EOVERFLOW;
 
 	DEBUG("adding param name: %.*s", len, name);
 
-	if (!((*param) = calloc(1, sizeof(struct evcpe_param_info))))
+	if (!(p = calloc(1, sizeof(struct evcpe_param_info))))
 		return ENOMEM;
 
-	strncpy((*param)->name, name, len);
-	(*param)->writable = writable;
-	TAILQ_INSERT_TAIL(&list->head, (*param), entry);
+	strncpy(p->name, name, len);
+	p->writable = writable;
+	TAILQ_INSERT_TAIL(&list->head, p, entry);
 	list->size ++;
+
+	if(param) *param = p;
 	return 0;
 }
 
@@ -143,7 +153,7 @@ int evcpe_param_name_list_add(struct evcpe_param_name_list *list,
 	strncpy(param_name->name, name, len);
 	TAILQ_INSERT_TAIL(&list->head, param_name, entry);
 	list->size ++;
-	*param = param_name;
+	if (param) *param = param_name;
 	return 0;
 }
 
@@ -152,8 +162,6 @@ int evcpe_param_value_set(struct evcpe_param_value *param,
 {
 	if (!param) return EINVAL;
 
-	DEBUG("setting value: %s => %.*s",
-			param->name, len, data);
 	param->data = data;
 	param->len = len;
 	return 0;
@@ -177,7 +185,7 @@ int evcpe_param_value_list_add(struct evcpe_param_value_list *list,
 	}
 	strncpy(param->name, name, len);
 	TAILQ_INSERT_TAIL(&list->head, param, entry);
-	*value = param;
+	if (value) *value = param;
 	list->size ++;
 	rc = 0;
 
@@ -185,17 +193,24 @@ finally:
 	return rc;
 }
 
-struct evcpe_access* evcpe_access_new() {
-	return (struct evcpe_access *)
-			calloc(1, sizeof(struct evcpe_access));
+struct evcpe_access* evcpe_access_new(const char* access) {
+	struct evcpe_access *ptr = calloc(1, sizeof(struct evcpe_access));
+	if (!ptr) return NULL;
+
+	if (access) {
+		size_t len = sizeof(ptr->entity) - 1;
+		strncpy(ptr->entity, access, len);
+		ptr->entity[len] = '\0';
+	}
+
+	return ptr;
 }
 
 int evcpe_access_clone(struct evcpe_access *src,
 		struct evcpe_access **dst)
 {
 	if (!src || !dst) return EINVAL;
-	if ((*dst = evcpe_access_new()) == NULL) return ENOMEM;
-	strcpy((*dst)->entity, src->entity);
+	if ((*dst = evcpe_access_new(src->entity)) == NULL) return ENOMEM;
 
 	return 0;
 }
@@ -205,12 +220,13 @@ int evcpe_access_list_add(struct evcpe_access_list *list,
 {
 	struct evcpe_access *item = NULL;
 
-	if (len >= sizeof(item->entity)) return EOVERFLOW;
-
 	TRACE("adding entity: %.*s", len, entity);
 
-	if (!(item = evcpe_access_new())) {
+	if (!(item = evcpe_access_new(NULL))) {
 		return ENOMEM;
+	}
+	if (len > sizeof(item->entity)) {
+		free(item); return EOVERFLOW;
 	}
 	strncpy(item->entity, entity, len);
 	TAILQ_INSERT_TAIL(&list->head, item, entry);
@@ -222,51 +238,55 @@ int evcpe_access_list_add(struct evcpe_access_list *list,
 int evcpe_method_list_add(struct evcpe_method_list *list,
 		struct evcpe_method **item, const char *name, unsigned len)
 {
-	if (len >= sizeof((*item)->name)) return EOVERFLOW;
+	struct evcpe_method *i = NULL;
 
-	if (!((*item) = calloc(1, sizeof(struct evcpe_method)))) {
+	if (!(i = calloc(1, sizeof(struct evcpe_method)))) {
 		ERROR("failed to calloc evcpe_method_list_item");
 		return ENOMEM;
 	}
-	strncpy((*item)->name, name, len);
-	TAILQ_INSERT_TAIL(&list->head, *item, entry);
+	strncpy(i->name, name, len);
+	TAILQ_INSERT_TAIL(&list->head, i, entry);
 	list->size ++;
+	if (item) *item = i;
 	return 0;
 }
 
 int evcpe_method_list_add_method(struct evcpe_method_list *list,
 		const char *method)
 {
-	struct evcpe_method *item = NULL;
-	return evcpe_method_list_add(list, &item, method, strlen(method));
+	return evcpe_method_list_add(list, NULL, method, strlen(method));
 }
 
 int evcpe_set_param_attr_list_add(struct evcpe_set_param_attr_list *list,
 		struct evcpe_set_param_attr **attr, const char *name, unsigned len)
 {
+	struct evcpe_set_param_attr *a = NULL;
 	if (!name || !len) return EINVAL;
-	if (len >= sizeof((*attr)->name)) return EOVERFLOW;
 
-	if (!(*attr = calloc(1, sizeof(struct evcpe_set_param_attr))))
+	if (!(a = calloc(1, sizeof(struct evcpe_set_param_attr))))
 		return ENOMEM;
-	strncpy((*attr)->name, name, len);
-	evcpe_access_list_init(&(*attr)->access_list);
-	TAILQ_INSERT_TAIL(&list->head, *attr, entry);
+	strncpy(a->name, name, len);
+	evcpe_access_list_init(&a->access_list);
+	TAILQ_INSERT_TAIL(&list->head, a, entry);
 	list->size ++;
+
+	if (attr) *attr = a;
 	return 0;
 }
 
 int evcpe_set_param_value_list_add(struct evcpe_set_param_value_list *list,
 		struct evcpe_set_param_value **value, const char *name, unsigned len)
 {
-	if (!name || !len) return EINVAL;
-	if (len >= sizeof((*value)->name)) return EOVERFLOW;
+	struct evcpe_set_param_value *v = NULL;
 
-	if (!(*value = calloc(1, sizeof(struct evcpe_set_param_value))))
+	if (!name || !len) return EINVAL;
+
+	if (!(v = calloc(1, sizeof(struct evcpe_set_param_value))))
 		return ENOMEM;
-	strncpy((*value)->name, name, len);
-	TAILQ_INSERT_TAIL(&list->head, *value, entry);
+	strncpy(v->name, name, len);
+	TAILQ_INSERT_TAIL(&list->head, v, entry);
 	list->size ++;
+	if (value) *value = v;
 	return 0;
 }
 
@@ -284,17 +304,19 @@ int evcpe_set_param_value_set(struct evcpe_set_param_value *param,
 int evcpe_param_attr_list_add(struct evcpe_param_attr_list *list,
 		struct evcpe_param_attr **attr, const char *name, unsigned len)
 {
+	struct evcpe_param_attr *a = NULL;
 	if (!name || !len) return EINVAL;
-	if (len >= sizeof((*attr)->name)) return EOVERFLOW;
 
 	DEBUG("adding param attr: %.*s", len, name);
 
-	if (!(*attr = calloc(1, sizeof(struct evcpe_param_attr))))
+	if (!(a = calloc(1, sizeof(struct evcpe_param_attr))))
 		return ENOMEM;
-	evcpe_access_list_init(&(*attr)->access_list);
-	strncpy((*attr)->name, name, len);
-	TAILQ_INSERT_TAIL(&list->head, *attr, entry);
+	evcpe_access_list_init(&a->access_list);
+	strncpy(a->name, name, len);
+	TAILQ_INSERT_TAIL(&list->head, a, entry);
 	list->size ++;
+
+	if (attr) *attr = a;
 	return 0;
 }
 

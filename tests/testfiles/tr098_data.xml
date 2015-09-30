@@ -1,51 +1,5 @@
 <?xml version="1.0"?>
 <InternetGatewayDevice>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-    </Event>
-    <Event>
-        <EventCode>1 BOOT</EventCode>
-        <CommandKey></CommandKey>
-    </Event>
     <LANDeviceNumberOfEntries>1</LANDeviceNumberOfEntries>
     <WANDeviceNumberOfEntries>1</WANDeviceNumberOfEntries>
     <Capabilities>

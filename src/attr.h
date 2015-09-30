@@ -36,7 +36,8 @@ enum evcpe_attr_event {
 };
 
 typedef void (*evcpe_attr_cb)(struct evcpe_attr *attr,
-		enum evcpe_attr_event event, void *data, void *cbarg);
+		enum evcpe_attr_event event, int inform_acs,
+		void *data, void *cbarg);
 
 struct evcpe_attr {
 	char *path;
@@ -79,8 +80,11 @@ void evcpe_attr_set_cb(struct evcpe_attr *attr, evcpe_attr_cb cb, void *arg);
 int evcpe_attr_set_notification(struct evcpe_attr *attr,
 		enum evcpe_notification notification);
 
-int evcpe_attr_set_access_list(struct evcpe_attr *attr, const char *value,
-		unsigned len);
+int evcpe_attr_set_access_list(struct evcpe_attr *attr,
+		const struct evcpe_access_list* list);
+
+int evcpe_attr_set_access_list_from_str(struct evcpe_attr *attr,
+		const char *value, unsigned len);
 
 void evcpe_attr_unset(struct evcpe_attr *attr);
 

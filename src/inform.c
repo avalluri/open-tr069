@@ -35,7 +35,7 @@ struct evcpe_inform *evcpe_inform_new(void)
 		return NULL;
 	}
 	inform->max_envelopes = 1;
-	evcpe_event_list_init(&inform->event);
+	inform->events = NULL;
 	evcpe_param_value_list_init(&inform->parameter_list);
 
 	return inform;
@@ -47,7 +47,6 @@ void evcpe_inform_free(struct evcpe_inform *inform)
 
 	DEBUG("destructing evcpe_inform");
 
-	evcpe_event_list_clear(&inform->event);
 	evcpe_param_value_list_clear(&inform->parameter_list);
 	free(inform);
 }
@@ -80,7 +79,7 @@ int evcpe_inform_to_xml(struct evcpe_inform *method, struct evbuffer *buffer)
 
 	if ((rc = evcpe_device_id_to_xml(&method->device_id, "DeviceId", buffer)))
 		goto finally;
-	if ((rc = evcpe_event_list_to_xml(&method->event, "Event", buffer)))
+	if ((rc = evcpe_event_list_to_xml(method->events, "Event", buffer)))
 		goto finally;
 	if ((rc = evcpe_xml_add_int(buffer,
 			"MaxEnvelopes", method->max_envelopes)))

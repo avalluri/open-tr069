@@ -42,6 +42,14 @@ int evcpe_attr_cmp(struct evcpe_attr *a, struct evcpe_attr *b)
 
 RB_GENERATE(evcpe_attrs, evcpe_attr, entry, evcpe_attr_cmp);
 
+static
+void _inform_param_value_change_cb(evcpe_plugin* p, const char* name,
+		const char* value, unsigned value_len, void* data) {
+	struct evcpe_attr *attr = data;
+	if (attr->cb)
+		attr->cb(attr, EVCPE_ATTR_EVENT_PARAM_SET, 1, NULL, attr->cbarg);
+}
+
 int evcpe_attr_init(struct evcpe_attr *attr)
 {
 	int rc = 0;
@@ -124,6 +132,11 @@ int evcpe_attr_init(struct evcpe_attr *attr)
 		}
 	}
 
+	if (attr->schema->notification && attr->schema->plugin) {
+		evcpe_plugin_set_value_change_listener(attr->schema->plugin,
+				attr->schema->name, _inform_param_value_change_cb, attr);
+	}
+
 finally:
 	return rc;
 }
@@ -138,8 +151,7 @@ void evcpe_attr_set_cb(struct evcpe_attr *attr, evcpe_attr_cb cb, void *arg)
 int evcpe_attr_set_notification(struct evcpe_attr *attr,
 		enum evcpe_notification notification)
 {
-	TRACE("setting notification on %s: %d",
-			attr->schema->name, notification);
+	TRACE("setting notification on %s: %d", attr->schema->name, notification);
 
 	if ((attr->schema->type == EVCPE_TYPE_OBJECT ||
 			attr->schema->type == EVCPE_TYPE_MULTIPLE)) {
@@ -226,7 +238,7 @@ int evcpe_attr_set(struct evcpe_attr *attr, const char *value, unsigned len)
 	DEBUG("%s: %.*s", attr->path, len, value);
 
 	if (attr->cb) (*attr->cb)(attr, EVCPE_ATTR_EVENT_PARAM_SET,
-				attr->value.simple.string, attr->cbarg);
+				0, attr->value.simple.string, attr->cbarg);
 
 finally:
 	return rc;
@@ -335,7 +347,7 @@ int evcpe_attr_add_obj(struct evcpe_attr *attr,
 	}
 	*child = obj;
 	if (attr->cb)
-		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_ADDED, obj, attr->cbarg);
+		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_ADDED, 0, obj, attr->cbarg);
 
 finally:
 	return rc;
@@ -394,16 +406,15 @@ int evcpe_attr_del_obj(struct evcpe_attr *attr, unsigned int index)
 	obj = (struct evcpe_obj*)item->data;
 	item->data = NULL;
 	if (attr->cb)
-		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_DELETED, obj, attr->cbarg);
+		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_DELETED, 0, obj, attr->cbarg);
 	evcpe_obj_free(obj);
 
 finally:
 	return rc;
 }
 
-
-int evcpe_attr_set_access_list(struct evcpe_attr *attr, const char *value,
-		unsigned len) {
+int evcpe_attr_set_access_list_from_str(struct evcpe_attr *attr,
+		const char *value, unsigned len) {
 	if ((attr->schema->type == EVCPE_TYPE_OBJECT ||
 		attr->schema->type == EVCPE_TYPE_MULTIPLE)) {
 		ERROR("not a simple attribute: %s", attr->schema->name);
@@ -415,44 +426,48 @@ int evcpe_attr_set_access_list(struct evcpe_attr *attr, const char *value,
 			&attr->value.simple.access_list);
 }
 
-struct _attr_param_value_list_data
-{
-	struct evcpe_obj *obj;
-	struct evcpe_param_value_list *list;
-};
-
-static
-int _schema_to_param_value_list(struct evcpe_attr_schema *schema, void *userdata)
-{
-	struct evcpe_attr *attr = NULL;
-	struct _attr_param_value_list_data *data = userdata;
+int evcpe_attr_set_access_list(struct evcpe_attr *attr,
+		const struct evcpe_access_list *list) {
 	int rc = 0;
 
-	if ((rc = evcpe_obj_get(data->obj, schema->name, strlen(schema->name),
-			&attr))) {
-		ERROR("failed to get attribute: %s", schema->name);
-		return rc;
-	}
-	if ((rc = evcpe_attr_to_param_value_list(attr, data->list))) {
-		ERROR("failed to add attribute to param value list: %s", schema->name);
-		return rc;
+	if ((attr->schema->type == EVCPE_TYPE_OBJECT ||
+		attr->schema->type == EVCPE_TYPE_MULTIPLE)) {
+		ERROR("not a simple attribute: %s", attr->schema->name);
+		return -1;
 	}
 
-	return 0;
+	evcpe_access_list_clear(&attr->value.simple.access_list);
+	evcpe_access_list_clone(list, &attr->value.simple.access_list, &rc);
+
+	return rc;
 }
 
 static
 int evcpe_attr_obj_to_param_value_list(struct evcpe_class *class,
 		struct evcpe_obj *obj, struct evcpe_param_value_list *list)
 {
-	struct _attr_param_value_list_data userdata;
-	userdata.obj = obj;
-	userdata.list = list;
+	int rc = 0;
+	struct tqueue_element* node = NULL;
 
 	DEBUG("adding object to param list: %s", obj->path);
 
-	return tqueue_foreach(class->attrs,
-			(tqueue_foreach_func)_schema_to_param_value_list, &userdata);
+	TQUEUE_FOREACH(node, class->attrs) {
+		struct evcpe_attr_schema* schema = node->data;
+		struct evcpe_attr* attr = NULL;
+
+		if ((rc = evcpe_obj_get(obj, schema->name, strlen(schema->name),
+				&attr))) {
+			ERROR("failed to get attribute: %s", schema->name);
+			return rc;
+		}
+		if ((rc = evcpe_attr_to_param_value_list(attr, list))) {
+			ERROR("failed to add attribute to param value list: %s",
+					schema->name);
+			return rc;
+		}
+	}
+
+	return 0;
 }
 
 int evcpe_attr_to_param_value_list(struct evcpe_attr *attr,
@@ -639,36 +654,13 @@ finally:
 	return rc;
 }
 
-struct _attr_to_param_value_list_data
-{
-	struct evcpe_attr *attr;
-	struct evcpe_param_attr_list *list;
-};
-
-static
-int _attr_to_param_value_list(struct evcpe_attr_schema *schema, void *userdata)
-{
-	int rc = 0;
-	struct _attr_to_param_value_list_data *data = userdata;
-
-	if (schema->extension) return 0;
-
-	if ((rc = evcpe_attr_obj_to_param_attr_list(schema,
-			data->attr->value.object, data->list))) {
-		ERROR("failed to add child object to param list: %s", schema->name);
-	}
-
-	return rc;
-}
-
 int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 		struct evcpe_param_attr_list *list)
 {
 	int rc;
-	struct tqueue_element *item;
+	struct tqueue_element *node;
 	struct evcpe_attr_schema *schema;
 	struct evcpe_param_attr *param;
-	struct _attr_to_param_value_list_data userdata;
 
 	if (attr->schema->extension) return 0;
 
@@ -676,16 +668,20 @@ int evcpe_attr_to_param_attr_list(struct evcpe_attr *attr,
 
 	switch (attr->schema->type) {
 	case EVCPE_TYPE_OBJECT:
-		userdata.attr = attr;
-		userdata.list = list;
-		tqueue_foreach(attr->schema->class->attrs,
-				(tqueue_foreach_func)_attr_to_param_value_list, &userdata);
-
+		TQUEUE_FOREACH(node, attr->schema->class->attrs) {
+			struct evcpe_attr_schema* schema = node->data;
+			if (schema->extension) continue;
+			if ((rc = evcpe_attr_obj_to_param_attr_list(schema,
+						attr->value.object, list))) {
+				ERROR("failed to add child object to param list: %s",
+						schema->name);
+			}
+		}
 		break;
 	case EVCPE_TYPE_MULTIPLE:
-		TQUEUE_FOREACH(item, attr->value.multiple.list) {
+		TQUEUE_FOREACH(node, attr->value.multiple.list) {
 			struct evcpe_obj* obj = NULL;
-			if (!(obj = item->data)) continue;
+			if (!(obj = node->data)) continue;
 			if ((rc = evcpe_attr_obj_to_param_attr_list(attr->schema, obj,
 					list))) {
 				ERROR("failed to add child object to param list: %s",

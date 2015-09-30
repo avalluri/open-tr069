@@ -43,3 +43,28 @@ void evcpe_set_param_attrs_free(struct evcpe_set_param_attrs *method)
 	evcpe_set_param_attr_list_clear(&method->parameter_list);
 	free(method);
 }
+
+struct evcpe_set_param_attrs_response *evcpe_set_param_attrs_response_new(void)
+{
+	struct evcpe_set_param_attrs_response *resp;
+
+	if (!(resp = calloc(1, sizeof(*resp)))) {
+		ERROR("failed to calloc evcpe_set_param_values_response");
+		return NULL;
+	}
+	return resp;
+}
+
+void evcpe_set_param_attrs_response_free(
+		struct evcpe_set_param_attrs_response *resp)
+{
+	if (resp) free(resp);
+}
+
+int evcpe_set_param_attrs_response_to_xml(
+		struct evcpe_set_param_attrs_response *resp,
+		struct evbuffer *buffer)
+{
+	DEBUG("marshaling evcpe_set_param_attrs_response");
+	return evcpe_xml_add_xsd_int(buffer, "Status", resp->status);
+}

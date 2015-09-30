@@ -54,7 +54,7 @@ int evcpe_event_to_xml(struct evcpe_event *event,
 	if ((rc = evcpe_add_buffer(buffer, "<%s>\n", node)))
 		goto finally;
 	if ((rc = evcpe_xml_add_string(buffer,
-			"EventCode", event->event_code)))
+			"EventCode", evcpe_event_code_to_str(event->code))))
 		goto finally;
 	if ((rc = evcpe_xml_add_string(buffer,
 			"CommandKey", event->command_key)))
@@ -77,8 +77,7 @@ int evcpe_event_list_to_xml(struct evcpe_event_list *list,
 			node, evcpe_event_list_size(list))))
 		goto finally;
 	TAILQ_FOREACH(event, &list->head, entry) {
-		if ((rc = evcpe_event_to_xml(event, "EventStruct",
-				buffer)))
+		if ((rc = evcpe_event_to_xml(event, "EventStruct", buffer)))
 			goto finally;
 	}
 	if ((rc = evcpe_add_buffer(buffer, "</%s>\n", node)))

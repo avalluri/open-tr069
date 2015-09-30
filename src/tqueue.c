@@ -87,7 +87,7 @@ int tqueue_foreach(struct tqueue* q, tqueue_foreach_func foreach,
 	int rc = 0;
 
 	TAILQ_FOREACH(elm, &(q->head), entry) {
-		if ((rc = foreach(elm->data, userdata))) ; return rc;
+		if ((rc = foreach(elm->data, userdata))) return rc;
 	}
 
 	return rc;
@@ -111,6 +111,8 @@ struct tqueue_element* tqueue_last(struct tqueue* q)
 void tqueue_free(struct tqueue* q)
 {
 	struct tqueue_element* elm = NULL;
+
+	if (!q) return;
 
 	while((elm = TAILQ_FIRST(&q->head))) {
 		TAILQ_REMOVE(&q->head, elm, entry);

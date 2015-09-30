@@ -254,7 +254,7 @@ int main(int argc, char **argv)
 	}
 
 	INFO("starting evcpe");
-	if ((rc = evcpe_start(this.cpe))) {
+	if ((rc = evcpe_start(this.cpe, bootstrap))) {
 		ERROR("failed to start evcpe");
 		goto finally;
 	}

@@ -117,7 +117,7 @@ int evcpe_set_acs(struct evcpe *cpe, const char *address, u_short port,
 int evcpe_set_auth(struct evcpe *cpe, enum evcpe_auth_type type,
 		const char *username, const char *password);
 
-int evcpe_start(struct evcpe *cpe);
+int evcpe_start(struct evcpe *cpe, int bootstrap);
 
 //int evcpe_add_event(struct evcpe *cpe,
 //		const char *event_code, const char *command_key);

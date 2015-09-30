@@ -460,7 +460,7 @@ static void test_tr098(void)
 	evcpe_param_attr_list_clear(&pattr_list);
 
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_inform(repo, inform));
-	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_del_event(repo, "0 BOOTSTRAP"));
+	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_del_event(repo, EVCPE_EVENT_0_BOOTSTRAP));
 
 	evbuffer_drain(buffer, evbuffer_get_length(buffer));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_to_xml(obj, buffer));

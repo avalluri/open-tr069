@@ -35,7 +35,12 @@ static void evcpe_repo_set_obj_attr_cb(struct evcpe_repo *repo,
 		struct evcpe_obj *obj);
 
 static void evcpe_repo_attr_cb(struct evcpe_attr *attr,
-		enum evcpe_attr_event event, void *data, void *cbarg);
+		enum evcpe_attr_event event, int inform, void *data, void *cbarg);
+
+static int _listener_cmp_cb(void *node_data, void* cb, void* userdata)
+{
+	return ((struct evcpe_repo_listener*)node_data)->cb != cb;
+}
 
 struct evcpe_repo *evcpe_repo_new(struct evcpe_obj *root)
 {
@@ -47,25 +52,69 @@ struct evcpe_repo *evcpe_repo_new(struct evcpe_obj *root)
 		ERROR("failed to calloc evcpe_repo");
 		return NULL;
 	}
-	TAILQ_INIT(&repo->listeners);
-	evcpe_repo_set_obj_attr_cb(repo, root);
+	repo->listeners = tqueue_new((tqueue_compare_func)_listener_cmp_cb, free);
+	repo->forced_inform_attrs = tqueue_new(NULL, NULL);
+	repo->changed_atts = tqueue_new(NULL, NULL);
+	evcpe_event_list_init(&repo->pending_events);
 	repo->root = root;
+
+	evcpe_repo_init(repo);
+
 	return repo;
 }
 
 void evcpe_repo_free(struct evcpe_repo *repo)
 {
-	struct evcpe_repo_listener *listener;
-
 	if (!repo) return;
 
-	DEBUG("destructing evcpe_repo");
+	tqueue_free(repo->forced_inform_attrs);
+	tqueue_free(repo->changed_atts);
+	tqueue_free(repo->listeners);
+	evcpe_event_list_clear(&repo->pending_events);
 
-	while((listener = TAILQ_FIRST(&repo->listeners))) {
-		TAILQ_REMOVE(&repo->listeners, listener, entry);
-		free(listener);
-	}
 	free(repo);
+}
+
+int evcpe_repo_init(struct evcpe_repo* repo) {
+
+	struct tqueue_element* elm = NULL;
+
+	/* Gather all Force Inform attributes */
+	TQUEUE_FOREACH(elm, repo->root->class->inform_attrs) {
+		struct evcpe_attr_schema* schema =
+				(struct evcpe_attr_schema *)elm->data;
+		struct evcpe_attr* attr = NULL;
+		/* sanity check */
+		if (!schema->inform) continue;
+		if (!(attr = evcpe_obj_find_deep(repo->root, schema))) {
+			WARN("missing inform attribute '%s' in object", schema->name);
+			continue;
+		}
+
+		tqueue_insert(repo->forced_inform_attrs, attr);
+	}
+#if 0
+	TQUEUE_FOREACH(elm, repo->root->class->attrs) {
+		struct evcpe_attr_schema* schema = elm->data;
+		struct evcpe_attr* attr = NULL;
+
+		if (schema->inform) {
+			if (!(attr = evcpe_obj_find_deep(repo->root, schema))) {
+				WARN("missing inform attribute '%s' in object", schema->name);
+				continue;
+			}
+			tqueue_insert(repo->forced_inform_attrs, attr);
+		} else if (schema->notification != EVCPE_NOTIFICATION_OFF &&
+				   schema->plugin) {
+			evcpe_plugin_set_value_change_listener(schema->plugin,
+					schema->name, _repo_param_value_changed, repo);
+			tqueue_insert(repo->changed_atts, attr);
+		}
+	}
+#endif
+	evcpe_repo_set_obj_attr_cb(repo, repo->root);
+
+	return 0;
 }
 
 int evcpe_repo_listen(struct evcpe_repo *repo,
@@ -83,7 +132,7 @@ int evcpe_repo_listen(struct evcpe_repo *repo,
 	}
 	listener->cb = cb;
 	listener->cbarg = arg;
-	TAILQ_INSERT_TAIL(&repo->listeners, listener, entry);
+	tqueue_insert(repo->listeners, listener);
 	rc = 0;
 
 finally:
@@ -93,28 +142,15 @@ finally:
 int evcpe_repo_unlisten(struct evcpe_repo *repo,
 		evcpe_repo_listen_cb cb)
 {
-	int rc;
-	struct evcpe_repo_listener *listener, *match;
+	struct tqueue_element* node = NULL;
 
 	DEBUG("unlistening repository");
+	if (! repo || ! cb) return EINVAL;
 
-	match = NULL;
-	TAILQ_FOREACH(listener, &repo->listeners, entry) {
-		if (cb == listener->cb) {
-			match = listener;
-			break;
-		}
-	}
-	if (!match) {
-		ERROR("listener not found");
-		rc = EINVAL;
-		goto finally;
-	}
-	TAILQ_REMOVE(&repo->listeners, match, entry);
-	rc = 0;
+	if((node = tqueue_find(repo->listeners, cb, NULL)))
+		tqueue_remove(repo->listeners, node);
 
-finally:
-	return rc;
+	return 0;
 }
 
 static
@@ -394,15 +430,17 @@ finally:
 }
 
 void evcpe_repo_attr_cb(struct evcpe_attr *attr, enum evcpe_attr_event event,
-		void *data, void *cbarg)
+		int inform_acs, void *data, void *cbarg)
 {
-	struct evcpe_repo_listener *listener;
+	struct tqueue_element* node = NULL;
 	struct evcpe_repo *repo = cbarg;
 
 	if (event == EVCPE_ATTR_EVENT_OBJ_ADDED) {
 		evcpe_repo_set_obj_attr_cb(repo, data);
 	}
-	TAILQ_FOREACH(listener, &repo->listeners, entry) {
+	TQUEUE_FOREACH(node, repo->listeners) {
+		struct evcpe_repo_listener *listener = node->data;
+
 		switch (event) {
 		case EVCPE_ATTR_EVENT_OBJ_ADDED:
 		case EVCPE_ATTR_EVENT_OBJ_DELETED:
@@ -411,6 +449,10 @@ void evcpe_repo_attr_cb(struct evcpe_attr *attr, enum evcpe_attr_event event,
 			break;
 		case EVCPE_ATTR_EVENT_PARAM_SET:
 			(*listener->cb)(repo, event, attr->path, listener->cbarg);
+			if (inform_acs) {
+				tqueue_insert(repo->changed_atts, attr);
+				// TODO: Initial Inform
+			}
 			break;
 		}
 	}
@@ -425,6 +467,10 @@ void evcpe_repo_set_obj_attr_cb(struct evcpe_repo *repo,
 	DEBUG("setting callback on attributes of %s", obj->path);
 
 	RB_FOREACH(attr, evcpe_attrs, &obj->attrs) {
+		/* TODO:We are interested in only attributes which are not maintained
+		 * by plugin
+		 */
+		if (attr->schema->plugin) continue;
 		evcpe_attr_set_cb(attr, evcpe_repo_attr_cb, repo);
 		switch (attr->schema->type) {
 		case EVCPE_TYPE_OBJECT:
@@ -443,154 +489,56 @@ void evcpe_repo_set_obj_attr_cb(struct evcpe_repo *repo,
 }
 
 int evcpe_repo_add_event(struct evcpe_repo *repo,
-		const char *event_code, const char *command_key)
+		enum evcpe_event_code code, const char *command_key)
 {
 	int rc;
-	const char *name;
-	struct evcpe_obj *obj;
-	struct evcpe_attr *attr, *param;
-	unsigned index = 0;
 
-	DEBUG("adding event: %s - %s", event_code, command_key);
+	DEBUG("adding event: %s - %s", evcpe_event_code_to_str(code), command_key);
 
-	name = ".Event.";
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
-		ERROR("failed to locate object: %s", name);
-		goto finally;
-	}
-	if (!attr || attr->schema->type != EVCPE_TYPE_MULTIPLE) {
-		ERROR("not a multiple object attribute: %s", name);
-		rc = EINVAL;
-		goto finally;
-	}
-	if ((rc = evcpe_attr_add_obj(attr, &obj, &index))) {
-		ERROR("failed to add object: %s", name);
-		goto finally;
-	}
-	name = "EventCode";
-	if ((rc = evcpe_obj_get(obj, name, strlen(name), &param))) {
-		ERROR("failed to get parameter: %s", name);
-		evcpe_attr_del_obj(attr, obj->index);
-		goto finally;
-	}
-	if ((rc = evcpe_attr_set(param, event_code, strlen(event_code)))) {
-		ERROR("failed to set parameter value: %s => %s",
-				name, event_code);
-		evcpe_attr_del_obj(attr, obj->index);
-		goto finally;
-	}
-	name = "CommandKey";
-	if ((rc = evcpe_obj_get(obj, name, strlen(name), &param))) {
-		ERROR("failed to get parameter: %s", name);
-		evcpe_attr_del_obj(attr, obj->index);
-		goto finally;
-	}
-	if ((rc = evcpe_attr_set(param, command_key, strlen(command_key)))) {
-		ERROR("failed to set parameter value: %s => %s",
-				name, command_key);
-		evcpe_attr_del_obj(attr, obj->index);
-		goto finally;
-	}
-	rc = 0;
+	rc = evcpe_event_list_add(&repo->pending_events, NULL, code,
+			command_key ? command_key : "");
 
-finally:
 	return rc;
 }
 
-static int evcpe_repo_find_event(struct tqueue *list,
-		const char *event_code, struct evcpe_obj **obj)
+int evcpe_repo_del_event(struct evcpe_repo *repo, enum evcpe_event_code code)
 {
-	int rc = 0;
-	struct tqueue_element* item = NULL;
-	struct evcpe_attr *param;
-	const char *code, *name = "EventCode";
-	unsigned int len = 0;
+	struct evcpe_event* event = NULL;
 
-	DEBUG("finding event: %s", event_code);
+	DEBUG("deleting event: %s", evcpe_event_code_to_str(code));
 
-	*obj = NULL;
-	TQUEUE_FOREACH(item, list) {
-		struct evcpe_obj* tmp_obj = NULL;
-		if (!(tmp_obj = item->data)) continue;
-		if ((rc = evcpe_obj_get(tmp_obj, name, strlen(name), &param))) {
-			ERROR("failed to get parameter: %s", name);
-			goto finally;
-		}
-		if ((rc = evcpe_attr_get(param, &code, &len))) {
-			ERROR("failed to get parameter value: %s", name);
-			goto finally;
-		}
-		if (!strcmp(event_code, code)) {
-			*obj = tmp_obj;
-			break;
-		}
-	}
+	if (!(event =  evcpe_event_list_find(&repo->pending_events, code)))
+		return -1;
 
-finally:
-	return rc;
+	evcpe_event_list_remove(&repo->pending_events, event);
+
+	return 0;
 }
 
-int evcpe_repo_del_event(struct evcpe_repo *repo,
-		const char *event_code)
+void evcpe_repo_clear_pending_events(struct evcpe_repo* repo)
 {
-	int rc;
-	const char *name;
-	struct evcpe_obj *obj, *child;
-	struct evcpe_attr *attr;
+	if (!repo) return;
 
-	DEBUG("deleting event: %s", event_code);
+	TRACE("Clearning all pending events.");
 
-	name = ".Event.";
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
-		ERROR("failed to locate object: %s", name);
-		goto finally;
-	}
-	if (!attr || attr->schema->type != EVCPE_TYPE_MULTIPLE) {
-		ERROR("not a multiple object attribute: %s", name);
-		rc = EINVAL;
-		goto finally;
-	}
-	while (!(rc = evcpe_repo_find_event(attr->value.multiple.list,
-			event_code, &child)) && child) {
-		if ((rc = evcpe_attr_del_obj(attr, child->index))) {
-			ERROR("failed to delete object: %s", child->path);
-			goto finally;
-		}
-	}
-	if (rc) {
-		ERROR("failed to find event: %s", event_code);
-		goto finally;
-	}
-	rc = 0;
-
-finally:
-	return rc;
+	evcpe_event_list_clear(&repo->pending_events);
 }
 
-static int evcpe_repo_to_inform_param_value_list(struct evcpe_obj *obj,
+static int evcpe_repo_to_inform_param_value_list(struct evcpe_repo *repo,
 		struct evcpe_param_value_list *list)
 {
 	int rc = 0;
-	struct evcpe_attr*     attr = NULL;
 	struct tqueue_element* elm = NULL;
 
-	TQUEUE_FOREACH(elm, obj->class->inform_attrs) {
-		struct evcpe_attr_schema *schema = (struct evcpe_attr_schema *)elm->data;
-		if (!(attr = evcpe_obj_find_deep(obj, schema))) {
-			WARN("missing inform attribute '%s' in object", schema->name);
-			continue;
-		}
-
-		/* sanity check */
-		if (!schema->inform) break;
+	TQUEUE_FOREACH(elm, repo->forced_inform_attrs) {
+		struct evcpe_attr *attr = (struct evcpe_attr*)elm->data;
 		if ((rc = evcpe_attr_to_param_value_list(attr, list))) {
 			ERROR("failed to add param to value list");
-			goto finally;
+			return rc;
 		}
 	}
 
-finally:
-	return rc;
+	return 0;
 }
 
 int evcpe_repo_to_inform(struct evcpe_repo *repo, struct evcpe_inform *inform)
@@ -654,28 +602,10 @@ int evcpe_repo_to_inform(struct evcpe_repo *repo, struct evcpe_inform *inform)
 		ERROR("failed to get current local time");
 		goto finally;
 	}
-	if ((rc = evcpe_repo_get_objs(repo, ".Event.", &objs, &count))) {
-		ERROR("failed to get events");
-		goto finally;
-	}
-	TQUEUE_FOREACH(item, objs) {
-		struct evcpe_obj* obj = (struct evcpe_obj*)item->data;
-		if (!obj) continue;
-		if ((rc = evcpe_obj_get_attr_value(obj, "EventCode", &code, &len))) {
-			ERROR("failed to get event code");
-			goto finally;
-		}
-		if ((rc = evcpe_obj_get_attr_value(obj, "CommandKey", &command, &len))){
-			ERROR("failed to get command key");
-			goto finally;
-		}
-		if ((rc = evcpe_event_list_add(&inform->event, &event, code ? code : "",
-				command ? command : ""))) {
-			ERROR("failed to add event: %s", code);
-			goto finally;
-		}
-	}
-	if ((rc = evcpe_repo_to_inform_param_value_list(repo->root,
+
+	inform->events = (const struct evcpe_event_list *)&repo->pending_events;
+
+	if ((rc = evcpe_repo_to_inform_param_value_list(repo,
 			&inform->parameter_list))) {
 		ERROR("failed to add inform param value list");
 		goto finally;
@@ -710,11 +640,12 @@ finally:
 int evcpe_repo_to_param_info_list(struct evcpe_repo *repo, const char *name,
 		struct evcpe_param_info_list *list, int next_level)
 {
-	int rc;
+	int rc = 0;
 	struct evcpe_param_info *param;
 	struct evcpe_attr *attr;
 
-	DEBUG("adding attribute to parameter info list: %s", name);
+	DEBUG("adding attribute to parameter info list: '%s', next_level:%d",
+			name, next_level);
 
 	if ((rc = evcpe_repo_get_attr(repo, *name == '\0' ? "." : name, &attr))) {
 		ERROR("failed to get attribute: %s", name);
@@ -725,6 +656,8 @@ int evcpe_repo_to_param_info_list(struct evcpe_repo *repo, const char *name,
 		rc = EVCPE_CPE_INVALID_ARGUMENTS;
 		goto finally;
 	}
+#if 0
+	// No idea why this speical condition.!!!
 	if (*name == '\0') {
 		if ((rc = evcpe_param_info_list_add(list, &param,
 				attr->value.object->path, strlen(attr->value.object->path),
@@ -732,7 +665,9 @@ int evcpe_repo_to_param_info_list(struct evcpe_repo *repo, const char *name,
 			ERROR("failed to add param info");
 			goto finally;
 		}
-	} else if ((rc = evcpe_attr_to_param_info_list(attr, list, next_level))) {
+	} else
+#endif
+	if ((rc = evcpe_attr_to_param_info_list(attr, list, next_level))) {
 		ERROR("failed to add attribute to param info list: %s", name);
 		goto finally;
 	}
@@ -760,4 +695,25 @@ int evcpe_repo_to_param_attr_list(struct evcpe_repo *repo, const char *name,
 
 finally:
 	return rc;
+}
+
+int evcpe_repo_set_param_atts(struct evcpe_repo* repo,
+		struct evcpe_set_param_attr_list* list) {
+	int rc = 0;
+	struct evcpe_set_param_attr* param = NULL;
+
+	TAILQ_FOREACH(param, &list->head, entry) {
+		struct evcpe_attr* attr = NULL;
+		if ((rc = evcpe_repo_get_attr(repo, param->name, &attr))) {
+			return rc;
+		}
+		if (param->notification_change) {
+			evcpe_attr_set_notification(attr, param->notification);
+		}
+		if (param->access_list_change) {
+			evcpe_attr_set_access_list(attr, &param->access_list);
+		}
+	}
+
+	return 0;
 }

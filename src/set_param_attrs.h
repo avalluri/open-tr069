@@ -27,8 +27,21 @@ struct evcpe_set_param_attrs {
 	struct evcpe_set_param_attr_list parameter_list;
 };
 
+struct evcpe_set_param_attrs_response {
+	int status;
+};
+
 struct evcpe_set_param_attrs *evcpe_set_param_attrs_new(void);
 
 void evcpe_set_param_attrs_free(struct evcpe_set_param_attrs *method);
+
+struct evcpe_set_param_attrs_response* evcpe_set_param_attrs_response_new();
+
+void evcpe_set_param_attrs_response_free(
+		struct evcpe_set_param_attrs_response* resp);
+
+int evcpe_set_param_attrs_response_to_xml(
+		struct evcpe_set_param_attrs_response* resp,
+		struct evbuffer* buffer);
 
 #endif /* EVCPE_SET_PARAM_ATTRS_H_ */

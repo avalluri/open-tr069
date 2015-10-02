@@ -22,7 +22,7 @@
 #define EVCPE_CONSTRAINT_H_
 
 #include <sys/types.h>
-#include <sys/queue.h>
+#include "tqueue.h"
 
 enum evcpe_constraint_type {
 	EVCPE_CONSTRAINT_NONE,
@@ -34,60 +34,52 @@ enum evcpe_constraint_type {
 	EVCPE_CONSTRAINT_RANGE
 };
 
-struct evcpe_constraint_enum {
-	char *string;
-	TAILQ_ENTRY(evcpe_constraint_enum) entry;
-};
-
-TAILQ_HEAD(evcpe_constraint_enums, evcpe_constraint_enum);
-
-struct evcpe_constraint {
+typedef struct _evcpe_constraint {
 	enum evcpe_constraint_type type;
 	union {
 		unsigned size;
-		struct evcpe_constraint_enums enums;
+		tqueue* enums;
 		struct {
 			long min;
 			long max;
 		} range;
 		char *attr;
 	} value;
-};
+} evcpe_constraint;
 
-struct evcpe_constraint *evcpe_constraint_new();
+evcpe_constraint *evcpe_constraint_new();
 
 void evcpe_constraint_free();
 
-int evcpe_constraint_set_size(struct evcpe_constraint *cons, long size);
+int evcpe_constraint_set_size(evcpe_constraint *cons, long size);
 
-int evcpe_constraint_get_size(struct evcpe_constraint *cons, long *size_out);
+int evcpe_constraint_get_size(evcpe_constraint *cons, long *size_out);
 
-int evcpe_constraint_set_enums(struct evcpe_constraint *cons,
+int evcpe_constraint_set_enums(evcpe_constraint *cons,
 		const char *str_enums, unsigned len);
 
-int evcpe_constraint_get_enums(struct evcpe_constraint *cons,
-		struct evcpe_constraint_enums **enums_out);
+int evcpe_constraint_get_enums(evcpe_constraint *cons, tqueue **enums_out);
 
-int evcpe_constraint_set_min(struct evcpe_constraint *cons,
+int evcpe_constraint_set_min(evcpe_constraint *cons,
 		const char *min, unsigned len);
 
-int evcpe_constraint_get_min(struct evcpe_constraint *cons, long *min_out);
+int evcpe_constraint_get_min(evcpe_constraint *cons, long *min_out);
 
-int evcpe_constraint_set_max(struct evcpe_constraint *cons,
+int evcpe_constraint_set_max(evcpe_constraint *cons,
 		const char *max, unsigned len);
 
-int evcpe_constraint_get_max(struct evcpe_constraint *cons, long *max_out);
+int evcpe_constraint_get_max(evcpe_constraint *cons, long *max_out);
 
-int evcpe_constraint_set_range(struct evcpe_constraint *cons,
+int evcpe_constraint_set_range(evcpe_constraint *cons,
 		const char *min, unsigned minlen, const char *max, unsigned maxlen);
 
-int evcpe_constraint_get_range(struct evcpe_constraint *cons, long *min_out,
+int evcpe_constraint_get_range(evcpe_constraint *cons, long *min_out,
 		long *max_out);
 
-int evcpe_constraint_set_attr(struct evcpe_constraint *cons,
+int evcpe_constraint_set_attr(evcpe_constraint *cons,
 		const char *value, unsigned len);
 
-int evcpe_constraint_get_attr(struct evcpe_constraint *cons, char **attr_out);
+int evcpe_constraint_get_attr(evcpe_constraint *cons, char **attr_out);
 
 
 #endif /* EVCPE_CONSTRAINT_H_ */

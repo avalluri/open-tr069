@@ -21,15 +21,15 @@
 #ifndef EVCPE_ERROR_H_
 #define EVCPE_ERROR_H_
 
-enum evcpe_error_type {
+typedef enum _evcpe_error_type {
 	EVCPE_ERR_SYSTEM,
 	EVCPE_ERR_DNS,
 	EVCPE_ERR_HTTP,
 	EVCPE_ERR_SOAP,
 	EVCPE_ERR_CWMP
-};
+} evcpe_error_type_t;
 
-enum evcpe_session_error {
+typedef enum _evcpe_session_error {
 	EVCPE_DNS_ERR_FORMAT,
 	EVCPE_DNS_ERR_SERVER_FAILED,
 	EVCPE_DNS_ERR_NOT_EXIST,
@@ -39,6 +39,6 @@ enum evcpe_session_error {
 	EVCPE_DNS_ERR_INVALID,
 	EVCPE_DNS_ERR_NO_ADDRESS,
 	EVCPE_DNS_ERR_OTHER
-};
+} evcpe_session_error_t;
 
 #endif /* EVCPE_ERROR_H_ */

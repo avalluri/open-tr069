@@ -50,6 +50,10 @@
 			<schema name="FirstUseDate" type="dateTime" />
 			<schema name="DeviceLog" type="string" constraint="32768" />
 			<schema name="VendorConfigFileNumberOfEntries" type="unsignedInt" />
+			<schema name="SupportedDataModelNumberOfEntries" type="unsignedInt" />
+		  	<schema name="ProcessorNumberOfEntries" type="unsignedInt" />
+			<schema name="VendorLogFileNumberOfEntries" type="unsignedInt" />
+			<schema name="LocationNumberOfEntries" type="unsignedInt" />
 			<schema name="VendorConfigFile" type="multipleObject" write="W"
 				number="VendorConfigFileNumberOfEntries">
 				<schema name="Alias" type="string" constraint="64" write="W" />
@@ -66,7 +70,7 @@
 					description="Thre free physical RAM, currently available on the device" />
 			</schema>
 			<schema name="ProcessStatus" type="object">
-				<schema name="CPPUsage" type="unsignedInt" constraint=":100" />
+				<schema name="CPUUsage" type="unsignedInt" constraint=":100" />
 				<schema name="ProcessNumberOfEntries" type="unsignedInt" />
 				<schema name="Process" type="multipleObject" number="ProcessNumberOfEntries">
 					<schema name="PID" type="unsignedInt" />
@@ -109,7 +113,6 @@
 				<schema name="TCPImplementation" type="string"
 					constraint="Tahoe|Reno|New Reno|Vegas" />
 			</schema>
-			<schema name="SupportedDataModelNumberOfEntries" type="unsignedInt" />
 			<schema name="SupportedDataModel" type="multipleObject"
 				number="SupportedDataModelNumberOfEntries">
 				<schema name="Alias" type="string" constraint="64" write="W" />
@@ -118,13 +121,11 @@
 				<schema name="URN" type="string" constraint="256" />
 				<schema name="Features" type="string" />
 			</schema>
-			<schema name="ProcessorNumberOfEntries" type="unsignedInt" />
 			<schema name="Processor" type="multipleObject" number="ProcessorNumberOfEntries">
 				<schema name="Alias" type="string" constraint="64" write="W" />
 				<schema name="Architecture" type="string"
 					constraint="arm|i386|m68010|m68k|mipseb|mipsel|powepc|sh3eb|sh3el|x86_64" />
 			</schema>
-			<schema name="VendorLogFileNumberOfEntries" type="unsignedInt" />
 			<schema name="VendorLogFile" type="multipleObject"
 				number="VendorLogFileNumberOfEntries">
 				<schema name="Alias" type="string" constraint="64" write="W" />
@@ -139,7 +140,6 @@
 				<schema name="ProxyProtocol" type="string"
 					constraint="Z-Wave|ZigBee|UPnP-DM|ETSI-M2M" />
 			</schema>
-			<schema name="LocationNumberOfEntries" type="unsignedInt" />
 			<schema name="Location" type="multipleObject" number="LocationNumberOfEntries">
 				<schema name="Source" type="string" constraint="GPS|AGPS|Manual|External"
 					default="External" />

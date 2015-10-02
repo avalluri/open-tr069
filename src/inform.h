@@ -22,34 +22,34 @@
 #define EVCPE_INFORM_H_
 
 #include <time.h>
+#include <event.h>
 
 #include "data.h"
 
-struct evcpe_inform {
-	struct evcpe_device_id device_id;
-	const struct evcpe_event_list* events;
+typedef struct _evcpe_inform {
+	evcpe_device_id device_id;
+	const tqueue* events;
 	unsigned int max_envelopes;
 	char current_time[26];
 	unsigned int retry_count;
-	struct evcpe_param_value_list parameter_list;
-};
+	tqueue* parameter_list;
+} evcpe_inform;
 
-struct evcpe_inform *evcpe_inform_new(void);
+evcpe_inform *evcpe_inform_new(void);
 
-void evcpe_inform_free(struct evcpe_inform *inform);
+void evcpe_inform_free(evcpe_inform *inform);
 
-int evcpe_inform_add_event(struct evcpe_inform *inform,
+int evcpe_inform_add_event(evcpe_inform *inform,
 		const char *event_code, const char *command_key);
 
-struct evcpe_inform_response {
+typedef struct _evcpe_inform_response {
 	unsigned int max_envelopes;
-};
+} evcpe_inform_response;
 
-struct evcpe_inform_response *evcpe_inform_response_new(void);
+evcpe_inform_response *evcpe_inform_response_new(void);
 
-void evcpe_inform_response_free(struct evcpe_inform_response *inform);
+void evcpe_inform_response_free(evcpe_inform_response *inform);
 
-int evcpe_inform_to_xml(struct evcpe_inform *method,
-		struct evbuffer *buffer);
+int evcpe_inform_to_xml(evcpe_inform *method, struct evbuffer *buffer);
 
 #endif /* EVCPE_INFORM_H_ */

@@ -24,8 +24,8 @@
 
 #include "cookie.h"
 
-static struct evcpe_cookies cookies;
-static struct evcpe_cookie *cookie;
+static evcpe_cookies cookies;
+static evcpe_cookie *cookie;
 
 static void test_setup(void)
 {

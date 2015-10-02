@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <InternetGatewayDevice>
+    <DeviceSummary access-list="Subscriber"></DeviceSummary>
     <LANDeviceNumberOfEntries>1</LANDeviceNumberOfEntries>
     <WANDeviceNumberOfEntries>1</WANDeviceNumberOfEntries>
     <Capabilities>

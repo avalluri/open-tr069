@@ -23,7 +23,7 @@
 #include "evcpe.h"
 
 static struct event_base *evbase;
-static struct evcpe *cpe;
+static evcpe *cpe;
 
 static void test_setup(void)
 {

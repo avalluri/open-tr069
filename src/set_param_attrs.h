@@ -21,27 +21,27 @@
 #ifndef EVCPE_SET_PARAM_ATTRS_H_
 #define EVCPE_SET_PARAM_ATTRS_H_
 
+#include <event.h>
+
 #include "data.h"
 
-struct evcpe_set_param_attrs {
-	struct evcpe_set_param_attr_list parameter_list;
-};
+typedef struct _evcpe_set_param_attrs {
+	tqueue* parameter_list;
+} evcpe_set_param_attrs;
 
-struct evcpe_set_param_attrs_response {
+typedef struct _evcpe_set_param_attrs_response {
 	int status;
-};
+} evcpe_set_param_attrs_response;
 
-struct evcpe_set_param_attrs *evcpe_set_param_attrs_new(void);
+evcpe_set_param_attrs *evcpe_set_param_attrs_new(void);
 
-void evcpe_set_param_attrs_free(struct evcpe_set_param_attrs *method);
+void evcpe_set_param_attrs_free(evcpe_set_param_attrs *method);
 
-struct evcpe_set_param_attrs_response* evcpe_set_param_attrs_response_new();
+evcpe_set_param_attrs_response* evcpe_set_param_attrs_response_new();
 
-void evcpe_set_param_attrs_response_free(
-		struct evcpe_set_param_attrs_response* resp);
+void evcpe_set_param_attrs_response_free(evcpe_set_param_attrs_response* resp);
 
-int evcpe_set_param_attrs_response_to_xml(
-		struct evcpe_set_param_attrs_response* resp,
+int evcpe_set_param_attrs_response_to_xml(evcpe_set_param_attrs_response* resp,
 		struct evbuffer* buffer);
 
 #endif /* EVCPE_SET_PARAM_ATTRS_H_ */

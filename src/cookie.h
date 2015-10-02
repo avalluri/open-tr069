@@ -23,27 +23,27 @@
 
 #include <sys/tree.h>
 
-struct evcpe_cookie {
+typedef struct _evcpe_cookie {
 	char *name;
 	char *value;
-	RB_ENTRY(evcpe_cookie) entry;
-};
+	RB_ENTRY(_evcpe_cookie) entry;
+} evcpe_cookie;
 
-RB_HEAD(evcpe_cookies, evcpe_cookie);
+RB_HEAD(_evcpe_cookies, _evcpe_cookie);
+typedef struct _evcpe_cookies evcpe_cookies;
 
-int evcpe_cookie_cmp(struct evcpe_cookie *a, struct evcpe_cookie *b);
+int evcpe_cookie_cmp(evcpe_cookie *a, evcpe_cookie *b);
 
-RB_PROTOTYPE(evcpe_cookies, evcpe_cookie, entry, evcpe_cookie_cmp);
+RB_PROTOTYPE(_evcpe_cookies, _evcpe_cookie, entry, evcpe_cookie_cmp);
 
-void evcpe_cookies_clear(struct evcpe_cookies *cookies);
+void evcpe_cookies_clear(evcpe_cookies *cookies);
 
-struct evcpe_cookie *evcpe_cookies_find(struct evcpe_cookies *cookies,
-		const char *name);
+evcpe_cookie *evcpe_cookies_find(evcpe_cookies *cookies, const char *name);
 
-int evcpe_cookies_set(struct evcpe_cookies *cookies,
-		const char *name, const char *value);
+int evcpe_cookies_set(evcpe_cookies *cookies, const char *name,
+		const char *value);
 
-int evcpe_cookies_set_from_header(struct evcpe_cookies *cookies,
+int evcpe_cookies_set_from_header(evcpe_cookies *cookies,
 		const char *header);
 
 #endif /* EVCPE_COOKIE_H_ */

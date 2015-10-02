@@ -23,26 +23,26 @@
 
 #include <event.h>
 
-struct evcpe_delete_object {
+typedef struct _evcpe_delete_object {
 	char object_name[257];
 	char parameter_key[33];
-};
+} evcpe_delete_object;
 
-struct evcpe_delete_object *evcpe_delete_object_new(void);
+evcpe_delete_object *evcpe_delete_object_new(void);
 
-void evcpe_delete_object_free(struct evcpe_delete_object *method);
+void evcpe_delete_object_free(evcpe_delete_object *method);
 
-struct evcpe_delete_object_response {
+typedef struct _evcpe_delete_object_response {
 	int status;
-};
+} evcpe_delete_object_response;
 
-struct evcpe_delete_object_response *evcpe_delete_object_response_new(void);
+evcpe_delete_object_response *evcpe_delete_object_response_new(void);
 
 void evcpe_delete_object_response_free(
-		struct evcpe_delete_object_response *resp);
+		evcpe_delete_object_response *resp);
 
 int evcpe_delete_object_response_to_xml(
-		struct evcpe_delete_object_response *resp,
+		evcpe_delete_object_response *resp,
 		struct evbuffer *buffer);
 
 #endif /* EVCPE_DELETE_OBJECT_H_ */

@@ -27,14 +27,15 @@
 #include "repo.h"
 #include "fault.h"
 #include "accessor.h"
+#include "tqueue.h"
 
 #include "test_suite.h"
 
 static struct evbuffer *buffer;
-static struct evcpe_class *cls;
-static struct evcpe_obj *obj;
-static struct evcpe_repo *repo;
-struct evcpe_inform *inform;
+static evcpe_class *cls;
+static evcpe_obj *obj;
+static evcpe_repo *repo;
+evcpe_inform *inform;
 
 static void test_setup(void)
 {
@@ -70,16 +71,120 @@ static void test_load(const char *filename)
 
 static void test_tr098(void)
 {
-	struct evcpe_obj *temp;
+	evcpe_obj *temp;
 	const char *value;
 	unsigned int len;
-	struct evcpe_attr *attr;
-	struct evcpe_param_info *info;
-	struct evcpe_param_info_list info_list;
-	struct evcpe_param_attr *pattr;
-	struct evcpe_param_attr_list pattr_list;
-	struct evcpe_access *entity;
+	evcpe_attr *attr;
+	evcpe_param_info *info;
+	tqueue *info_list;
+	evcpe_param_attr *pattr;
+	tqueue *pattr_list;
+	tqueue_element *node = NULL;
 	unsigned int count;
+	struct _DeviceInfo {
+		const char* name;
+		int writable;
+	} device_info[] = {
+			{ "DeviceCategory", 0 },
+			{ "Manufacturer", 0 },
+			{ "ManufacturerOUI", 0 },
+			{ "ModelName", 0 },
+			{ "ModelNumber", 0 },
+			{ "Description", 0 },
+			{ "ProductClass", 0 },
+			{ "SerialNumber", 0 },
+			{ "HardwareVersion", 0 },
+			{ "SoftwareVersion", 0 },
+			{ "ModemFirmwareVersion", 0 },
+			{ "EnabledOptions", 0 },
+			{ "AdditionalHardwareVersion", 0 },
+			{ "AdditionalSoftwareVersion", 0 },
+			{ "SpecVersion", 0 },
+			{ "ProvisioningCode", 1 },
+			{ "UpTime", 0 },
+			{ "FirstUseDate", 0 },
+			{ "DeviceLog", 0 },
+			{ "VendorConfigFileNumberOfEntries", 0 },
+			{ "SupportedDataModelNumberOfEntries", 0 },
+			{ "ProcessorNumberOfEntries", 0 },
+			{ "VendorLogFileNumberOfEntries", 0 },
+			{ "LocationNumberOfEntries", 0 },
+			{ "VendorConfigFile.", 1 },
+			{ "MemoryStatus.", 0 },
+			{ "ProcessStatus.", 0 },
+			{ "TemperatureStatus.", 0 },
+			{ "NetworkProperties.", 0 },
+			{ "SupportedDataModel.", 0 },
+			{ "Processor.", 0 },
+			{ "VendorLogFile.", 0 },
+			{ "ProxierInfo.", 0 },
+			{ "Location.", 0 },
+	},
+	device_info_full[] = {
+			{ "", 0 },
+			{ "DeviceCategory", 0 },
+			{ "Manufacturer", 0 },
+			{ "ManufacturerOUI", 0 },
+			{ "ModelName", 0 },
+			{ "ModelNumber", 0 },
+			{ "Description", 0 },
+			{ "ProductClass", 0 },
+			{ "SerialNumber", 0 },
+			{ "HardwareVersion", 0 },
+			{ "SoftwareVersion", 0 },
+			{ "ModemFirmwareVersion", 0 },
+			{ "EnabledOptions", 0 },
+			{ "AdditionalHardwareVersion", 0 },
+			{ "AdditionalSoftwareVersion", 0 },
+			{ "SpecVersion", 0 },
+			{ "ProvisioningCode", 1 },
+			{ "UpTime", 0 },
+			{ "FirstUseDate", 0 },
+			{ "DeviceLog", 0 },
+			{ "VendorConfigFileNumberOfEntries", 0 },
+			{ "SupportedDataModelNumberOfEntries", 0 },
+			{ "ProcessorNumberOfEntries", 0 },
+			{ "VendorLogFileNumberOfEntries", 0 },
+			{ "LocationNumberOfEntries", 0 },
+			{ "VendorConfigFile.", 1 },
+			{ "VendorConfigFile.1.", 1 },
+			{ "VendorConfigFile.1.Alias", 1 },
+			{ "VendorConfigFile.1.Name", 0 },
+			{ "VendorConfigFile.1.Version", 0 },
+			{ "VendorConfigFile.1.Date", 0 },
+			{ "VendorConfigFile.1.Description", 0 },
+			{ "VendorConfigFile.2.", 1 },
+			{ "VendorConfigFile.2.Alias", 1 },
+			{ "VendorConfigFile.2.Name", 0 },
+			{ "VendorConfigFile.2.Version", 0 },
+			{ "VendorConfigFile.2.Date", 0 },
+			{ "VendorConfigFile.2.Description", 0 },
+			{ "MemoryStatus.", 0 },
+			{ "MemoryStatus.Total", 0 },
+			{ "MemoryStatus.Free", 0 },
+			{ "ProcessStatus.", 0 },
+			{ "ProcessStatus.CPUUsage", 0 },
+			{ "ProcessStatus.ProcessNumberOfEntries", 0 },
+			{ "ProcessStatus.Process.", 0 },
+			{ "TemperatureStatus.", 0 },
+			{ "TemperatureStatus.TemperatureSensorNumberOfEntries", 0 },
+			{ "TemperatureStatus.TemperatureSensor.", 0 },
+			{ "NetworkProperties.", 0 },
+			{ "NetworkProperties.MaxTCPWindowSize", 0 },
+			{ "NetworkProperties.TCPImplementation", 0 },
+			{ "SupportedDataModel.", 0 },
+			{ "Processor.", 0 },
+			{ "VendorLogFile.", 0 },
+			{ "ProxierInfo.", 0 },
+			{ "ProxierInfo.ManufacturerOUI", 0 },
+			{ "ProxierInfo.ProductClass", 0 },
+			{ "ProxierInfo.SerialNumber", 0 },
+			{ "ProxierInfo.ProxyProtocol", 0 },
+			{ "Location.", 0 }
+	};
+
+
+	int i;
 
 	test_load("testfiles/tr098_model.xml");
 	TEST_ASSERT_EQUAL_INT(0, evcpe_class_from_xml(cls, buffer));
@@ -182,297 +287,105 @@ static void test_tr098(void)
 	TEST_ASSERT(attr->schema->getter == evcpe_get_curtime);
 	TEST_ASSERT(attr->schema->setter == evcpe_set_curtime);
 
-	evcpe_param_info_list_init(&info_list);
+	info_list = evcpe_param_info_list_new();
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_param_info_list(repo,
-			"", &info_list, 1));
-	TEST_ASSERT_NOT_NULL((info = TAILQ_FIRST(&info_list.head)));
+			"", info_list, 1));
+	TEST_ASSERT_NOT_NULL((info = tqueue_first(info_list)->data));
 	TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.", info->name);
 	TEST_ASSERT_EQUAL_INT(0, info->writable);
-	evcpe_param_info_list_clear(&info_list);
+	tqueue_free(info_list);
 
-	evcpe_param_info_list_init(&info_list);
+	info_list = evcpe_param_info_list_new();
 	TEST_ASSERT_EQUAL_INT(EVCPE_CPE_INVALID_PARAM_NAME, evcpe_repo_to_param_info_list(
-			repo, ".DeviceInfo.SerialNumber.", &info_list, 0));
+			repo, ".DeviceInfo.SerialNumber.", info_list, 0));
 	TEST_ASSERT_EQUAL_INT(EVCPE_CPE_INVALID_ARGUMENTS, evcpe_repo_to_param_info_list(
-			repo, ".DeviceInfo.SerialNumber", &info_list, 1));
+			repo, ".DeviceInfo.SerialNumber", info_list, 1));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_param_info_list(repo,
-			".DeviceInfo.SerialNumber", &info_list, 0));
-	TEST_ASSERT_NOT_NULL((info = TAILQ_FIRST(&info_list.head)));
+			".DeviceInfo.SerialNumber", info_list, 0));
+	TEST_ASSERT_NOT_NULL((info = tqueue_first(info_list)->data));
 	TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.SerialNumber", info->name);
 	TEST_ASSERT_EQUAL_INT(0, info->writable);
-	evcpe_param_info_list_clear(&info_list);
+	tqueue_free(info_list);
 
-	evcpe_param_info_list_init(&info_list);
+	info_list = evcpe_param_info_list_new();
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_param_info_list(repo,
-			".DeviceInfo.", &info_list, 1));
-	TEST_ASSERT(!TAILQ_EMPTY(&info_list.head));
-	count = 0;
-	TAILQ_FOREACH(info, &info_list.head, entry) {
-		switch (count) {
-		case 0:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.Manufacturer", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 1:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ManufacturerOUI", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 2:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ModelName", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 3:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.Description", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 4:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ProductClass", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 5:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.SerialNumber", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 6:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.HardwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 7:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.SoftwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 8:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ModemFirmwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 9:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.EnabledOptions", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 10:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.AdditionalHardwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 11:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.AdditionalSoftwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 12:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.SpecVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 13:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ProvisioningCode", info->name);
-			TEST_ASSERT_EQUAL_INT(1, info->writable);
-			break;
-		case 14:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.UpTime", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 15:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.FirstUseDate", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 16:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.DeviceLog", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 17:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFileNumberOfEntries", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 18:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.", info->name);
-			TEST_ASSERT_EQUAL_INT(1, info->writable);
-			break;
-		default:
-			TEST_FAIL("unexpected entry");
-		}
-		count ++;
-	}
-	evcpe_param_info_list_clear(&info_list);
+			".DeviceInfo.", info_list, 1));
+	TEST_ASSERT(tqueue_size(info_list) ==
+			sizeof(device_info)/sizeof(*device_info));
+	i = 0;
+	TQUEUE_FOREACH(node, info_list) {
+		char param[257];
+		evcpe_param_info* info = node->data;
+		snprintf(param, 256, "InternetGatewayDevice.DeviceInfo.%s", device_info[i].name);
 
-	evcpe_param_info_list_init(&info_list);
+		TEST_ASSERT_EQUAL_STRING(param, info->name);
+		TEST_ASSERT_EQUAL_INT(device_info[i].writable, info->writable);
+		i++;
+	}
+	tqueue_free(info_list);
+
+	info_list = evcpe_param_info_list_new();
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_param_info_list(repo,
-			".DeviceInfo.", &info_list, 0));
-	TEST_ASSERT(!TAILQ_EMPTY(&info_list.head));
-	count = 0;
-	TAILQ_FOREACH(info, &info_list.head, entry) {
-		switch (count) {
-		case 0:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 1:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.Manufacturer", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 2:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ManufacturerOUI", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 3:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ModelName", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 4:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.Description", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 5:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ProductClass", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 6:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.SerialNumber", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 7:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.HardwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 8:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.SoftwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 9:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ModemFirmwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 10:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.EnabledOptions", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 11:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.AdditionalHardwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 12:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.AdditionalSoftwareVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 13:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.SpecVersion", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 14:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.ProvisioningCode", info->name);
-			TEST_ASSERT_EQUAL_INT(1, info->writable);
-			break;
-		case 15:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.UpTime", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 16:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.FirstUseDate", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 17:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.DeviceLog", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 18:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFileNumberOfEntries", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 19:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.", info->name);
-			TEST_ASSERT_EQUAL_INT(1, info->writable);
-			break;
-		case 20:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.1.", info->name);
-			TEST_ASSERT_EQUAL_INT(1, info->writable);
-			break;
-		case 21:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.1.Name", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 22:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.1.Version", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 23:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.1.Date", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 24:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.1.Description", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 25:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.2.", info->name);
-			TEST_ASSERT_EQUAL_INT(1, info->writable);
-			break;
-		case 26:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.2.Name", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 27:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.2.Version", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 28:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.2.Date", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		case 29:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.VendorConfigFile.2.Description", info->name);
-			TEST_ASSERT_EQUAL_INT(0, info->writable);
-			break;
-		default:
-			TEST_FAIL("unexpected entry");
-		}
-		count ++;
+			".DeviceInfo.", info_list, 0));
+	TEST_ASSERT(tqueue_size(info_list) ==
+			sizeof(device_info_full)/sizeof(*device_info_full));
+	i = 0;
+	TQUEUE_FOREACH(node, info_list) {
+		char param[257];
+		evcpe_param_info* info = node->data;
+		snprintf(param, 256, "InternetGatewayDevice.DeviceInfo.%s",
+				device_info_full[i].name);
+		TEST_ASSERT_EQUAL_STRING(param, info->name);
+		TEST_ASSERT_EQUAL_INT(device_info_full[i].writable, info->writable);
+		i++;
 	}
-	evcpe_param_info_list_clear(&info_list);
+	tqueue_free(info_list);
 
-	evcpe_param_attr_list_init(&pattr_list);
-	TEST_ASSERT_EQUAL_INT(EVCPE_CPE_INVALID_PARAM_NAME, evcpe_repo_to_param_attr_list(
-			repo, "foobar", &pattr_list));
-	TEST_ASSERT_EQUAL_INT(EVCPE_CPE_INVALID_PARAM_NAME, evcpe_repo_to_param_attr_list(
-			repo, "foobar.", &pattr_list));
-	TEST_ASSERT_EQUAL_INT(EVCPE_CPE_INVALID_PARAM_NAME, evcpe_repo_to_param_attr_list(
-			repo, ".DeviceSummary.", &pattr_list));
+	pattr_list = tqueue_new(NULL, (tqueue_free_func_t)evcpe_param_attr_free);
+	TEST_ASSERT_EQUAL_INT(EVCPE_CPE_INVALID_PARAM_NAME,
+			evcpe_repo_to_param_attr_list(repo, "foobar", pattr_list));
+	TEST_ASSERT_EQUAL_INT(EVCPE_CPE_INVALID_PARAM_NAME,
+			evcpe_repo_to_param_attr_list(repo, "foobar.", pattr_list));
+	TEST_ASSERT_EQUAL_INT(EVCPE_CPE_INVALID_PARAM_NAME,
+			evcpe_repo_to_param_attr_list(repo, ".DeviceSummary.", pattr_list));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_param_attr_list(repo,
-			".DeviceSummary", &pattr_list));
-	TEST_ASSERT_NOT_NULL((pattr = TAILQ_FIRST(&pattr_list.head)));
+			".DeviceSummary", pattr_list));
+	TEST_ASSERT_NOT_NULL((pattr = (evcpe_param_attr*)tqueue_first(pattr_list)->data));
 	TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceSummary", pattr->name);
-	TEST_ASSERT_EQUAL_INT(1, pattr->notification);
-	TEST_ASSERT_NOT_NULL((entity = TAILQ_FIRST(&pattr->access_list.head)));
-	TEST_ASSERT_EQUAL_STRING("Subscriber", entity->entity);
-	evcpe_param_attr_list_clear(&pattr_list);
+	TEST_ASSERT_EQUAL_INT(EVCPE_NOTIFICATION_OFF, pattr->notification);
+	TEST_ASSERT_NOT_NULL((node = tqueue_first(pattr->access_list)));
+	TEST_ASSERT_EQUAL_STRING("Subscriber", (char*)node->data);
+	tqueue_free(pattr_list);
 
-	evcpe_param_attr_list_init(&pattr_list);
+	pattr_list = tqueue_new(NULL, (tqueue_free_func_t)evcpe_param_attr_free);
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_param_attr_list(repo,
-			".DeviceInfo.", &pattr_list));
+			".DeviceInfo.", pattr_list));
 	count = 0;
-	TAILQ_FOREACH(pattr, &pattr_list.head, entry) {
+	TQUEUE_FOREACH(node, pattr_list) {
+		pattr = (evcpe_param_attr*)node->data;
 		switch (count) {
 		case 0:
-			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.Manufacturer", pattr->name);
-			TEST_ASSERT_EQUAL_INT(0, pattr->notification);
-			TEST_ASSERT(TAILQ_EMPTY(&pattr->access_list.head));
+			TEST_ASSERT_EQUAL_STRING("InternetGatewayDevice.DeviceInfo.DeviceCategory", pattr->name);
+			TEST_ASSERT_EQUAL_INT(EVCPE_NOTIFICATION_OFF, pattr->notification);
+			TEST_ASSERT(tqueue_empty(pattr->access_list));
 			break;
 		}
 		count ++;
-		printf("%s\n", pattr->name);
 	}
-	evcpe_param_attr_list_clear(&pattr_list);
+	tqueue_free(pattr_list);
 
 	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_to_inform(repo, inform));
-	TEST_ASSERT_EQUAL_INT(0, evcpe_repo_del_event(repo, EVCPE_EVENT_0_BOOTSTRAP));
 
 	evbuffer_drain(buffer, evbuffer_get_length(buffer));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_to_xml(obj, buffer));
 	evcpe_obj_free(obj);
-//	printf("%.*s", evbuffer_get_length(buffer), evbuffer_pullup(buffer , -1));
+
 	TEST_ASSERT_NOT_NULL((obj = evcpe_obj_new(cls, NULL)));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_init(obj));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_from_xml(obj, buffer));
-//	TEST_ASSERT_NOT_NULL((repo = evcpe_repo_new(obj)));
+	evcpe_obj_free(obj);
 
 	evcpe_repo_free(repo);
-	evcpe_obj_free(obj);
 }
 
 TestRef evcpe_repo_test_case(void)

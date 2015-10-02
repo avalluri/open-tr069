@@ -28,6 +28,7 @@
 
 #include <evdns.h>
 
+#include "evcpe-config.h"
 #include "log.h"
 #include "util.h"
 #include "msg.h"
@@ -47,11 +48,11 @@
 
 static void evcpe_creq_cb(struct evhttp_request *req, void *arg);
 
-static void evcpe_session_message_cb(struct evcpe_session *session,
-		enum evcpe_msg_type type, enum evcpe_method_type method_type,
+static void evcpe_session_message_cb(evcpe_session *session,
+		evcpe_msg_type_t type, evcpe_method_type_t method_type,
 		void *request, void *response, void *arg);
 
-static void evcpe_session_terminate_cb(struct evcpe_session *session,
+static void evcpe_session_terminate_cb(evcpe_session *session,
 		int code, void *arg);
 
 static void evcpe_dns_cb(int result, char type, int count, int ttl,
@@ -59,61 +60,61 @@ static void evcpe_dns_cb(int result, char type, int count, int ttl,
 
 static inline void evcpe_dns_timer_cb(int fd, short event, void *arg);
 
-static int evcpe_dns_entry_resolve(struct evcpe_dns_entry *entry,
+static int evcpe_dns_entry_resolve(evcpe_dns_entry *entry,
 		const char *hostname);
 
-static int evcpe_dns_add(struct evcpe *cpe, const char *hostname);
+static int evcpe_dns_add(evcpe *cpe, const char *hostname);
 
-static inline int evcpe_handle_request(struct evcpe *cpe,
-		struct evcpe_session *session, enum evcpe_method_type method_type,
+static inline int evcpe_handle_request(evcpe *cpe,
+		evcpe_session *session, evcpe_method_type_t method_type,
 		void *request);
 
-static inline int evcpe_handle_response(struct evcpe *cpe,
-		enum evcpe_method_type method_type, void *request, void *response);
+static inline int evcpe_handle_response(evcpe *cpe,
+		evcpe_method_type_t method_type, void *request, void *response);
 
-static inline int evcpe_handle_get_rpc_methods(struct evcpe *cpe,
-		struct evcpe_get_rpc_methods *req, struct evcpe_msg *msg);
+static inline int evcpe_handle_get_rpc_methods(evcpe *cpe,
+		evcpe_get_rpc_methods *req, evcpe_msg *msg);
 
-static inline int evcpe_handle_get_param_names(struct evcpe *cpe,
-		struct evcpe_get_param_names *req, struct evcpe_msg *msg);
+static inline int evcpe_handle_get_param_names(evcpe *cpe,
+		evcpe_get_param_names *req, evcpe_msg *msg);
 
-static inline int evcpe_handle_get_param_values(struct evcpe *cpe,
-		struct evcpe_get_param_values *req, struct evcpe_msg *msg);
+static inline int evcpe_handle_get_param_values(evcpe *cpe,
+		evcpe_get_param_values *req, evcpe_msg *msg);
 
-static inline int evcpe_handle_get_param_attrs(struct evcpe *cpe,
-		struct evcpe_get_param_attrs *req, struct evcpe_msg *msg);
+static inline int evcpe_handle_get_param_attrs(evcpe *cpe,
+		evcpe_get_param_attrs *req, evcpe_msg *msg);
 
-static inline int evcpe_handle_set_param_attrs(struct evcpe* cpe,
-		struct evcpe_set_param_attrs* req, struct evcpe_msg* reply);
+static inline int evcpe_handle_set_param_attrs(evcpe* cpe,
+		evcpe_set_param_attrs* req, evcpe_msg* reply);
 
-static inline int evcpe_handle_add_object(struct evcpe *cpe,
-		struct evcpe_add_object *req, struct evcpe_msg *msg);
+static inline int evcpe_handle_add_object(evcpe *cpe,
+		evcpe_add_object *req, evcpe_msg *msg);
 
-static inline int evcpe_handle_delete_object(struct evcpe *cpe,
-		struct evcpe_delete_object* req, struct evcpe_msg* msg);
+static inline int evcpe_handle_delete_object(evcpe *cpe,
+		evcpe_delete_object* req, evcpe_msg* msg);
 
-static inline int evcpe_handle_set_param_values(struct evcpe *cpe,
-		struct evcpe_set_param_values *req, struct evcpe_msg *msg);
+static inline int evcpe_handle_set_param_values(evcpe *cpe,
+		evcpe_set_param_values *req, evcpe_msg *msg);
 
-static inline int evcpe_handle_inform_response(struct evcpe *cpe,
-		struct evcpe_inform *req, struct evcpe_inform_response *resp);
+static inline int evcpe_handle_inform_response(evcpe *cpe,
+		evcpe_inform *req, evcpe_inform_response *resp);
 
-static int evcpe_retry_session(struct evcpe *cpe);
+static int evcpe_retry_session(evcpe *cpe);
 
 static void evcpe_start_session_cb(int fd, short event, void *arg);
 
-static int evcpe_start_session(struct evcpe *cpe);
+static int evcpe_start_session(evcpe *cpe);
 
 
 
-struct evcpe *evcpe_new(struct event_base *evbase,
-		evcpe_request_cb cb, evcpe_error_cb error_cb, void *cbarg)
+evcpe *evcpe_new(struct event_base *evbase,
+		evcpe_request_cb_t cb, evcpe_error_cb_t error_cb, void *cbarg)
 {
-	struct evcpe *cpe;
+	evcpe *cpe;
 
 	DEBUG("constructing evcpe");
 
-	if ((cpe = calloc(1, sizeof(struct evcpe))) == NULL) {
+	if ((cpe = calloc(1, sizeof(evcpe))) == NULL) {
 		ERROR("failed to calloc evcpe");
 		return NULL;
 	}
@@ -127,7 +128,7 @@ struct evcpe *evcpe_new(struct event_base *evbase,
 	return cpe;
 }
 
-void evcpe_free(struct evcpe *cpe)
+void evcpe_free(evcpe *cpe)
 {
 	if (cpe == NULL) return;
 
@@ -152,12 +153,12 @@ void evcpe_free(struct evcpe *cpe)
 	free(cpe);
 }
 
-int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
+int evcpe_set(evcpe *cpe, evcpe_repo *repo)
 {
 	int rc, number;
 	const char *value = NULL;
 	unsigned int len;
-	struct evcpe_obj *server_obj = NULL;
+	evcpe_obj *server_obj = NULL;
 	unsigned i = 0;
 
 	if ((rc = evcpe_repo_get_obj(repo, ".ManagementServer.", &server_obj))) {
@@ -300,7 +301,7 @@ int evcpe_set(struct evcpe *cpe, struct evcpe_repo *repo)
 void evcpe_creq_cb(struct evhttp_request *req, void *arg)
 {
 	time_t curtime;
-	struct evcpe *cpe = arg;
+	evcpe *cpe = arg;
 
 	if (req->type != EVHTTP_REQ_GET || (cpe->creq_url->uri &&
 			strncmp(cpe->creq_url->uri,
@@ -338,7 +339,7 @@ void evcpe_creq_cb(struct evhttp_request *req, void *arg)
 	}
 }
 
-int evcpe_bind(struct evcpe *cpe)
+int evcpe_bind(evcpe *cpe)
 {
 	int rc;
 	struct evhttp *http;
@@ -354,8 +355,7 @@ int evcpe_bind(struct evcpe *cpe)
 		goto finally;
 	}
 	if ((rc = evhttp_bind_socket(http, "0.0.0.0", cpe->creq_url->port)) != 0) {
-		ERROR("failed to bind evhttp on port:%d",
-				cpe->creq_url->port);
+		ERROR("failed to bind evhttp on port:%d", cpe->creq_url->port);
 		evhttp_free(http);
 		goto finally;
 	}
@@ -371,7 +371,7 @@ int evcpe_bind(struct evcpe *cpe)
 
 #if 0
 static
-void evcpe_send_error(struct evcpe *cpe, enum evcpe_error_type type,
+void evcpe_send_error(evcpe *cpe, enum evcpe_error_type type,
 		int code, const char *reason)
 {
 	ERROR("%d type error: %d %s", type, code, reason);
@@ -380,7 +380,7 @@ void evcpe_send_error(struct evcpe *cpe, enum evcpe_error_type type,
 }
 #endif
 
-int evcpe_retry_session(struct evcpe *cpe)
+int evcpe_retry_session(evcpe *cpe)
 {
 	int rc, base, secs;
 
@@ -439,7 +439,7 @@ finally:
 	return rc;
 }
 
-int evcpe_start(struct evcpe *cpe, int bootstrap)
+int evcpe_start(evcpe *cpe, int bootstrap)
 {
 	int rc;
 
@@ -480,7 +480,7 @@ int evcpe_start(struct evcpe *cpe, int bootstrap)
 void evcpe_start_session_cb(int fd, short ev, void *arg)
 {
 	int rc;
-	struct evcpe *cpe = arg;
+	evcpe *cpe = arg;
 	if (!cpe->session && (rc = evcpe_start_session(cpe))) {
 		ERROR("failed to start session");
 	}
@@ -493,11 +493,11 @@ void evcpe_start_session_cb(int fd, short ev, void *arg)
 	}
 }
 
-int evcpe_start_session(struct evcpe *cpe)
+int evcpe_start_session(evcpe *cpe)
 {
 	int rc;
-	struct evcpe_inform *inform;
-	struct evcpe_msg *msg;
+	evcpe_inform *inform;
+	evcpe_msg *msg;
 	const char *hostname, *address;
 	u_short port;
 	struct evhttp_connection *conn;
@@ -584,10 +584,10 @@ int evcpe_start_session(struct evcpe *cpe)
 	return rc;
 }
 
-void evcpe_session_terminate_cb(struct evcpe_session *session, int rc,
+void evcpe_session_terminate_cb(evcpe_session *session, int rc,
 		void *arg)
 {
-	struct evcpe *cpe = arg;
+	evcpe *cpe = arg;
 	evhttp_connection_free(session->conn);
 	evcpe_session_free(cpe->session);
 	cpe->session = NULL;
@@ -602,12 +602,12 @@ void evcpe_session_terminate_cb(struct evcpe_session *session, int rc,
 	}
 }
 
-void evcpe_session_message_cb(struct evcpe_session *session,
-		enum evcpe_msg_type type, enum evcpe_method_type method_type,
+void evcpe_session_message_cb(evcpe_session *session,
+		evcpe_msg_type_t type, evcpe_method_type_t method_type,
 		void *request, void *response, void *arg)
 {
 	int rc;
-	struct evcpe *cpe = arg;
+	evcpe *cpe = arg;
 
 	INFO("handling %s %s message from ACS",
 			evcpe_method_type_to_str(method_type), evcpe_msg_type_to_str(type));
@@ -626,9 +626,8 @@ void evcpe_session_message_cb(struct evcpe_session *session,
 		}
 		break;
 	case EVCPE_MSG_FAULT:
-		ERROR("CWMP fault encountered: %d - %s",
-				((struct evcpe_fault *)request)->code,
-				((struct evcpe_fault *)request)->string);
+		ERROR("CWMP fault encountered: %d - %s", ((evcpe_fault *)request)->code,
+				((evcpe_fault *)request)->string);
 		// TODO: notifies
 		goto close_session;
 	default:
@@ -642,12 +641,12 @@ void evcpe_session_message_cb(struct evcpe_session *session,
 	evcpe_session_close(cpe->session, rc);
 }
 
-int evcpe_handle_request(struct evcpe *cpe, struct evcpe_session *session,
-		enum evcpe_method_type method_type, void *request)
+int evcpe_handle_request(evcpe *cpe, evcpe_session *session,
+		evcpe_method_type_t method_type, void *request)
 {
 	int rc;
-	struct evcpe_msg *reply = NULL;
-	struct evcpe_fault *fault;
+	evcpe_msg *reply = NULL;
+	evcpe_fault *fault;
 
 
 	if (!(reply = evcpe_msg_new())) {
@@ -718,8 +717,8 @@ int evcpe_handle_request(struct evcpe *cpe, struct evcpe_session *session,
 	return rc;
 }
 
-int evcpe_handle_response(struct evcpe *cpe,
-		enum evcpe_method_type method_type, void *request, void *response)
+int evcpe_handle_response(evcpe *cpe,
+		evcpe_method_type_t method_type, void *request, void *response)
 {
 	int rc;
 
@@ -744,7 +743,7 @@ struct MethodInfo {
 	enum evcpe_method_type type;
 	void* create();
 	void  free(void* data);
-	int   handle(struct evcpe *cpe, void* data, struct evcpe_msg* reply);
+	int   handle(evcpe *cpe, void* data, evcpe_msg* reply);
 } supported_methods[] = {
 	{ EVCPE_GET_RPC_METHODS, evcpe_get_rpc_methods_new,
 	  evcpe_get_rpc_methods_free, evcpe_handle_get_rpc_methods
@@ -776,12 +775,12 @@ struct MethodInfo {
 	{ EVCPE_REBOOT, NULL, NULL, NULL }
 };
 #endif
-int evcpe_handle_get_rpc_methods(struct evcpe *cpe,
-		struct evcpe_get_rpc_methods *req, struct evcpe_msg *reply)
+int evcpe_handle_get_rpc_methods(evcpe *cpe, evcpe_get_rpc_methods *req,
+		evcpe_msg *reply)
 {
 	int rc = 0, i;
-	struct evcpe_get_rpc_methods_response *resp = NULL;
-	int supported_methods[] = {
+	evcpe_get_rpc_methods_response *resp = NULL;
+	static evcpe_method_type_t supported_methods[] = {
 			EVCPE_GET_RPC_METHODS,
 			EVCPE_GET_PARAMETER_NAMES,
 			EVCPE_SET_PARAMETER_VALUES,
@@ -800,11 +799,12 @@ int evcpe_handle_get_rpc_methods(struct evcpe *cpe,
 		goto finally;
 	}
 
-	for (i=0; i< sizeof(supported_methods)/sizeof(int); i++){
-		if ((rc = evcpe_method_list_add_method(&resp->method_list,
-				evcpe_method_type_to_str(supported_methods[i])))) {
+	for (i = 0; i < sizeof(supported_methods)/sizeof(supported_methods[0]);
+			i++) {
+		if (! tqueue_insert(resp->method_list, (void*)supported_methods[i])) {
 			evcpe_get_rpc_methods_response_free(resp);
 			resp = NULL;
+			rc = -1;
 			ERROR("failed to add method");
 			goto finally;
 		}
@@ -815,18 +815,18 @@ int evcpe_handle_get_rpc_methods(struct evcpe *cpe,
 	return rc;
 }
 
-int evcpe_handle_get_param_names(struct evcpe *cpe,
-		struct evcpe_get_param_names *req, struct evcpe_msg *reply)
+int evcpe_handle_get_param_names(evcpe *cpe, evcpe_get_param_names *req,
+		evcpe_msg *reply)
 {
 	int rc = 0;
-	struct evcpe_get_param_names_response *resp = NULL;
+	evcpe_get_param_names_response *resp = NULL;
 
 	if (!(resp = evcpe_get_param_names_response_new())) {
 		ERROR("failed to create evcpe_get_param_names_response");
 		return ENOMEM;
 	}
 	if ((rc = evcpe_repo_to_param_info_list(cpe->repo, req->parameter_path,
-			&resp->parameter_list, req->next_level))) {
+			resp->parameter_list, req->next_level))) {
 		ERROR("failed to get param names: %s", req->parameter_path);
 		evcpe_get_param_names_response_free(resp);
 		return rc;
@@ -836,22 +836,22 @@ int evcpe_handle_get_param_names(struct evcpe *cpe,
 	return 0;
 }
 
-int evcpe_handle_get_param_values(struct evcpe *cpe,
-		struct evcpe_get_param_values *req, struct evcpe_msg *reply)
+int evcpe_handle_get_param_values(evcpe *cpe, evcpe_get_param_values *req,
+		evcpe_msg *reply)
 {
 	int rc = 0;
-	struct evcpe_param_name *param = NULL;
-	struct evcpe_get_param_values_response *resp = NULL;
+	tqueue_element* node = NULL;
+	evcpe_get_param_values_response *resp = NULL;
 
 	if (!(resp = evcpe_get_param_values_response_new())) {
 		ERROR("failed to create evcpe_get_param_values_response");
 		return ENOMEM;
 	}
 
-	TAILQ_FOREACH(param, &req->parameter_names.head, entry) {
+	TQUEUE_FOREACH(node, req->parameter_names) {
 		if ((rc = evcpe_repo_to_param_value_list(cpe->repo,
-				param->name, &resp->parameter_list))) {
-			ERROR("failed to get param values: %s", param->name);
+				(char*)node->data, resp->parameter_list))) {
+			ERROR("failed to get param values: %s", (char*)node->data);
 			evcpe_get_param_values_response_free(resp);
 			return rc;
 		}
@@ -861,21 +861,21 @@ int evcpe_handle_get_param_values(struct evcpe *cpe,
 	return 0;
 }
 
-int evcpe_handle_get_param_attrs(struct evcpe *cpe,
-		struct evcpe_get_param_attrs *req, struct evcpe_msg *reply)
+int evcpe_handle_get_param_attrs(evcpe *cpe, evcpe_get_param_attrs *req,
+		evcpe_msg *reply)
 {
 	int rc = 0;
-	struct evcpe_param_name *param = NULL;
-	struct evcpe_get_param_attrs_response *resp = NULL;
+	tqueue_element* node = NULL;
+	evcpe_get_param_attrs_response *resp = NULL;
 
 	if (!(resp = evcpe_get_param_attrs_response_new())) {
 		ERROR("failed to create evcpe_get_param_attrs_response");
 		return ENOMEM;
 	}
-	TAILQ_FOREACH(param, &req->parameter_names.head, entry) {
+	TQUEUE_FOREACH(node, req->parameter_names) {
 		if ((rc = evcpe_repo_to_param_attr_list(cpe->repo,
-				param->name, &resp->parameter_list))) {
-			ERROR("failed to get param values: %s", param->name);
+				(char*)node->data, resp->parameter_list))) {
+			ERROR("failed to get param values: %s", (char*)node->data);
 			evcpe_get_param_attrs_response_free(resp);
 			return rc;
 		}
@@ -885,19 +885,19 @@ int evcpe_handle_get_param_attrs(struct evcpe *cpe,
 	return 0;
 }
 
-int evcpe_handle_set_param_attrs(struct evcpe* cpe,
-		struct evcpe_set_param_attrs* req, struct evcpe_msg* reply)
+int evcpe_handle_set_param_attrs(evcpe* cpe,
+		evcpe_set_param_attrs* req, evcpe_msg* reply)
 {
 	int rc = 0;
-	struct evcpe_set_param_attr* param = NULL;
-	struct evcpe_set_param_attrs_response* resp = NULL;
+	evcpe_set_param_attr* param = NULL;
+	evcpe_set_param_attrs_response* resp = NULL;
 
 	if (!(resp = evcpe_set_param_attrs_response_new())) {
 		ERROR("failed to create evcpe_set_param_attrs_response");
 		return ENOMEM;
 	}
 
-	if ((rc = evcpe_repo_set_param_atts(cpe->repo, &req->parameter_list))) {
+	if ((rc = evcpe_repo_set_param_atts(cpe->repo, req->parameter_list))) {
 		free(resp);
 		return rc;
 	}
@@ -907,13 +907,13 @@ int evcpe_handle_set_param_attrs(struct evcpe* cpe,
 	return rc;
 }
 
-int evcpe_handle_add_object(struct evcpe *cpe,
-		struct evcpe_add_object *req,
-		struct evcpe_msg *reply)
+int evcpe_handle_add_object(evcpe *cpe,
+		evcpe_add_object *req,
+		evcpe_msg *reply)
 {
 	int rc = 0;
 	unsigned int index;
-	struct evcpe_add_object_response *resp;
+	evcpe_add_object_response *resp;
 
 	if ((rc = evcpe_repo_add_obj(cpe->repo, req->object_name, &index))) {
 		ERROR("failed to add object: %s", req->object_name);
@@ -937,11 +937,11 @@ int evcpe_handle_add_object(struct evcpe *cpe,
 	return 0;
 }
 
-int evcpe_handle_delete_object(struct evcpe* cpe,
-		struct evcpe_delete_object* req, struct evcpe_msg* reply)
+int evcpe_handle_delete_object(evcpe* cpe, evcpe_delete_object* req,
+		evcpe_msg* reply)
 {
 	int rc = 0;
-	struct evcpe_delete_object_response* resp = NULL;
+	evcpe_delete_object_response* resp = NULL;
 
 	if((rc = evcpe_repo_del_obj(cpe->repo, req->object_name))) {
 		ERROR("Failed to delete object: %s", req->object_name);
@@ -963,14 +963,15 @@ int evcpe_handle_delete_object(struct evcpe* cpe,
 	return 0;
 }
 
-int evcpe_handle_set_param_values(struct evcpe *cpe,
-		struct evcpe_set_param_values *req, struct evcpe_msg *reply)
+int evcpe_handle_set_param_values(evcpe *cpe,
+		evcpe_set_param_values *req, evcpe_msg *reply)
 {
 	int rc = 0;
-	struct evcpe_set_param_value *param = NULL;
-	struct evcpe_set_param_values_response *resp = NULL;
+	tqueue_element* node = NULL;
+	evcpe_set_param_values_response *resp = NULL;
 
-	TAILQ_FOREACH(param, &req->parameter_list.head, entry) {
+	TQUEUE_FOREACH(node, req->parameter_list) {
+		evcpe_param_value* param = (evcpe_param_value*)node->data;
 		if ((rc = evcpe_repo_set(cpe->repo, param->name, param->data,
 				param->len))) {
 			ERROR("failed to set param: %s", param->name);
@@ -994,8 +995,8 @@ int evcpe_handle_set_param_values(struct evcpe *cpe,
 	return rc;
 }
 
-int evcpe_handle_inform_response(struct evcpe *cpe,
-		struct evcpe_inform *req, struct evcpe_inform_response *resp)
+int evcpe_handle_inform_response(evcpe *cpe, evcpe_inform *req,
+		evcpe_inform_response *resp)
 {
 	if (resp->max_envelopes != 1) {
 		ERROR("invalid max envelopes: %d", resp->max_envelopes);
@@ -1011,7 +1012,7 @@ int evcpe_handle_inform_response(struct evcpe *cpe,
 	return 0;
 }
 
-int evcpe_dns_entry_resolve(struct evcpe_dns_entry *entry, const char *hostname)
+int evcpe_dns_entry_resolve(evcpe_dns_entry *entry, const char *hostname)
 {
 	DEBUG("resolving DNS: %s", hostname);
 	if (evdns_base_resolve_ipv4(entry->dns_base, hostname, 0, evcpe_dns_cb,
@@ -1023,10 +1024,10 @@ int evcpe_dns_entry_resolve(struct evcpe_dns_entry *entry, const char *hostname)
 	return 0;
 }
 
-int evcpe_dns_add(struct evcpe *cpe, const char *hostname)
+int evcpe_dns_add(evcpe *cpe, const char *hostname)
 {
 	int rc;
-	struct evcpe_dns_entry *entry;
+	evcpe_dns_entry *entry;
 	struct in_addr addr;
 
 	DEBUG("adding hostname: %s", hostname);
@@ -1059,15 +1060,15 @@ int evcpe_dns_add(struct evcpe *cpe, const char *hostname)
 
 void evcpe_dns_timer_cb(int fd, short event, void *arg)
 {
-	if (evcpe_dns_entry_resolve(arg, ((struct evcpe_dns_entry *)arg)->name))
+	if (evcpe_dns_entry_resolve(arg, ((evcpe_dns_entry *)arg)->name))
 		ERROR("failed to start DNS resolution: %s",
-				((struct evcpe_dns_entry *)arg)->name);
+				((evcpe_dns_entry *)arg)->name);
 }
 
 void evcpe_dns_cb(int result, char type, int count, int ttl,
 		void *addresses, void *arg)
 {
-	struct evcpe_dns_entry *entry = arg;
+	evcpe_dns_entry *entry = arg;
 	const char *address;
 
 	DEBUG("starting DNS callback");

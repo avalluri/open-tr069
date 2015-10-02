@@ -26,7 +26,7 @@
 
 struct evcpe_persister {
 	struct event_base *evbase;
-	struct evcpe_repo *repo;
+	evcpe_repo *repo;
 	struct evbuffer *buffer;
 //	struct event write_ev;
 	struct event timer_ev;
@@ -41,6 +41,6 @@ struct evcpe_persister *evcpe_persister_new(struct event_base *evbase);
 void evcpe_persister_free(struct evcpe_persister *persist);
 
 int evcpe_persister_set(struct evcpe_persister *persist,
-		struct evcpe_repo *repo, const char *filename);
+		evcpe_repo *repo, const char *filename);
 
 #endif /* EVCPE_PERSISTER_H_ */

@@ -31,45 +31,40 @@
 #include "method.h"
 #include "xml_stack.h"
 
-enum evcpe_msg_type {
+typedef enum _evcpe_msg_type {
 	EVCPE_MSG_UNKNOWN,
 	EVCPE_MSG_REQUEST,
 	EVCPE_MSG_RESPONSE,
 	EVCPE_MSG_FAULT,
-};
+} evcpe_msg_type_t;
 
-const char *evcpe_msg_type_to_str(enum evcpe_msg_type type);
+const char *evcpe_msg_type_to_str(evcpe_msg_type_t type);
 
-struct evcpe_msg {
+typedef struct _evcpe_msg {
 	char *session;
 	unsigned int major;
 	unsigned int minor;
-	enum evcpe_msg_type type;
-	enum evcpe_method_type method_type;
+	evcpe_msg_type_t type;
+	evcpe_method_type_t method_type;
 	void *data;
 	int hold_requests;
 	int no_more_requests; // CWMP 1.0
-	TAILQ_ENTRY(evcpe_msg) entry;
-};
+} evcpe_msg;
 
-TAILQ_HEAD(evcpe_msg_queue, evcpe_msg);
-
-struct evcpe_msg_parser {
+typedef struct _evcpe_msg_parser {
 	struct xmlparser xml;
-	struct evcpe_xmlns_table xmlns;
-	struct evcpe_xml_stack stack;
-	struct evcpe_msg *msg;
-	void *list_item;
-};
+	evcpe_xmlns_table xmlns;
+	evcpe_xml_stack stack;
+	evcpe_msg *msg;
+	tqueue_element *list_item;
+} evcpe_msg_parser;
 
-struct evcpe_msg *evcpe_msg_new(void);
+evcpe_msg *evcpe_msg_new(void);
 
-void evcpe_msg_free(struct evcpe_msg *msg);
+void evcpe_msg_free(evcpe_msg *msg);
 
-void evcpe_msg_queue_clear(struct evcpe_msg_queue *queue);
+int evcpe_msg_from_xml(evcpe_msg *msg, struct evbuffer *buffer);
 
-int evcpe_msg_from_xml(struct evcpe_msg *msg, struct evbuffer *buffer);
-
-int evcpe_msg_to_xml(struct evcpe_msg *msg, struct evbuffer *buffer);
+int evcpe_msg_to_xml(evcpe_msg *msg, struct evbuffer *buffer);
 
 #endif /* EVCPE_MSG_H_ */

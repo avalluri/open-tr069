@@ -26,54 +26,51 @@
 
 #include "xmlns.h"
 
-int evcpe_xmlns_cmp(struct evcpe_xmlns *a, struct evcpe_xmlns *b)
+int evcpe_xmlns_cmp(evcpe_xmlns *a, evcpe_xmlns *b)
 {
 	return evcpe_strcmp(a->name, a->name_len, b->name, b->name_len);
 }
 
-RB_GENERATE(evcpe_xmlns_table, evcpe_xmlns, entry, evcpe_xmlns_cmp);
+RB_GENERATE(_evcpe_xmlns_table, _evcpe_xmlns, entry, evcpe_xmlns_cmp);
 
-void evcpe_xmlns_table_clear(struct evcpe_xmlns_table *table)
+void evcpe_xmlns_table_clear(evcpe_xmlns_table *table)
 {
-	struct evcpe_xmlns *ns;
+	evcpe_xmlns *ns;
 
 	TRACE("clearing namespace table");
 
-	while((ns = RB_MIN(evcpe_xmlns_table, table))) {
-		RB_REMOVE(evcpe_xmlns_table, table, ns);
+	while((ns = RB_MIN(_evcpe_xmlns_table, table))) {
+		RB_REMOVE(_evcpe_xmlns_table, table, ns);
 		free(ns);
 	}
 }
 
-struct evcpe_xmlns *evcpe_xmlns_table_find(
-		struct evcpe_xmlns_table *table,
+evcpe_xmlns *evcpe_xmlns_table_find(evcpe_xmlns_table *table,
 		const char *name, unsigned name_len)
 {
 	TRACE("finding namespace: %.*s", name_len, name);
-	struct evcpe_xmlns ns;
+	evcpe_xmlns ns;
 	ns.name = name;
 	ns.name_len = name_len;
-	return RB_FIND(evcpe_xmlns_table, table, &ns);
+	return RB_FIND(_evcpe_xmlns_table, table, &ns);
 }
 
-int evcpe_xmlns_table_add(struct evcpe_xmlns_table *table,
+int evcpe_xmlns_table_add(evcpe_xmlns_table *table,
 		const char *name, unsigned name_len,
 		const char *value, unsigned value_len)
 {
 	int rc;
-	struct evcpe_xmlns *ns;
+	evcpe_xmlns *ns;
 
 	if ((ns = evcpe_xmlns_table_find(table, name, name_len))) {
-		ERROR("namespace already exists: %.*s",
-				name_len, name);
+		ERROR("namespace already exists: %.*s", name_len, name);
 		rc = -1;
 		goto finally;
 	}
 
-	TRACE("adding namespace: %.*s => %.*s",
-			name_len, name, value_len, value);
+	TRACE("adding namespace: %.*s => %.*s", name_len, name, value_len, value);
 
-	if (!(ns = calloc(1, sizeof(struct evcpe_xmlns)))) {
+	if (!(ns = calloc(1, sizeof(evcpe_xmlns)))) {
 		ERROR("failed to calloc evcpe_xmlns");
 		rc = ENOMEM;
 		goto finally;
@@ -82,23 +79,21 @@ int evcpe_xmlns_table_add(struct evcpe_xmlns_table *table,
 	ns->name_len = name_len;
 	ns->value = value;
 	ns->value_len = value_len;
-	RB_INSERT(evcpe_xmlns_table, table, ns);
+	RB_INSERT(_evcpe_xmlns_table, table, ns);
 	rc = 0;
 
 finally:
 	return rc;
 }
 
-int evcpe_xmlns_table_get(struct evcpe_xmlns_table *table,
-		const char *name, unsigned name_len,
-		const char **value, unsigned *value_len)
+int evcpe_xmlns_table_get(evcpe_xmlns_table *table, const char *name,
+		unsigned name_len, const char **value, unsigned *value_len)
 {
 	int rc;
-	struct evcpe_xmlns *ns;
+	evcpe_xmlns *ns;
 
 	if (!(ns = evcpe_xmlns_table_find(table, name, name_len))) {
-		ERROR("namespace doesn't exists: %.*s",
-				name_len, name);
+		ERROR("namespace doesn't exists: %.*s", name_len, name);
 		rc = -1;
 		goto finally;
 	}

@@ -26,23 +26,23 @@
 
 //TAILQ_HEAD(evcpe_attr_schemas, evcpe_attr_schema);
 
-struct evcpe_class {
+typedef struct _evcpe_class {
 	const char *name;
-	struct tqueue *attrs;
-	struct tqueue *inform_attrs;
-};
+	tqueue *attrs;
+	tqueue *inform_attrs;
+} evcpe_class;
 
-struct evcpe_class *evcpe_class_new(const char *name);
+evcpe_class *evcpe_class_new(const char *name);
 
-void evcpe_class_free(struct evcpe_class *class);
+void evcpe_class_free(evcpe_class *class);
 
-struct evcpe_attr_schema *evcpe_class_find(struct evcpe_class *class,
+evcpe_attr_schema *evcpe_class_find(evcpe_class *class,
 		const char *name, unsigned len);
 
-int evcpe_class_add_new_schema(struct evcpe_class *class,
-		struct evcpe_attr_schema **schema);
+int evcpe_class_add_new_schema(evcpe_class *class,
+		evcpe_attr_schema **schema);
 
-int evcpe_class_add_attr(struct evcpe_class *class, const char *name,
-		enum evcpe_type type, struct evcpe_attr_schema **schema);
+int evcpe_class_add_attr(evcpe_class *class, const char *name,
+		evcpe_type_t type, evcpe_attr_schema **schema);
 
 #endif /* EVCPE_CLASS_H_ */

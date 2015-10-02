@@ -22,7 +22,7 @@
   	    <cwmp:Value>ZmVkY2JhOTg3NjU0MzIxCg==</cwmp:Value>
   	  </cwmp:ParameterValueStruct>
   	</cwmp:ParameterList>
-    <cwmp:ParamterKey>Dummy_Key</cwmp:ParamterKey>
+    <cwmp:ParameterKey>Dummy_Key</cwmp:ParameterKey>
         </cwmp:SetParameterValues>
       </soap:Body>
   </soap:Envelope>

@@ -28,13 +28,13 @@
 
 #include "class.h"
 
-struct evcpe_class_parser {
+typedef struct _evcpe_class_parser {
 	struct xmlparser xml;
-	struct evcpe_xml_stack stack;
-	struct evcpe_attr_schema *root;
+	evcpe_xml_stack stack;
+	evcpe_attr_schema *root;
 	void *dynlib;
-};
+} evcpe_class_parser;
 
-int evcpe_class_from_xml(struct evcpe_class *class, struct evbuffer *buffer);
+int evcpe_class_from_xml(evcpe_class *class, struct evbuffer *buffer);
 
 #endif /* EVCPE_CLASS_XML_H_ */

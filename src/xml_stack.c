@@ -25,24 +25,23 @@
 
 #include "xml_stack.h"
 
-void evcpe_xml_stack_put(struct evcpe_xml_stack *stack,
-		struct evcpe_xml_element *elm)
+void evcpe_xml_stack_put(evcpe_xml_stack *stack,
+		evcpe_xml_element *elm)
 {
-	TRACE("putting element to stack: %.*s",
-			elm->len, elm->name);
+	TRACE("putting element to stack: %.*s", elm->len, elm->name);
 	SLIST_INSERT_HEAD(stack, elm, entry);
 }
 
-struct evcpe_xml_element *evcpe_xml_stack_peek(
-		struct evcpe_xml_stack *stack)
+evcpe_xml_element *evcpe_xml_stack_peek(
+		evcpe_xml_stack *stack)
 {
 	TRACE("peeking element from stack");
 	return SLIST_FIRST(stack);
 }
 
-struct evcpe_xml_element *evcpe_xml_stack_pop(struct evcpe_xml_stack *stack)
+evcpe_xml_element *evcpe_xml_stack_pop(evcpe_xml_stack *stack)
 {
-	struct evcpe_xml_element *elm;
+	evcpe_xml_element *elm;
 
 	TRACE("popping out element in stack");
 
@@ -51,7 +50,7 @@ struct evcpe_xml_element *evcpe_xml_stack_pop(struct evcpe_xml_stack *stack)
 	return elm;
 }
 
-struct evcpe_xml_element *evcpe_xml_stack_up(struct evcpe_xml_element *elm)
+evcpe_xml_element *evcpe_xml_stack_up(evcpe_xml_element *elm)
 {
 	return SLIST_NEXT(elm, entry);
 }

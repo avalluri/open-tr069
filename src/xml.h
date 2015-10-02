@@ -27,19 +27,20 @@
 
 #include <event.h>
 
-struct evcpe_xml_attr {
+typedef struct _evcpe_xml_attr {
 	const char *ns;
 	unsigned ns_len;
 	const char *name;
 	unsigned name_len;
 	const char *value;
 	unsigned value_len;
-	TAILQ_ENTRY(evcpe_xml_attr) entry;
-};
+	TAILQ_ENTRY(_evcpe_xml_attr) entry;
+} evcpe_xml_attr;
 
-TAILQ_HEAD(evcpe_xml_attrs, evcpe_xml_attr);
+typedef TAILQ_HEAD(_evcpe_xml_attrs, _evcpe_xml_attr) evcpe_xml_attrs;
 
-struct evcpe_xml_parser {
+
+typedef struct _evcpe_xml_parser {
 	struct evbuffer *buffer;
 	const char *data;
 	unsigned len;
@@ -48,16 +49,16 @@ struct evcpe_xml_parser {
 	unsigned ns_len;
 	const char *name;
 	unsigned name_len;
-	struct evcpe_xml_attrs attrs;
-};
+	evcpe_xml_attrs attrs;
+} evcpe_xml_parser;
 
-int evcpe_xml_attrs_add(struct evcpe_xml_attrs *attrs,
+int evcpe_xml_attrs_add(evcpe_xml_attrs *attrs,
 		const char *ns, unsigned ns_len, const char *name, unsigned name_len,
 		const char *value, unsigned value_len);
 
-void evcpe_xml_attrs_clear(struct evcpe_xml_attrs *attrs);
+void evcpe_xml_attrs_clear(evcpe_xml_attrs *attrs);
 
-int evcpe_xml_expect_elm(struct evcpe_xml_parser *parser);
+int evcpe_xml_expect_elm(evcpe_xml_parser *parser);
 
 int evcpe_xml_add_indent(struct evbuffer *buffer,
 		const char *indent, unsigned int count);

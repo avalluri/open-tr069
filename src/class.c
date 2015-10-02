@@ -28,31 +28,31 @@
 #include "class.h"
 
 static
-int _find_schema_by_name(struct evcpe_attr_schema *schema, const char *name)
+int _find_schema_by_name(evcpe_attr_schema *schema, const char *name)
 {
 	return evcpe_strncmp(schema->name, name, strlen(name));
 }
 
-struct evcpe_class *evcpe_class_new(const char *name)
+evcpe_class *evcpe_class_new(const char *name)
 {
-	struct evcpe_class *class = NULL;
+	evcpe_class *class = NULL;
 
 	TRACE("constructing evcpe_class: %s", name);
 
-	if (!(class = calloc(1, sizeof(struct evcpe_class)))) {
+	if (!(class = calloc(1, sizeof(evcpe_class)))) {
 		ERROR("failed to calloc evcpe_class");
 		return NULL;
 	}
 	class->name = name;
-	class->attrs = tqueue_new((tqueue_compare_func)_find_schema_by_name,
-			(tqueue_free_func)evcpe_attr_schema_free);
+	class->attrs = tqueue_new((tqueue_compare_func_t)_find_schema_by_name,
+			(tqueue_free_func_t)evcpe_attr_schema_free);
 	/* Inform attributes are cached only in root class */
 	if (!name) class->inform_attrs =  tqueue_new(NULL, NULL);
 
 	return class;
 }
 
-void evcpe_class_free(struct evcpe_class *class)
+void evcpe_class_free(evcpe_class *class)
 {
 	if (!class) return;
 
@@ -64,8 +64,8 @@ void evcpe_class_free(struct evcpe_class *class)
 	free(class);
 }
 
-int evcpe_class_add_new_schema(struct evcpe_class *class,
-		struct evcpe_attr_schema **schema)
+int evcpe_class_add_new_schema(evcpe_class *class,
+		evcpe_attr_schema **schema)
 {
 	TRACE("adding attribute to class: %s\n", class->name);
 
@@ -77,17 +77,17 @@ int evcpe_class_add_new_schema(struct evcpe_class *class,
 }
 
 
-struct evcpe_attr_schema *evcpe_class_find(struct evcpe_class *class,
+evcpe_attr_schema *evcpe_class_find(evcpe_class *class,
 		const char *name, unsigned len)
 {
 	char str_name[256];
-	struct tqueue_element *elm = NULL;
+	tqueue_element *elm = NULL;
 
 	if (!class || !name || !len) return NULL;
 
 	if (len > 255) len = 255;
 	snprintf(str_name, len+1, "%s", name);
 
-	elm = tqueue_find(class->attrs, str_name, NULL);
+	elm = tqueue_find(class->attrs, str_name);
 	return elm ? elm->data : NULL;
 }

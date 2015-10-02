@@ -24,56 +24,56 @@
 
 #include "inform.h"
 
-struct evcpe_inform *evcpe_inform_new(void)
+evcpe_inform *evcpe_inform_new(void)
 {
-	struct evcpe_inform *inform;
+	evcpe_inform *inform;
 
 	DEBUG("constructing evcpe_inform");
 
-	if (!(inform = calloc(1, sizeof(struct evcpe_inform)))) {
+	if (!(inform = calloc(1, sizeof(evcpe_inform)))) {
 		ERROR("failed to calloc evcpe_inform");
 		return NULL;
 	}
 	inform->max_envelopes = 1;
 	inform->events = NULL;
-	evcpe_param_value_list_init(&inform->parameter_list);
+	inform->parameter_list = evcpe_param_value_list_new();
 
 	return inform;
 }
 
-void evcpe_inform_free(struct evcpe_inform *inform)
+void evcpe_inform_free(evcpe_inform *inform)
 {
 	if (!inform) return;
 
 	DEBUG("destructing evcpe_inform");
 
-	evcpe_param_value_list_clear(&inform->parameter_list);
+	tqueue_free(inform->parameter_list);
 	free(inform);
 }
 
-struct evcpe_inform_response *evcpe_inform_response_new(void)
+evcpe_inform_response *evcpe_inform_response_new(void)
 {
-	struct evcpe_inform_response *method;
+	evcpe_inform_response *method;
 
 	DEBUG("constructing evcpe_inform_response");
 
-	if (!(method = calloc(1, sizeof(struct evcpe_inform_response)))) {
+	if (!(method = calloc(1, sizeof(evcpe_inform_response)))) {
 		ERROR("failed to calloc evcpe_inform_response");
 		return NULL;
 	}
 	return method;
 }
 
-void evcpe_inform_response_free(struct evcpe_inform_response *inform)
+void evcpe_inform_response_free(evcpe_inform_response *inform)
 {
 	if (!inform) return;
 	DEBUG("destructing evcpe_inform_response");
 	free(inform);
 }
 
-int evcpe_inform_to_xml(struct evcpe_inform *method, struct evbuffer *buffer)
+int evcpe_inform_to_xml(evcpe_inform *method, struct evbuffer *buffer)
 {
-	int rc;
+	int rc = 0;
 
 	DEBUG("marshaling inform");
 
@@ -81,16 +81,14 @@ int evcpe_inform_to_xml(struct evcpe_inform *method, struct evbuffer *buffer)
 		goto finally;
 	if ((rc = evcpe_event_list_to_xml(method->events, "Event", buffer)))
 		goto finally;
-	if ((rc = evcpe_xml_add_int(buffer,
-			"MaxEnvelopes", method->max_envelopes)))
+	if ((rc = evcpe_xml_add_int(buffer, "MaxEnvelopes", method->max_envelopes)))
 		goto finally;
-	if ((rc = evcpe_xml_add_string(buffer,
-			"CurrentTime", method->current_time)))
+	if ((rc = evcpe_xml_add_string(buffer, "CurrentTime",
+			method->current_time)))
 		goto finally;
-	if ((rc = evcpe_xml_add_int(buffer,
-			"RetryCount", method->retry_count)))
+	if ((rc = evcpe_xml_add_int(buffer, "RetryCount", method->retry_count)))
 		goto finally;
-	if ((rc = evcpe_param_value_list_to_xml(&method->parameter_list,
+	if ((rc = evcpe_param_value_list_to_xml(method->parameter_list,
 			"ParameterList", buffer)))
 		goto finally;
 

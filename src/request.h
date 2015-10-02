@@ -46,9 +46,9 @@
 //	EVCPE_KICKED
 //};
 
-struct evcpe_request {
+typedef  struct _evcpe_request {
 //	enum evcpe_request_type type;
-};
+} evcpe_request;
 //
 //struct evcpe_request *evcpe_get_rpc_methods_new();
 //

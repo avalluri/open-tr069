@@ -21,10 +21,11 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include "evcpe-config.h"
 #include "util.h"
 #include "data_xml.h"
 
-int evcpe_device_id_to_xml(struct evcpe_device_id *id,
+int evcpe_device_id_to_xml(evcpe_device_id *id,
 		const char *node, struct evbuffer *buffer)
 {
 	int rc;
@@ -46,18 +47,17 @@ finally:
 	return rc;
 }
 
-int evcpe_event_to_xml(struct evcpe_event *event,
-		const char *node, struct evbuffer *buffer)
+int evcpe_event_to_xml(evcpe_event *event, const char *node,
+		struct evbuffer *buffer)
 {
 	int rc;
 
 	if ((rc = evcpe_add_buffer(buffer, "<%s>\n", node)))
 		goto finally;
-	if ((rc = evcpe_xml_add_string(buffer,
-			"EventCode", evcpe_event_code_to_str(event->code))))
+	if ((rc = evcpe_xml_add_string(buffer, "EventCode",
+			evcpe_event_code_to_str(event->code))))
 		goto finally;
-	if ((rc = evcpe_xml_add_string(buffer,
-			"CommandKey", event->command_key)))
+	if ((rc = evcpe_xml_add_string(buffer, "CommandKey", event->command_key)))
 		goto finally;
 	if ((rc = evcpe_add_buffer(buffer, "</%s>\n", node)))
 		goto finally;
@@ -66,18 +66,20 @@ finally:
 	return rc;
 }
 
-int evcpe_event_list_to_xml(struct evcpe_event_list *list,
-		const char *node, struct evbuffer *buffer)
+int evcpe_event_list_to_xml(tqueue *list, const char *node,
+		struct evbuffer *buffer)
 {
-	int rc;
-	struct evcpe_event *event;
+	int rc = 0;
+	tqueue_element* elm = NULL;
 
-	if ((rc = evcpe_add_buffer(buffer,
-			"<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\""EVCPE_CWMP_XMLNS":EventStruct[%d]\">\n",
-			node, evcpe_event_list_size(list))))
+	if ((rc = evcpe_add_buffer(buffer, "<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\""
+					EVCPE_CWMP_XMLNS":EventStruct[%zu]\">\n", node,
+					tqueue_size(list))))
 		goto finally;
-	TAILQ_FOREACH(event, &list->head, entry) {
-		if ((rc = evcpe_event_to_xml(event, "EventStruct", buffer)))
+
+	TQUEUE_FOREACH(elm, list) {
+		if ((rc = evcpe_event_to_xml((evcpe_event*)elm->data, "EventStruct",
+				buffer)))
 			goto finally;
 	}
 	if ((rc = evcpe_add_buffer(buffer, "</%s>\n", node)))
@@ -88,7 +90,7 @@ finally:
 	return rc;
 }
 
-int evcpe_param_value_to_xml(struct evcpe_param_value *value,
+int evcpe_param_value_to_xml(evcpe_param_value *value,
 		const char *node, struct evbuffer *buffer)
 {
 	int rc;
@@ -97,8 +99,7 @@ int evcpe_param_value_to_xml(struct evcpe_param_value *value,
 		goto finally;
 //	if ((rc = evcpe_add_buffer(buffer, "<%s xsi:type=\"cwmp:ParameterValueStruct\">\n", node)))
 //		goto finally;
-	if ((rc = evcpe_add_buffer(buffer, "<Name>%s</Name>\n",
-			value->name)))
+	if ((rc = evcpe_add_buffer(buffer, "<Name>%s</Name>\n", value->name)))
 		goto finally;
 //	if ((rc = evcpe_add_buffer(buffer, "<Name xsi:type=\"xsd:string\">%s</Name>\n",
 //			value->name)))
@@ -113,17 +114,20 @@ finally:
 	return rc;
 }
 
-int evcpe_param_value_list_to_xml(struct evcpe_param_value_list *list,
+int evcpe_param_value_list_to_xml(tqueue *list,
 		const char *node, struct evbuffer *buffer)
 {
 	int rc;
-	struct evcpe_param_value *value;
+	evcpe_param_value *value = NULL;
+	tqueue_element* elm = NULL;
 
 	if ((rc = evcpe_add_buffer(buffer,
-			"<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\""EVCPE_CWMP_XMLNS":ParameterValueStruct[%d]\">\n",
-			node, evcpe_param_value_list_size(list))))
+			"<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\""
+			EVCPE_CWMP_XMLNS":ParameterValueStruct[%zu]\">\n",
+			node, tqueue_size(list))))
 		goto finally;
-	TAILQ_FOREACH(value, &list->head, entry) {
+	TQUEUE_FOREACH(elm, list) {
+		value = (evcpe_param_value*)elm->data;
 		if ((rc = evcpe_param_value_to_xml(value, "ParameterValueStruct",
 				buffer)))
 			goto finally;
@@ -136,7 +140,7 @@ finally:
 	return rc;
 }
 
-int evcpe_param_info_to_xml(struct evcpe_param_info *info,
+int evcpe_param_info_to_xml(evcpe_param_info *info,
 		const char *node, struct evbuffer *buffer)
 {
 	int rc;
@@ -154,41 +158,20 @@ finally:
 	return rc;
 }
 
-int evcpe_param_info_list_to_xml(struct evcpe_param_info_list *list,
-		const char *node, struct evbuffer *buffer)
-{
-	int rc;
-	struct evcpe_param_info *info;
-
-	if ((rc = evcpe_add_buffer(buffer,
-			"<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\""EVCPE_CWMP_XMLNS":ParameterValueStruct[%d]\">\n",
-			node, evcpe_param_info_list_size(list))))
-		goto finally;
-	TAILQ_FOREACH(info, &list->head, entry) {
-		if ((rc = evcpe_param_info_to_xml(info, "ParameterValueStruct",
-				buffer)))
-			goto finally;
-	}
-	if ((rc = evcpe_add_buffer(buffer, "</%s>\n", node)))
-		goto finally;
-	rc = 0;
-
-finally:
-	return rc;
-}
-
-int evcpe_method_list_to_xml(struct evcpe_method_list *list, const char *node,
+int evcpe_param_info_list_to_xml(tqueue *list, const char *node,
 		struct evbuffer *buffer)
 {
-	int rc;
-	struct evcpe_method *item = NULL;
+	int rc = 0;
+	tqueue_element* elm = NULL;
 
 	if ((rc = evcpe_add_buffer(buffer,
-			"<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\"xsd:string[%d]\">\n",
-			node, evcpe_method_list_size(list))))
+			"<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\""
+			EVCPE_CWMP_XMLNS":ParameterValueStruct[%zu]\">\n",
+			node, tqueue_size(list))))
 		goto finally;
-	TAILQ_FOREACH(item, &list->head, entry) {
-		if ((rc = evcpe_xml_add_string(buffer, "string", item->name)))
+	TQUEUE_FOREACH(elm, list) {
+		if ((rc = evcpe_param_info_to_xml((evcpe_param_info*)elm->data,
+				"ParameterValueStruct", buffer)))
 			goto finally;
 	}
 	if ((rc = evcpe_add_buffer(buffer, "</%s>\n", node)))
@@ -197,5 +180,4 @@ int evcpe_method_list_to_xml(struct evcpe_method_list *list, const char *node,
 
 finally:
 	return rc;
-
 }

@@ -28,10 +28,10 @@
 
 #include "attr_schema.h"
 
-struct evcpe_attr_schema * evcpe_attr_schema_new(struct evcpe_class *kls)
+evcpe_attr_schema * evcpe_attr_schema_new(evcpe_class *kls)
 {
-	struct evcpe_attr_schema *schema = (struct evcpe_attr_schema *)calloc(1,
-			sizeof(struct evcpe_attr_schema));
+	evcpe_attr_schema *schema = (evcpe_attr_schema *)calloc(1,
+			sizeof(evcpe_attr_schema));
 
 	if (!schema) return NULL;
 
@@ -40,7 +40,7 @@ struct evcpe_attr_schema * evcpe_attr_schema_new(struct evcpe_class *kls)
 	return schema;
 }
 
-void evcpe_attr_schema_free(struct evcpe_attr_schema *schema)
+void evcpe_attr_schema_free(evcpe_attr_schema *schema)
 {
 	if (!schema) return;
 
@@ -55,15 +55,15 @@ void evcpe_attr_schema_free(struct evcpe_attr_schema *schema)
 	free(schema);
 }
 
-int evcpe_attr_schema_set_name(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_name(evcpe_attr_schema *schema,
 		const char *name, unsigned len)
 {
 	DEBUG("setting name: %.*s", len, name);
-	return evcpe_strdup(name, len, &schema->name);
+	return !(schema->name = evcpe_strdup(name, len));
 }
 
-int evcpe_attr_schema_set_type(struct evcpe_attr_schema *schema,
-		enum evcpe_type type)
+int evcpe_attr_schema_set_type(evcpe_attr_schema *schema,
+		evcpe_type_t type)
 {
 	TRACE("setting type: %d", type);
 
@@ -76,7 +76,7 @@ int evcpe_attr_schema_set_type(struct evcpe_attr_schema *schema,
 	return 0;
 }
 
-int evcpe_attr_schema_set_default(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_default(evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
 	int rc = 0;
@@ -93,13 +93,13 @@ int evcpe_attr_schema_set_default(struct evcpe_attr_schema *schema,
 		return rc;
 	}
 
-	return evcpe_strdup(value, len, &schema->value);
+	return !(schema->value = evcpe_strdup(value, len));
 }
 
-int evcpe_attr_schema_set_number(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_number(evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
-	struct evcpe_attr_schema *find = NULL;
+	evcpe_attr_schema *find = NULL;
 
 	TRACE("setting number of entries: %.*s", len, value);
 
@@ -117,10 +117,10 @@ int evcpe_attr_schema_set_number(struct evcpe_attr_schema *schema,
 		return EPROTO;
 	}
 
-	return evcpe_strdup(value, len, &schema->number);
+	return !(schema->number = evcpe_strdup(value, len));
 }
 
-int evcpe_attr_schema_set_extension(struct evcpe_attr_schema *schema, int val)
+int evcpe_attr_schema_set_extension(evcpe_attr_schema *schema, int val)
 {
 	if (!schema) return EINVAL;
 
@@ -129,13 +129,13 @@ int evcpe_attr_schema_set_extension(struct evcpe_attr_schema *schema, int val)
 	return 0;
 }
 
-int evcpe_attr_schema_set_write(struct evcpe_attr_schema *schema, int write) {
+int evcpe_attr_schema_set_write(evcpe_attr_schema *schema, int write) {
 	if (!schema) return EINVAL;
 	schema->write = !!write;
 	return 0;
 }
 
-int evcpe_attr_schema_set_notification(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_notification(evcpe_attr_schema *schema,
 		const char *value, unsigned len) {
 	if (!schema) return EINVAL;
 
@@ -158,14 +158,14 @@ int evcpe_attr_schema_set_notification(struct evcpe_attr_schema *schema,
 	return 0;
 }
 
-int evcpe_attr_schema_set_constraint(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_constraint(evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
 	int rc = 0;
 	long val = 0;
 	const char *start = NULL, *end = NULL;
-	struct evcpe_attr_schema *find = NULL;
-	struct evcpe_constraint *constraint = NULL;
+	evcpe_attr_schema *find = NULL;
+	evcpe_constraint *constraint = NULL;
 
 	TRACE("setting constraint: %.*s", len, value);
 
@@ -273,10 +273,10 @@ finally:
 	return rc;
 }
 
-int evcpe_attr_schema_set_pattern(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_pattern(evcpe_attr_schema *schema,
 		const char *value, unsigned len)
 {
 	if (!schema || !value || !len) return EPROTO;
 	// TODO: Add support for regex
-	return evcpe_strdup(value, len, &schema->pattern);
+	return !(schema->pattern = evcpe_strdup(value, len));
 }

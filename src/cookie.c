@@ -26,54 +26,54 @@
 
 #include "cookie.h"
 
-int evcpe_cookie_cmp(struct evcpe_cookie *a, struct evcpe_cookie *b)
+int evcpe_cookie_cmp(evcpe_cookie *a, evcpe_cookie *b)
 {
 	return strcmp(a->name, b->name);
 }
 
-RB_GENERATE(evcpe_cookies, evcpe_cookie, entry, evcpe_cookie_cmp);
+RB_GENERATE(_evcpe_cookies, _evcpe_cookie, entry, evcpe_cookie_cmp);
 
-static void evcpe_cookie_free(struct evcpe_cookie *cookie)
+static void evcpe_cookie_free(evcpe_cookie *cookie)
 {
 	free(cookie->name);
 	free(cookie->value);
 	free(cookie);
 }
 
-void evcpe_cookies_clear(struct evcpe_cookies *cookies)
+void evcpe_cookies_clear(evcpe_cookies *cookies)
 {
-	struct evcpe_cookie *cookie;
+	evcpe_cookie *cookie;
 
 	DEBUG("clearing cookies");
 
 	while((cookie = RB_ROOT(cookies))) {
-		RB_REMOVE(evcpe_cookies, cookies, cookie);
+		RB_REMOVE(_evcpe_cookies, cookies, cookie);
 		evcpe_cookie_free(cookie);
 	}
 }
 
-struct evcpe_cookie *evcpe_cookies_find(struct evcpe_cookies *cookies,
+evcpe_cookie *evcpe_cookies_find(evcpe_cookies *cookies,
 		const char *name)
 {
-	struct evcpe_cookie find;
+	evcpe_cookie find;
 
 	if (!cookies || !name) return NULL;
 
 	find.name = (char *)name;
-	return RB_FIND(evcpe_cookies, cookies, &find);
+	return RB_FIND(_evcpe_cookies, cookies, &find);
 }
 
-int evcpe_cookies_set(struct evcpe_cookies *cookies,
+int evcpe_cookies_set(evcpe_cookies *cookies,
 		const char *name, const char *value)
 {
 	int rc;
-	struct evcpe_cookie *old, *cookie;
+	evcpe_cookie *old, *cookie;
 
 	if (!cookies || !name || !value) return EINVAL;
 
 	DEBUG("setting cookie: %s => %s", name, value);
 
-	if (!(cookie = calloc(1, sizeof(struct evcpe_cookie)))) {
+	if (!(cookie = calloc(1, sizeof(evcpe_cookie)))) {
 		ERROR("failed to calloc evcpe_cookie");
 		rc = ENOMEM;
 		goto finally;
@@ -91,17 +91,17 @@ int evcpe_cookies_set(struct evcpe_cookies *cookies,
 		goto finally;
 	}
 	if ((old = evcpe_cookies_find(cookies, name))) {
-		RB_REMOVE(evcpe_cookies, cookies, old);
+		RB_REMOVE(_evcpe_cookies, cookies, old);
 		evcpe_cookie_free(old);
 	}
-	RB_INSERT(evcpe_cookies, cookies, cookie);
+	RB_INSERT(_evcpe_cookies, cookies, cookie);
 	rc = 0;
 
 finally:
 	return rc;
 }
 
-int evcpe_cookies_set_from_header(struct evcpe_cookies *cookies,
+int evcpe_cookies_set_from_header(evcpe_cookies *cookies,
 		const char *header)
 {
 	int rc;

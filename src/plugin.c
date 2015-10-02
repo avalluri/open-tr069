@@ -9,6 +9,8 @@
 #include <limits.h>
 #include <errno.h>
 #include <stdio.h>
+#include <memory.h>
+#include <stdlib.h>
 
 #include "config.h"
 #include "log.h"
@@ -29,7 +31,7 @@ typedef struct {
 static
 listener_info* _listener_info_new(const char* name,
 		evcpe_plugin_value_changed_cb_t cb, void* data) {
-	listener_info *info = calloc(1, sizeof(*info));
+	listener_info *info = (listener_info*)calloc(1, sizeof(*info));
 
 	if (!info) return NULL;
 	info->name = name;
@@ -53,7 +55,7 @@ int _listener_info_compare_func(listener_info* info, const char* name,
 struct _evcpe_plugin_priv {
 	unsigned ref_count;
 	void* handle;
-	struct tqueue* value_change_listeners;
+	tqueue* value_change_listeners;
 };
 
 
@@ -92,8 +94,8 @@ int evcpe_plugin_load(const char* name, evcpe_plugin** p_out) {
 	p->priv->handle = handle;
 	p->priv->ref_count = 1;
 	p->priv->value_change_listeners = tqueue_new(
-			(tqueue_compare_func)_listener_info_compare_func,
-			(tqueue_free_func)_listener_info_free);
+			(tqueue_compare_func_t)_listener_info_compare_func,
+			(tqueue_free_func_t)_listener_info_free);
 
 	*p_out = p;
 
@@ -125,12 +127,12 @@ void evcpe_plugin_unref(evcpe_plugin* p) {
 
 void evcpe_plugin_set_value_change_listener(evcpe_plugin* p, const char* name,
 		evcpe_plugin_value_changed_cb_t cb, void* data) {
-	struct tqueue_element* node = NULL;
+	tqueue_element* node = NULL;
 	listener_info *info = NULL;
 
 	if (!p || !name || !cb) return;
 
-	node = tqueue_find(p->priv->value_change_listeners, name, NULL);
+	node = tqueue_find(p->priv->value_change_listeners, name);
 	if (node) {
 		info = node->data;
 		info->listener = cb;
@@ -144,21 +146,21 @@ void evcpe_plugin_set_value_change_listener(evcpe_plugin* p, const char* name,
 
 void evcpe_plugin_unset_value_change_listener(evcpe_plugin* p, const char* name)
 {
-	struct tqueue_element* node = NULL;
+	tqueue_element* node = NULL;
 
 	if (!p || !name) return;
 
-	node = tqueue_find(p->priv->value_change_listeners, name, NULL);
+	node = tqueue_find(p->priv->value_change_listeners, name);
 	if (node) tqueue_remove(p->priv->value_change_listeners, node);
 }
 
 void evcpe_plugin_emit_value_change(evcpe_plugin* p, const char* name,
 		const char* value, unsigned value_len) {
-	struct tqueue_element* node = NULL;
+	tqueue_element* node = NULL;
 	listener_info* info = NULL;
 	if (!p || !name) return;
 
-	node = tqueue_find(p->priv->value_change_listeners, name, NULL);
+	node = tqueue_find(p->priv->value_change_listeners, name);
 	if (node && (info = node->data) && info->listener)
 		info->listener(p, name, value, value_len, info->data);
 }

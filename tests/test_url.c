@@ -24,7 +24,7 @@
 
 #include "url.h"
 
-static struct evcpe_url *url;
+static evcpe_url *url;
 
 static void test_setup(void)
 {

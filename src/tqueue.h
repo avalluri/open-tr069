@@ -10,40 +10,41 @@
 
 #include <sys/queue.h>
 
-struct tqueue;
+typedef struct _tqueue tqueue;
 
-struct tqueue_element
-{
+typedef struct _tqueue_element {
 	void* data;
-	TAILQ_ENTRY(tqueue_element) entry;
-};
+	TAILQ_ENTRY(_tqueue_element) entry;
+} tqueue_element;
 
-typedef int  (* tqueue_foreach_func)(void* element_data, void* userdata);
-typedef int  (* tqueue_compare_func)(void* element_data, const void* find_data,
-		void *userdata);
-typedef void (* tqueue_free_func)(void *data);
+typedef int  (*tqueue_foreach_func_t)(void* element_data, void* userdata);
+typedef int  (*tqueue_compare_func_t)(void* element_data, const void* find_data);
+typedef void (*tqueue_free_func_t)(void *data);
 
-struct tqueue* tqueue_new(tqueue_compare_func cmp_func,
-		tqueue_free_func free_func);
+tqueue* tqueue_new(tqueue_compare_func_t cmp_func,
+		tqueue_free_func_t free_func);
 
-struct tqueue_element* tqueue_insert(struct tqueue* q, void* data);
+tqueue_element* tqueue_insert(tqueue* q, void* data);
 
-void tqueue_remove(struct tqueue* q, struct tqueue_element* elm);
+void tqueue_remove(tqueue* q, tqueue_element* elm);
 
-struct tqueue_element* tqueue_find(struct tqueue* q, const void* data,
-		void* userdata);
+void tqueue_remove_all(tqueue* q);
 
-struct tqueue_element* tqueue_nth_element(struct tqueue* q, unsigned index);
+tqueue_element* tqueue_find(tqueue* q, const void* data);
 
-int tqueue_foreach(struct tqueue* q, tqueue_foreach_func func, void* userdata);
+tqueue_element* tqueue_nth_element(tqueue* q, unsigned index);
 
-void tqueue_free(struct tqueue* q);
+int tqueue_foreach(tqueue* q, tqueue_foreach_func_t func, void* userdata);
 
-int tqueue_empty(struct tqueue* q);
+void tqueue_free(tqueue* q);
 
-struct tqueue_element* tqueue_first(struct tqueue* q);
+int tqueue_empty(tqueue* q);
 
-struct tqueue_element* tqueue_last(struct tqueue* q);
+size_t tqueue_size(tqueue *q);
+
+tqueue_element* tqueue_first(tqueue* q);
+
+tqueue_element* tqueue_last(tqueue* q);
 
 #define tqueue_element_next(elm) TAILQ_NEXT(elm, entry)
 
@@ -51,5 +52,6 @@ struct tqueue_element* tqueue_last(struct tqueue* q);
 
 #define TQUEUE_FOREACH(var, q) \
 	for((var) = tqueue_first((q)); (var); (var) = TAILQ_NEXT(var, entry))
+
 
 #endif /* SRC_TQUEUE_H_ */

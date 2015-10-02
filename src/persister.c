@@ -32,7 +32,7 @@
 static int evcpe_persister_persist(struct evcpe_persister *persist);
 static void evcpe_persister_timer_cb(int fd, short event, void *arg);
 //static void evcpe_persister_write_cb(int fd, short event, void *arg);
-static void evcpe_persister_listen_cb(struct evcpe_repo *repo,
+static void evcpe_persister_listen_cb(evcpe_repo *repo,
 		enum evcpe_attr_event event, const char *param_name, void *cbarg);
 
 struct evcpe_persister *evcpe_persister_new(struct event_base *evbase)
@@ -78,7 +78,7 @@ void evcpe_persister_free(struct evcpe_persister *persist)
 }
 
 int evcpe_persister_set(struct evcpe_persister *persist,
-		struct evcpe_repo *repo, const char *filename)
+		evcpe_repo *repo, const char *filename)
 {
 	int rc;
 
@@ -96,7 +96,7 @@ finally:
 	return rc;
 }
 
-void evcpe_persister_listen_cb(struct evcpe_repo *repo,
+void evcpe_persister_listen_cb(evcpe_repo *repo,
 		enum evcpe_attr_event event, const char *param_name, void *cbarg)
 {
 	int rc;

@@ -24,47 +24,47 @@
 
 #include "add_object.h"
 
-struct evcpe_add_object *evcpe_add_object_new(void)
+evcpe_add_object *evcpe_add_object_new(void)
 {
-	struct evcpe_add_object *method;
+	evcpe_add_object *method;
 
 	DEBUG("constructing evcpe_add_object");
 
-	if (!(method = calloc(1, sizeof(struct evcpe_add_object)))) {
+	if (!(method = calloc(1, sizeof(evcpe_add_object)))) {
 		ERROR("failed to calloc evcpe_add_obejct");
 		return NULL;
 	}
 	return method;
 }
 
-void evcpe_add_object_free(struct evcpe_add_object *method)
+void evcpe_add_object_free(evcpe_add_object *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_add_object");
 	free(method);
 }
 
-struct evcpe_add_object_response *evcpe_add_object_response_new(void)
+evcpe_add_object_response *evcpe_add_object_response_new(void)
 {
-	struct evcpe_add_object_response *method;
+	evcpe_add_object_response *method;
 
 	DEBUG("constructing evcpe_add_object_response");
 
-	if (!(method = calloc(1, sizeof(struct evcpe_add_object_response)))) {
+	if (!(method = calloc(1, sizeof(evcpe_add_object_response)))) {
 		ERROR("failed to calloc evcpe_add_obejct_response");
 		return NULL;
 	}
 	return method;
 }
 
-void evcpe_add_object_response_free(struct evcpe_add_object_response *method)
+void evcpe_add_object_response_free(evcpe_add_object_response *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_add_object_response");
 	free(method);
 }
 
-int evcpe_add_object_response_to_xml(struct evcpe_add_object_response *method,
+int evcpe_add_object_response_to_xml(evcpe_add_object_response *method,
 		struct evbuffer *buffer)
 {
 	int rc = 0;

@@ -45,6 +45,7 @@ libevcpe_la_SOURCES = \
 	xmlns.c \
 	$(NULL)
 
+
 libevcpe_la_CPPFLAGS = \
 	-I$(abs_top_srcdir)/src/compat \
 	$(LIBEVENT_CFLAGS) \
@@ -53,6 +54,9 @@ libevcpe_la_CPPFLAGS = \
 libevcpe_la_LDFLAGS = -rdynamic $(LDFLAGS)
                   
 libevcpe_la_LIBDADD = $(LIBEVENT_LIBS) -ldl
+
+libevcpe_la_includedir = $(includedir)/evcpe
+libevcpe_la_include_HEADERS = plugin.h
 
 bin_PROGRAMS = evcpe
 evcpe_SOURCES = main.c

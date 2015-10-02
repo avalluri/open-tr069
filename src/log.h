@@ -22,9 +22,16 @@
 #define EVCPE_LOG_H_
 
 #include <stdarg.h>
+#include <stdio.h>
 #include <sys/queue.h>
 
-#include <evcpe.h>
+#ifndef EVCPE_CHKFMT
+#ifdef __GNUC__
+#define EVCPE_CHKFMT(a,b) __attribute__((format(printf, a, b)))
+#else
+#define EVCPE_CHKFMT(a,b)
+#endif
+#endif // EVCPE_CHKFMT
 
 enum evcpe_log_level {
 	EVCPE_LOG_TRACE,

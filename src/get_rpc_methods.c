@@ -21,57 +21,78 @@
 #include <stdlib.h>
 
 #include "log.h"
+#include "util.h"
+#include "evcpe-config.h"
 
 #include "get_rpc_methods.h"
 
-struct evcpe_get_rpc_methods *evcpe_get_rpc_methods_new(void)
+evcpe_get_rpc_methods *evcpe_get_rpc_methods_new(void)
 {
-	struct evcpe_get_rpc_methods *method;
+	evcpe_get_rpc_methods *method;
 
 	DEBUG("constructing evcpe_get_rpc_methods");
 
-	if (!(method = calloc(1, sizeof(struct evcpe_get_rpc_methods)))) {
+	if (!(method = calloc(1, sizeof(evcpe_get_rpc_methods)))) {
 		ERROR("failed to calloc evcpe_get_rpc_methods");
 		return NULL;
 	}
 	return method;
 }
 
-void evcpe_get_rpc_methods_free(struct evcpe_get_rpc_methods *method)
+void evcpe_get_rpc_methods_free(evcpe_get_rpc_methods *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_get_rpc_methods");
 	free(method);
 }
 
-struct evcpe_get_rpc_methods_response *evcpe_get_rpc_methods_response_new(void)
+evcpe_get_rpc_methods_response *evcpe_get_rpc_methods_response_new(void)
 {
-	struct evcpe_get_rpc_methods_response *method;
+	evcpe_get_rpc_methods_response *response;
 	DEBUG("constructing evcpe_get_rpc_methods_response");
-	if (!(method = calloc(1, sizeof(struct evcpe_get_rpc_methods_response)))) {
+	if (!(response = calloc(1, sizeof(evcpe_get_rpc_methods_response)))) {
 		ERROR("failed to calloc evcpe_get_rpc_methods_response");
 		return NULL;
 	}
-	evcpe_method_list_init(&method->method_list);
-	return method;
+	response->method_list = tqueue_new(NULL, NULL);
+
+	return response;
 }
 
 void evcpe_get_rpc_methods_response_free(
-		struct evcpe_get_rpc_methods_response *method)
+		evcpe_get_rpc_methods_response *response)
 {
-	if (!method) return;
+	if (!response) return;
 	DEBUG("destructing evcpe_get_rpc_methods_response");
-	evcpe_method_list_clear(&method->method_list);
-	free(method);
+	tqueue_free(response->method_list);
+	free(response);
 }
 
 
 int evcpe_get_rpc_methods_response_to_xml(
-		struct evcpe_get_rpc_methods_response *method,
-		struct evbuffer *buffer)
+		evcpe_get_rpc_methods_response *response, struct evbuffer *buffer)
 {
+
+	int rc = 0, i = 0;
+	const char* node_name = "MethodList";
+	tqueue_element* node = NULL;
+
 	DEBUG("marshaling evcpe_get_rpc_methods_response");
-	return evcpe_method_list_to_xml(&method->method_list, "MethodList",
-			buffer);
+
+	rc = evcpe_add_buffer(buffer,
+			"<%s "EVCPE_SOAP_ENC_XMLNS":arrayType=\"xsd:string[%zu]\">\n",
+			node_name, tqueue_size(response->method_list));
+
+	if (rc) return rc;
+
+	TQUEUE_FOREACH(node, response->method_list) {
+		if ((rc = evcpe_xml_add_string(buffer, "string",
+				evcpe_method_type_to_str((evcpe_method_type_t)node->data))))
+			return rc;
+	}
+	if ((rc = evcpe_add_buffer(buffer, "</%s>\n", node_name)))
+		return rc;
+
+	return 0;
 }
 

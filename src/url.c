@@ -48,20 +48,20 @@ u_short evcpe_url_default_port(const char *protocol)
 	}
 }
 
-struct evcpe_url *evcpe_url_new(void)
+evcpe_url *evcpe_url_new(void)
 {
-	struct evcpe_url *url;
+	evcpe_url *url;
 
 	DEBUG("constructing evcpe_url");
 
-	if (!(url = calloc(1, sizeof(struct evcpe_url)))) {
+	if (!(url = calloc(1, sizeof(evcpe_url)))) {
 		ERROR("failed to calloc evcpe_url");
 		return NULL;
 	}
 	return url;
 }
 
-void evcpe_url_free(struct evcpe_url *url)
+void evcpe_url_free(evcpe_url *url)
 {
 	if (!url) return;
 	DEBUG("destructing evcpe_url");
@@ -69,14 +69,14 @@ void evcpe_url_free(struct evcpe_url *url)
 	free(url);
 }
 
-void evcpe_url_reset(struct evcpe_url *url)
+void evcpe_url_reset(evcpe_url *url)
 {
 	if (url->protocol) free(url->protocol);
 	if (url->username) free(url->username);
 	if (url->password) free(url->password);
 	if (url->host) free(url->host);
 	if (url->uri) free(url->uri);
-	bzero(url, sizeof(struct evcpe_url));
+	bzero(url, sizeof(evcpe_url));
 }
 
 static int evcpe_url_set(char **ptr, const char *str, unsigned len)
@@ -88,7 +88,7 @@ static int evcpe_url_set(char **ptr, const char *str, unsigned len)
 	return 0;
 }
 
-//int evcpe_url_from_str(struct evcpe_url *url, const char *str)
+//int evcpe_url_from_str(evcpe_url *url, const char *str)
 //{
 //	int rc;
 //	enum evcpe_url_state state;
@@ -128,7 +128,7 @@ static int evcpe_url_set(char **ptr, const char *str, unsigned len)
 //	return rc;
 //}
 
-int evcpe_url_from_str(struct evcpe_url *url, const char *str)
+int evcpe_url_from_str(evcpe_url *url, const char *str)
 {
 	int rc;
 	long val;

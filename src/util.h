@@ -23,7 +23,15 @@
 
 #include <event.h>
 
-#include "evcpe-internal.h"
+//#include "evcpe-internal.h"
+
+#ifndef EVCPE_CHKFMT
+#ifdef __GNUC__
+#define EVCPE_CHKFMT(a,b) __attribute__((format(printf, a, b)))
+#else
+#define EVCPE_CHKFMT(a,b)
+#endif
+#endif // EVCPE_CHKFMT
 
 int evcpe_is_ipaddr(const char *address);
 
@@ -33,16 +41,16 @@ int evcpe_encode_base64(struct evbuffer *buffer, uint8_t *data, unsigned len);
 
 int evcpe_strcmp(const char *a, unsigned alen, const char *b, unsigned blen);
 
-inline int evcpe_strncmp(const char *a, const char *b, unsigned blen);
+int evcpe_strncmp(const char *a, const char *b, unsigned blen);
 
 int evcpe_atol(const char *text, unsigned len, long *value);
 
 char *evcpe_ltoa(long value);
 
-int evcpe_strdup(const char *string, unsigned len, char **ptr);
+char* evcpe_strdup(const char *string, unsigned len);
 
-typedef int (*evcpe_str_split_cb)(void *, const char *sub_string, unsigned len);
+typedef int (*evcpe_str_split_cb_t)(void *, const char *sub_string, unsigned len);
 int evcpe_str_split(const char *string, unsigned lem, char delim,
-		evcpe_str_split_cb cb, void *data);
+		evcpe_str_split_cb_t cb, void *data);
 
 #endif /* EVCPE_UTIL_H_ */

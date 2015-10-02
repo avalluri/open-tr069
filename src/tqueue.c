@@ -4,27 +4,25 @@
  *  Created on: Sep 22, 2015
  *      Author: avalluri
  */
-
-#include "tqueue.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "tqueue.h"
 
+TAILQ_HEAD(tqueue_head, _tqueue_element);
 
-TAILQ_HEAD(tqueue_head, tqueue_element);
-
-struct tqueue
+struct _tqueue
 {
-	tqueue_compare_func compare;
-	tqueue_free_func free;
+	tqueue_compare_func_t compare;
+	tqueue_free_func_t free;
 	struct tqueue_head head;
+	size_t size;
 };
 
-struct tqueue* tqueue_new(tqueue_compare_func compare_func,
-		tqueue_free_func free_func)
+tqueue* tqueue_new(tqueue_compare_func_t compare_func,
+		tqueue_free_func_t free_func)
 {
-	struct tqueue* q = calloc(1, sizeof(*q));
+	tqueue* q = calloc(1, sizeof(*q));
 	if (!q) return NULL;
 
 	q->compare = compare_func;
@@ -34,42 +32,54 @@ struct tqueue* tqueue_new(tqueue_compare_func compare_func,
 	return q;
 }
 
-struct tqueue_element*
-tqueue_insert(struct tqueue* q, void* data)
+tqueue_element*
+tqueue_insert(tqueue* q, void* data)
 {
-	struct tqueue_element* elm = calloc(1, sizeof(*elm));
+	tqueue_element* elm = calloc(1, sizeof(*elm));
 	if (elm) {
 		TAILQ_INSERT_TAIL(&(q->head), elm, entry);
 		elm->data = data;
+		q->size++;
 	}
 	return elm;
 }
 
-void tqueue_remove(struct tqueue* q, struct tqueue_element* elm)
+void tqueue_remove(tqueue* q, tqueue_element* elm)
 {
 	if (q && elm) {
-		TAILQ_REMOVE(&q->head, elm, entry);
+		TAILQ_REMOVE(&(q->head), elm, entry);
 		if (q->free) q->free(elm->data);
 		free(elm);
+		q->size--;
 	}
 }
 
-struct tqueue_element* tqueue_find(struct tqueue* q, const void* data,
-		void* userdata)
-{
-	struct tqueue_element* elm = NULL;
+void tqueue_remove_all(tqueue* q) {
+	if (q) {
+		tqueue_element* elm = NULL;
+		while((elm = TAILQ_FIRST(&q->head))) {
+			TAILQ_REMOVE(&q->head, elm, entry);
+			if (q->free) q->free(elm->data);
+			free(elm);
+		}
+		q->size = 0;
+	}
+}
+
+tqueue_element* tqueue_find(tqueue* q, const void* data) {
+	tqueue_element* elm = NULL;
 	if (!q || !q->compare) return NULL;
 
 	TAILQ_FOREACH(elm, &q->head, entry) {
-		if (q->compare(elm->data, data, userdata) == 0) return elm;
+		if (q->compare(elm->data, data) == 0) return elm;
 	}
 
 	return elm;
 }
 
-struct tqueue_element* tqueue_nth_element(struct tqueue* q, unsigned index)
+tqueue_element* tqueue_nth_element(tqueue* q, unsigned index)
 {
-	struct tqueue_element* elm = NULL;
+	tqueue_element* elm = NULL;
 	unsigned i = 0;
 	if (!q) return NULL;
 
@@ -80,10 +90,10 @@ struct tqueue_element* tqueue_nth_element(struct tqueue* q, unsigned index)
 	return NULL;
 }
 
-int tqueue_foreach(struct tqueue* q, tqueue_foreach_func foreach,
+int tqueue_foreach(tqueue* q, tqueue_foreach_func_t foreach,
 		void* userdata)
 {
-	struct tqueue_element* elm = NULL;
+	tqueue_element* elm = NULL;
 	int rc = 0;
 
 	TAILQ_FOREACH(elm, &(q->head), entry) {
@@ -93,24 +103,29 @@ int tqueue_foreach(struct tqueue* q, tqueue_foreach_func foreach,
 	return rc;
 }
 
-int tqueue_empty(struct tqueue* q)
+int tqueue_empty(tqueue* q)
 {
 	return q ? TAILQ_EMPTY(&q->head) : 1;
 }
 
-struct tqueue_element* tqueue_first(struct tqueue* q)
+tqueue_element* tqueue_first(tqueue* q)
 {
-	return tqueue_empty(q) ? NULL : TAILQ_FIRST(&q->head);
+	return q ? TAILQ_FIRST(&q->head) : NULL;
 }
 
-struct tqueue_element* tqueue_last(struct tqueue* q)
+tqueue_element* tqueue_last(tqueue* q)
 {
 	return tqueue_empty(q) ? NULL : TAILQ_LAST(&q->head, tqueue_head);
 }
 
-void tqueue_free(struct tqueue* q)
+size_t tqueue_size(tqueue *q)
 {
-	struct tqueue_element* elm = NULL;
+	return q ? q->size : 0;
+}
+
+void tqueue_free(tqueue* q)
+{
+	tqueue_element* elm = NULL;
 
 	if (!q) return;
 

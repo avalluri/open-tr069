@@ -27,61 +27,62 @@
 #include "data.h"
 #include "plugin.h"
 
-struct evcpe_class;
 
-struct evcpe_attr;
+typedef struct _evcpe_attr evcpe_attr;
+typedef struct _evcpe_class evcpe_class;
+typedef struct _evcpe_attr_schema evcpe_attr_schema;
 
-typedef int (*evcpe_attr_getter)(struct evcpe_attr *attr,
+typedef int (*evcpe_attr_getter_t)(evcpe_attr *attr,
 		const char **value, unsigned int *len);
 
-typedef int (*evcpe_attr_setter)(struct evcpe_attr *attr,
+typedef int (*evcpe_attr_setter_t)(evcpe_attr *attr,
 		const char *value, unsigned int len);
 
-struct evcpe_attr_schema {
-	struct evcpe_class *owner;
-	struct evcpe_class *class;
+struct _evcpe_attr_schema {
+	evcpe_class *owner;
+	evcpe_class *class;
 	char *name;
 	char *value;
-	enum evcpe_type type;
+	evcpe_type_t type;
 	unsigned extension:1;
 	unsigned inform:1;
 	unsigned write:1;
 	unsigned notification:3; //enum evcpe_notification
 	char *number;
-	struct evcpe_constraint *constraint;
+	evcpe_constraint *constraint;
 	char *pattern; // regex pattern
-	evcpe_attr_getter getter;
-	evcpe_attr_setter setter;
+	evcpe_attr_getter_t getter;
+	evcpe_attr_setter_t setter;
 	evcpe_plugin* plugin;
 };
 
-struct evcpe_attr_schema *evcpe_attr_schema_new(struct evcpe_class *owner);
+evcpe_attr_schema *evcpe_attr_schema_new(evcpe_class *owner);
 
-void evcpe_attr_schema_free(struct evcpe_attr_schema *schema);
+void evcpe_attr_schema_free(evcpe_attr_schema *schema);
 
-int evcpe_attr_schema_set_name(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_name(evcpe_attr_schema *schema,
 		const char *name, unsigned len);
 
-int evcpe_attr_schema_set_type(struct evcpe_attr_schema *schema,
-		enum evcpe_type type);
+int evcpe_attr_schema_set_type(evcpe_attr_schema *schema,
+		evcpe_type_t type);
 
-int evcpe_attr_schema_set_default(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_default(evcpe_attr_schema *schema,
 		const char *value, unsigned len);
 
-int evcpe_attr_schema_set_number(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_number(evcpe_attr_schema *schema,
 		const char *value, unsigned len);
 
-int evcpe_attr_schema_set_notification(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_notification(evcpe_attr_schema *schema,
 		const char *value, unsigned len);
 
-int evcpe_attr_schema_set_extension(struct evcpe_attr_schema *schema, int val);
+int evcpe_attr_schema_set_extension(evcpe_attr_schema *schema, int val);
 
-int evcpe_attr_schema_set_write(struct evcpe_attr_schema *schema, int val);
+int evcpe_attr_schema_set_write(evcpe_attr_schema *schema, int val);
 
-int evcpe_attr_schema_set_constraint(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_constraint(evcpe_attr_schema *schema,
 		const char *value, unsigned len);
 
-int evcpe_attr_schema_set_pattern(struct evcpe_attr_schema *schema,
+int evcpe_attr_schema_set_pattern(evcpe_attr_schema *schema,
 		const char *value, unsigned len);
 
 #endif /* EVCPE_ATTR_SCHEMA_H_ */

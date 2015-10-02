@@ -26,46 +26,46 @@
 
 #include "dns_cache.h"
 
-static inline void evcpe_dns_entry_free(struct evcpe_dns_entry *entry);
+static inline void evcpe_dns_entry_free(evcpe_dns_entry *entry);
 
-int evcpe_dns_entry_cmp(struct evcpe_dns_entry *a, struct evcpe_dns_entry *b)
+int evcpe_dns_entry_cmp(evcpe_dns_entry *a, evcpe_dns_entry *b)
 {
 	return strcmp(a->name, b->name);
 }
 
-RB_GENERATE(evcpe_dns_cache, evcpe_dns_entry, entry, evcpe_dns_entry_cmp);
+RB_GENERATE(_evcpe_dns_cache, _evcpe_dns_entry, entry, evcpe_dns_entry_cmp);
 
-void evcpe_dns_entry_free(struct evcpe_dns_entry *entry)
+void evcpe_dns_entry_free(evcpe_dns_entry *entry)
 {
 	if (entry->name) free(entry->name);
 	if (entry->address) free(entry->address);
 	free(entry);
 }
 
-struct evcpe_dns_entry *evcpe_dns_cache_find(struct evcpe_dns_cache *cache,
+evcpe_dns_entry *evcpe_dns_cache_find(evcpe_dns_cache *cache,
 		const char *name)
 {
-	struct evcpe_dns_entry find;
+	evcpe_dns_entry find;
 	find.name = (char *)name;
-	return RB_FIND(evcpe_dns_cache, cache, &find);
+	return RB_FIND(_evcpe_dns_cache, cache, &find);
 }
 
-void evcpe_dns_cache_remove(struct evcpe_dns_cache *cache,
-		struct evcpe_dns_entry *entry)
+void evcpe_dns_cache_remove(evcpe_dns_cache *cache,
+		evcpe_dns_entry *entry)
 {
 	DEBUG("removing DNS entry: %s", entry->name);
-	RB_REMOVE(evcpe_dns_cache, cache, entry);
+	RB_REMOVE(_evcpe_dns_cache, cache, entry);
 	evcpe_dns_entry_free(entry);
 }
 
-int evcpe_dns_cache_add(struct evcpe_dns_cache *cache,
-		const char *hostname, struct evcpe_dns_entry **entry)
+int evcpe_dns_cache_add(evcpe_dns_cache *cache,
+		const char *hostname, evcpe_dns_entry **entry)
 {
 	int rc;
 
 	DEBUG("adding DNS entry: %s", hostname);
 
-	if (!(*entry = calloc(1, sizeof(struct evcpe_dns_entry)))) {
+	if (!(*entry = calloc(1, sizeof(evcpe_dns_entry)))) {
 		ERROR("failed to calloc evcpe_dns_entry");
 		rc = ENOMEM;
 		goto finally;
@@ -76,17 +76,17 @@ int evcpe_dns_cache_add(struct evcpe_dns_cache *cache,
 		evcpe_dns_entry_free(*entry);
 		goto finally;
 	}
-	RB_INSERT(evcpe_dns_cache, cache, *entry);
+	RB_INSERT(_evcpe_dns_cache, cache, *entry);
 	rc = 0;
 
 finally:
 	return rc;
 }
 
-const char *evcpe_dns_cache_get(struct evcpe_dns_cache *cache,
+const char *evcpe_dns_cache_get(evcpe_dns_cache *cache,
 		const char *name)
 {
-	struct evcpe_dns_entry *entry;
+	evcpe_dns_entry *entry;
 
 	if (!cache || !name) return NULL;
 
@@ -99,11 +99,11 @@ const char *evcpe_dns_cache_get(struct evcpe_dns_cache *cache,
 	}
 }
 
-void evcpe_dns_cache_clear(struct evcpe_dns_cache *cache)
+void evcpe_dns_cache_clear(evcpe_dns_cache *cache)
 {
-	struct evcpe_dns_entry *entry;
+	evcpe_dns_entry *entry;
 	DEBUG("clearing all DNS entries");
-	RB_FOREACH(entry, evcpe_dns_cache, cache) {
+	RB_FOREACH(entry, _evcpe_dns_cache, cache) {
 		evcpe_dns_cache_remove(cache, entry);
 	}
 }

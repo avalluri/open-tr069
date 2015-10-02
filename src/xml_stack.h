@@ -23,25 +23,26 @@
 
 #include <sys/queue.h>
 
-struct evcpe_xml_element {
+typedef struct _evcpe_xml_element {
 	const char *ns;
 	unsigned nslen;
 	const char *name;
 	unsigned len;
 	int ns_declared;
 	void *data;
-	SLIST_ENTRY(evcpe_xml_element) entry;
-};
+	SLIST_ENTRY(_evcpe_xml_element) entry;
+} evcpe_xml_element;
 
-SLIST_HEAD(evcpe_xml_stack, evcpe_xml_element);
+SLIST_HEAD(_evcpe_xml_stack, _evcpe_xml_element);
+typedef struct _evcpe_xml_stack evcpe_xml_stack;
 
-void evcpe_xml_stack_put(struct evcpe_xml_stack *stack,
-		struct evcpe_xml_element *elm);
+void evcpe_xml_stack_put(evcpe_xml_stack *stack,
+		evcpe_xml_element *elm);
 
-struct evcpe_xml_element *evcpe_xml_stack_peek(struct evcpe_xml_stack *stack);
+evcpe_xml_element *evcpe_xml_stack_peek(evcpe_xml_stack *stack);
 
-struct evcpe_xml_element *evcpe_xml_stack_pop(struct evcpe_xml_stack *stack);
+evcpe_xml_element *evcpe_xml_stack_pop(evcpe_xml_stack *stack);
 
-struct evcpe_xml_element *evcpe_xml_stack_up(struct evcpe_xml_element *elm);
+evcpe_xml_element *evcpe_xml_stack_up(evcpe_xml_element *elm);
 
 #endif /* EVCPE_XML_STACK_H_ */

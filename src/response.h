@@ -21,16 +21,16 @@
 #ifndef EVCPE_RESPONSE_H_
 #define EVCPE_RESPONSE_H_
 
-enum evcpe_response_type {
+typedef enum _evcpe_response_type {
 	EVCPE_RESPONSE_OK,
 	EVCPE_RESPONSE_FAULT,
-};
+} evcpe_response_type_t;
 
-struct evcpe_response {
+typedef struct _evcpe_response {
 	char *session_id;
-	enum evcpe_response_type type;
+	evcpe_response_type_t type;
 //	enum evcpe_method_type method_type;
 	void *data;
-};
+} evcpe_response_t;
 
 #endif /* EVCPE_RESPONSE_H_ */

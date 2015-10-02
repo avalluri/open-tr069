@@ -26,24 +26,24 @@
 #include "request.h"
 #include "error.h"
 
-struct evcpe;
+typedef struct _evcpe evcpe;
 
-typedef void (*evcpe_request_cb)(struct evcpe_request *req, void *cbarg);
+typedef void (*evcpe_request_cb_t)(evcpe_request *req, void *cbarg);
 
-typedef void (*evcpe_error_cb)(struct evcpe *cpe,
-		enum evcpe_error_type type, int code, const char *reason, void *cbarg);
+typedef void (*evcpe_error_cb_t)(evcpe *cpe,
+		evcpe_error_type_t type, int code, const char *reason, void *cbarg);
 
-struct evcpe_handler {
+typedef struct _evcpe_handler {
 //	enum evcpe_request_type type;
-	evcpe_request_cb cb;
+	evcpe_request_cb_t cb;
 	void *cbarg;
-	RB_ENTRY(evcpe_handler) entry;
-};
+	RB_ENTRY(_evcpe_handler) entry;
+} evcpe_handler;
 
-RB_HEAD(evcpe_handlers, evcpe_handler);
+typedef RB_HEAD(_evcpe_handlers, _evcpe_handler) evcpe_handlers;
 
-int evcpe_handler_cmp(struct evcpe_handler *a, struct evcpe_handler *b);
+int evcpe_handler_cmp(evcpe_handler *a, evcpe_handler *b);
 
-RB_PROTOTYPE(evcpe_handlers, evcpe_handler, entry, evcpe_handler_cmp);
+RB_PROTOTYPE(_evcpe_handlers, _evcpe_handler, entry, evcpe_handler_cmp);
 
 #endif /* EVCPE_HANDLER_H_ */

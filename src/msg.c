@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "log.h"
+#include "util.h"
 #include "evcpe-config.h"
 #include "add_object.h"
 #include "delete_object.h"
@@ -38,7 +39,7 @@
 
 #include "msg.h"
 
-const char *evcpe_msg_type_to_str(enum evcpe_msg_type type)
+const char *evcpe_msg_type_to_str(evcpe_msg_type_t type)
 {
 	switch (type) {
 	case EVCPE_MSG_REQUEST:
@@ -52,23 +53,13 @@ const char *evcpe_msg_type_to_str(enum evcpe_msg_type type)
 	}
 }
 
-void evcpe_msg_queue_clear(struct evcpe_msg_queue *queue)
+evcpe_msg *evcpe_msg_new(void)
 {
-	struct evcpe_msg *msg;
-	DEBUG("clearing evcpe_msg_queue");
-	while ((msg = TAILQ_FIRST(queue))) {
-		TAILQ_REMOVE(queue, msg, entry);
-		evcpe_msg_free(msg);
-	}
-}
-
-struct evcpe_msg *evcpe_msg_new(void)
-{
-	struct evcpe_msg *msg;
+	evcpe_msg *msg;
 
 	DEBUG("constructing evcpe_msg");
 
-	if (!(msg = calloc(1, sizeof(struct evcpe_msg)))) {
+	if (!(msg = calloc(1, sizeof(evcpe_msg)))) {
 		ERROR("failed to calloc evcpe_msg");
 		return NULL;
 	}
@@ -77,7 +68,7 @@ struct evcpe_msg *evcpe_msg_new(void)
 	return msg;
 }
 
-void evcpe_msg_free(struct evcpe_msg *msg)
+void evcpe_msg_free(evcpe_msg *msg)
 {
 	if (!msg) return;
 
@@ -155,7 +146,7 @@ void evcpe_msg_free(struct evcpe_msg *msg)
 	free(msg);
 }
 
-int evcpe_msg_to_xml(struct evcpe_msg *msg, struct evbuffer *buffer)
+int evcpe_msg_to_xml(evcpe_msg *msg, struct evbuffer *buffer)
 {
 	int rc;
 	const char *method = evcpe_method_type_to_str(msg->method_type);
@@ -293,8 +284,8 @@ int evcpe_msg_xml_elm_begin_cb(void *data, const char *ns, unsigned nslen,
 {
 	const char *attr;
 	unsigned attr_len;
-	struct evcpe_msg_parser *parser = data;
-	struct evcpe_xml_element *parent = evcpe_xml_stack_peek(&parser->stack);
+	evcpe_msg_parser *parser = data;
+	evcpe_xml_element *parent = evcpe_xml_stack_peek(&parser->stack);
 
 	TRACE("element begin: %.*s (namespace: %.*s)", len, name, nslen, ns);
 
@@ -533,7 +524,7 @@ int evcpe_msg_xml_elm_begin_cb(void *data, const char *ns, unsigned nslen,
 			goto unexpected_parent;
 		}
 	}
-	if (!(parent = calloc(1, sizeof(struct evcpe_xml_element)))) {
+	if (!(parent = calloc(1, sizeof(evcpe_xml_element)))) {
 		ERROR("failed to calloc evcpe_soap_element");
 		return ENOMEM;
 	}
@@ -559,11 +550,11 @@ int evcpe_msg_xml_elm_end_cb(void *data, const char *ns, unsigned nslen,
 		const char *name, unsigned len)
 {
 	int rc;
-	struct evcpe_msg_parser *parser = data;
-	struct evcpe_xml_element *elm;
-	struct evcpe_get_param_values *get_params;
-	struct evcpe_set_param_values *set_params;
-	struct evcpe_get_param_attrs *get_attrs;
+	evcpe_msg_parser *parser = data;
+	evcpe_xml_element *elm;
+	evcpe_get_param_values *get_params;
+	evcpe_set_param_values *set_params;
+	evcpe_get_param_attrs *get_attrs;
 
 	if (!(elm = evcpe_xml_stack_pop(&parser->stack))) return -1;
 
@@ -587,15 +578,15 @@ int evcpe_msg_xml_elm_end_cb(void *data, const char *ns, unsigned nslen,
 			goto syntax_error;
 	} else if (!evcpe_strncmp("GetParameterValues", name, len)) {
 		get_params = parser->msg->data;
-		if (!evcpe_param_name_list_size(&get_params->parameter_names))
+		if (!tqueue_size(get_params->parameter_names))
 			goto syntax_error;
 	} else if (!evcpe_strncmp("SetParameterValues", name, len)) {
 		set_params = parser->msg->data;
-		if (!evcpe_set_param_value_list_size(&set_params->parameter_list))
+		if (!tqueue_size(set_params->parameter_list))
 			goto syntax_error;
 	} else if (!evcpe_strncmp("GetParameterAttributes", name, len)) {
 		get_attrs = parser->msg->data;
-		if (!evcpe_param_name_list_size(&get_attrs->parameter_names))
+		if (!tqueue_size(get_attrs->parameter_names))
 			goto syntax_error;
 	}
 	rc = 0;
@@ -615,22 +606,20 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 {
 	int rc;
 	long val;
-	struct evcpe_msg_parser *parser = data;
-	struct evcpe_xml_element *elm;
-	struct evcpe_fault *fault;
-	struct evcpe_get_param_names *get_names;
-	struct evcpe_get_param_values *get_params;
-	struct evcpe_set_param_values *set_params;
-	struct evcpe_get_param_attrs *get_attrs;
-	struct evcpe_set_param_attrs *set_attrs;
-	struct evcpe_param_name *param_name;
-	struct evcpe_set_param_value *param_value;
-	struct evcpe_set_param_attr *param_attr;
-	struct evcpe_get_rpc_methods_response *get_methods_resp;
-	struct evcpe_method *method_item;
-	struct evcpe_inform_response *inform_resp;
-	struct evcpe_add_object *add_obj;
-	struct evcpe_delete_object *delete_obj;
+	evcpe_msg_parser *parser = data;
+	evcpe_xml_element *elm;
+	evcpe_fault *fault;
+	evcpe_get_param_names *get_names;
+	evcpe_get_param_values *get_params;
+	evcpe_set_param_values *set_params;
+	evcpe_get_param_attrs *get_attrs;
+	evcpe_set_param_attrs *set_attrs;
+	evcpe_param_value *param_value;
+	evcpe_set_param_attr *param_attr;
+	evcpe_get_rpc_methods_response *get_methods_resp;
+	evcpe_inform_response *inform_resp;
+	evcpe_add_object *add_obj;
+	evcpe_delete_object *delete_obj;
 
 	if (!(elm = evcpe_xml_stack_peek(&parser->stack))) return -1;
 
@@ -672,8 +661,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 	} else if (!evcpe_strncmp("FaultCode", elm->name, elm->len)) {
 		fault = parser->msg->data;
 		if ((rc = evcpe_atol(text, len, &val))) {
-			ERROR("failed to convert to "
-					"integer: %.*s", len, text);
+			ERROR("failed to convert to integer: %.*s", len, text);
 			goto finally;
 		}
 		fault->code = val;
@@ -687,30 +675,30 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 		switch (parser->msg->method_type) {
 		case EVCPE_GET_RPC_METHODS:
 			get_methods_resp = parser->msg->data;
-			if ((rc = evcpe_method_list_add(&get_methods_resp->method_list,
-					&method_item, text, len)))
-				goto finally;
+			tqueue_insert(get_methods_resp->method_list,
+					(void*)evcpe_method_type_from_str(text, len));
 			break;
 		case EVCPE_GET_PARAMETER_VALUES:
 			get_params = parser->msg->data;
-			if ((rc = evcpe_param_name_list_add(&get_params->parameter_names,
-					&param_name, text, len)))
-				goto finally;
+			if (!tqueue_insert(get_params->parameter_names,
+					(void*)evcpe_strdup(text, len))) {
+				rc = -1; goto finally;
+			}
 			break;
 		case EVCPE_GET_PARAMETER_ATTRIBUTES:
 			get_attrs = parser->msg->data;
-			if ((rc = evcpe_param_name_list_add(&get_attrs->parameter_names,
-					&param_name, text, len)))
-				goto finally;
+			if (!tqueue_insert(get_attrs->parameter_names,
+					(void*)evcpe_strdup(text, len))) {
+				rc = -1; goto finally;
+			}
 			break;
 		case EVCPE_SET_PARAMETER_ATTRIBUTES:
-			param_attr = parser->list_item;
-			if ((rc = evcpe_access_list_add(&param_attr->access_list, text, len)))
-				goto finally;
+			param_attr = (evcpe_set_param_attr*)parser->list_item->data;
+			tqueue_insert(param_attr->info->access_list,
+					(void*)evcpe_strdup(text, len));
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("ParameterPath", elm->name, elm->len)) {
@@ -722,8 +710,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			strncpy(get_names->parameter_path, text, len);
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("NextLevel", elm->name, elm->len)) {
@@ -743,39 +730,33 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 		switch (parser->msg->method_type) {
 		case EVCPE_SET_PARAMETER_VALUES:
 			set_params = parser->msg->data;
-			if ((rc = evcpe_set_param_value_list_add(&set_params->parameter_list,
-					&param_value, text, len)))
-				goto finally;
-			parser->list_item = param_value;
+			parser->list_item = tqueue_insert(set_params->parameter_list,
+					(void*)evcpe_param_value_new(text, len, NULL, 0, EVCPE_TYPE_UNKNOWN));
 			break;
 		case EVCPE_SET_PARAMETER_ATTRIBUTES:
 			set_attrs = parser->msg->data;
-			if ((rc = evcpe_set_param_attr_list_add(&set_attrs->parameter_list,
-					&param_attr, text, len)))
-				goto finally;
-			parser->list_item = param_attr;
+			parser->list_item = tqueue_insert(set_attrs->parameter_list,
+					(void*)evcpe_set_param_attr_new(text, len));
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("Value", elm->name, elm->len)) {
 		switch (parser->msg->method_type) {
 		case EVCPE_SET_PARAMETER_VALUES:
-			param_value = parser->list_item;
-			if ((rc = evcpe_set_param_value_set(param_value, text, len)))
-				goto finally;
+			param_value = (evcpe_param_value*)parser->list_item->data;
+			param_value->data = text;
+			param_value->len = len;
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("NotificationChange", elm->name, elm->len)) {
 		switch (parser->msg->method_type) {
 		case EVCPE_SET_PARAMETER_ATTRIBUTES:
-			param_attr = parser->list_item;
+			param_attr = (evcpe_set_param_attr*)parser->list_item->data;
 			if (len == 1) {
 				if (text[0] == '0')
 					param_attr->notification_change = 0;
@@ -788,36 +769,31 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			}
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("Notification", elm->name, elm->len)) {
 		switch (parser->msg->method_type) {
 		case EVCPE_SET_PARAMETER_ATTRIBUTES:
-			param_attr = parser->list_item;
+			param_attr = (evcpe_set_param_attr*)parser->list_item->data;
 			if (len == 1) {
-				if (text[0] == '0')
-					param_attr->notification = 0;
-				else if (text[0] == '1')
-					param_attr->notification = 1;
-				else if (text[0] == '2')
-					param_attr->notification = 2;
+				int n = text[0] - '0';
+				if (n >= EVCPE_NOTIFICATION_OFF ||
+					n < EVCPE_NOTIFICATION_UNKNOWN)
+					param_attr->info->notification = n;
 				else
 					goto syntax_error;
-			} else {
+			} else
 				goto syntax_error;
-			}
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("AccessListChange", elm->name, elm->len)) {
 		switch (parser->msg->method_type) {
 		case EVCPE_SET_PARAMETER_ATTRIBUTES:
-			param_attr = parser->list_item;
+			param_attr = (evcpe_set_param_attr*)parser->list_item->data;
 			if (len == 1) {
 				if (text[0] == '0')
 					param_attr->access_list_change = 0;
@@ -830,20 +806,18 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			}
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("AccessList", elm->name, elm->len)) {
 		switch (parser->msg->method_type) {
 		case EVCPE_SET_PARAMETER_ATTRIBUTES:
-			param_attr = parser->list_item;
+			param_attr = (evcpe_set_param_attr*)parser->list_item->data;
 			if (len && !strcmp("1", text))
 				param_attr->access_list_change = 1;
 			break;
 		default:
-			ERROR("unexpected evcpe_method_type: %d",
-					parser->msg->method_type);
+			ERROR("unexpected evcpe_method_type: %d", parser->msg->method_type);
 			goto syntax_error;
 		}
 	} else if (!evcpe_strncmp("MaxEnvelopes", elm->name, elm->len)) {
@@ -895,15 +869,15 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			goto syntax_error;
 		}
 
-		if (len >= sizeof(*key_holder)) {
+		if (len > 32) {
+			ERROR("Sizeof error : %s:%d", text, len);
 			rc = EOVERFLOW;
 			goto finally;
 		}
 		memcpy(key_holder, text, len);
 		key_holder[len] = '\0';
 	} else if (len > 0) {
-		ERROR("unexpected element: %.*s",
-				elm->len, elm->name);
+		ERROR("unexpected element: %.*s", elm->len, elm->name);
 		goto syntax_error;
 	}
 	rc = 0;
@@ -922,8 +896,8 @@ int evcpe_msg_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 		const char *value, unsigned value_len)
 {
 	int rc = 0;
-	struct evcpe_msg_parser *parser = data;
-	struct evcpe_xml_element *parent = evcpe_xml_stack_peek(&parser->stack);
+	evcpe_msg_parser *parser = data;
+	evcpe_xml_element *parent = evcpe_xml_stack_peek(&parser->stack);
 
 	TRACE("attribute: %.*s => %.*s (namespace: %.*s)",
 			name_len, name, value_len, value, nslen, ns);
@@ -940,11 +914,11 @@ finally:
 	return rc;
 }
 
-int evcpe_msg_from_xml(struct evcpe_msg *msg, struct evbuffer *buffer)
+int evcpe_msg_from_xml(evcpe_msg *msg, struct evbuffer *buffer)
 {
 	int rc = 0;
-	struct evcpe_msg_parser parser;
-	struct evcpe_xml_element *elm;
+	evcpe_msg_parser parser;
+	evcpe_xml_element *elm;
 
 	DEBUG("unmarshaling SOAP message");
 

@@ -25,33 +25,34 @@
 #include <time.h>
 #include <event.h>
 
-struct evcpe_dns_entry {
+typedef struct _evcpe_dns_entry {
 	char *name;
 	char *address;
 	struct event ev;
 	struct timeval tv;
 	struct evdns_base *dns_base;
-	RB_ENTRY(evcpe_dns_entry) entry;
-};
+	RB_ENTRY(_evcpe_dns_entry) entry;
+} evcpe_dns_entry;
 
-RB_HEAD(evcpe_dns_cache, evcpe_dns_entry);
+RB_HEAD(_evcpe_dns_cache, _evcpe_dns_entry);
+typedef struct _evcpe_dns_cache evcpe_dns_cache;
 
-int evcpe_dns_entry_cmp(struct evcpe_dns_entry *a, struct evcpe_dns_entry *b);
+int evcpe_dns_entry_cmp(evcpe_dns_entry *a, evcpe_dns_entry *b);
 
-RB_PROTOTYPE(evcpe_dns_cache, evcpe_dns_entry, entry, evcpe_dns_entry_cmp);
+RB_PROTOTYPE(_evcpe_dns_cache, _evcpe_dns_entry, entry, evcpe_dns_entry_cmp);
 
-int evcpe_dns_cache_add(struct evcpe_dns_cache *cache,
-		const char *name, struct evcpe_dns_entry **entry);
+int evcpe_dns_cache_add(evcpe_dns_cache *cache,
+		const char *name, evcpe_dns_entry **entry);
 
-struct evcpe_dns_entry *evcpe_dns_cache_find(
-		struct evcpe_dns_cache *cache, const char *name);
+evcpe_dns_entry *evcpe_dns_cache_find(
+		evcpe_dns_cache *cache, const char *name);
 
-const char *evcpe_dns_cache_get(struct evcpe_dns_cache *cache,
+const char *evcpe_dns_cache_get(evcpe_dns_cache *cache,
 		const char *name);
 
-inline void evcpe_dns_cache_remove(struct evcpe_dns_cache *cache,
-		struct evcpe_dns_entry *entry);
+inline void evcpe_dns_cache_remove(evcpe_dns_cache *cache,
+		evcpe_dns_entry *entry);
 
-void evcpe_dns_cache_clear(struct evcpe_dns_cache *cache);
+void evcpe_dns_cache_clear(evcpe_dns_cache *cache);
 
 #endif /* EVCPE_DNS_CACHE_H_ */

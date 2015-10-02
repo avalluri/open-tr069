@@ -25,32 +25,32 @@
 
 #include "attr.h"
 
-struct evcpe_obj {
+typedef struct _evcpe_obj {
 	char *path;
 	unsigned int pathlen;
-	struct evcpe_class *class;
-	struct evcpe_attr *owner;
+	evcpe_class *class;
+	evcpe_attr *owner;
 	unsigned int index;
-	struct evcpe_attrs attrs;
-};
+	evcpe_attrs attrs;
+} evcpe_obj;
 
-struct evcpe_obj *evcpe_obj_new(struct evcpe_class *class,
-		struct evcpe_attr *owner);
+evcpe_obj *evcpe_obj_new(evcpe_class *class,
+		evcpe_attr *owner);
 
-void evcpe_obj_free(struct evcpe_obj *obj);
+void evcpe_obj_free(evcpe_obj *obj);
 
-int evcpe_obj_init(struct evcpe_obj *obj);
+int evcpe_obj_init(evcpe_obj *obj);
 
-struct evcpe_attr *evcpe_obj_find(struct evcpe_obj *obj,
-		struct evcpe_attr_schema *schema);
+evcpe_attr* evcpe_obj_find(evcpe_obj *obj,
+		evcpe_attr_schema *schema);
 
-struct evcpe_attr * evcpe_obj_find_deep(struct evcpe_obj *obj,
-		struct evcpe_attr_schema *schema);
+evcpe_attr* evcpe_obj_find_deep(evcpe_obj *obj,
+		evcpe_attr_schema *schema);
 
-int evcpe_obj_get(struct evcpe_obj *obj,
-		const char *name, unsigned len, struct evcpe_attr **attr);
+int evcpe_obj_get(evcpe_obj *obj,
+		const char *name, unsigned len, evcpe_attr **attr);
 
-int evcpe_obj_get_attr_value(struct evcpe_obj* obj, const char* attr_name,
+int evcpe_obj_get_attr_value(evcpe_obj* obj, const char* attr_name,
 		const char** value, unsigned* value_len);
 
 #endif /* EVCPE_OBJ_H_ */

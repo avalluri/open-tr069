@@ -24,51 +24,49 @@
 
 #include "get_param_names.h"
 
-struct evcpe_get_param_names *evcpe_get_param_names_new(void)
+evcpe_get_param_names *evcpe_get_param_names_new(void)
 {
-	struct evcpe_get_param_names *method;
+	evcpe_get_param_names *method;
 	DEBUG("constructing evcpe_get_param_names");
-	if (!(method = calloc(1, sizeof(struct evcpe_get_param_names)))) {
+	if (!(method = calloc(1, sizeof(evcpe_get_param_names)))) {
 		ERROR("failed to calloc evcpe_get_param_names");
 		return NULL;
 	}
 	return method;
 }
 
-void evcpe_get_param_names_free(struct evcpe_get_param_names *method)
+void evcpe_get_param_names_free(evcpe_get_param_names *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_get_param_names");
 	free(method);
 }
 
-struct evcpe_get_param_names_response *evcpe_get_param_names_response_new(void)
+evcpe_get_param_names_response *evcpe_get_param_names_response_new(void)
 {
-	struct evcpe_get_param_names_response *method;
+	evcpe_get_param_names_response *method;
 	DEBUG("constructing evcpe_get_param_names_response");
-	if (!(method = calloc(1, sizeof(struct evcpe_get_param_names_response)))) {
+	if (!(method = calloc(1, sizeof(evcpe_get_param_names_response)))) {
 		ERROR("failed to calloc evcpe_get_param_names");
 		return NULL;
 	}
-	evcpe_param_info_list_init(&method->parameter_list);
+	method->parameter_list = evcpe_param_info_list_new();
 	return method;
 }
 
-void evcpe_get_param_names_response_free(
-		struct evcpe_get_param_names_response *method)
+void evcpe_get_param_names_response_free(evcpe_get_param_names_response *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_get_param_names_response");
-	evcpe_param_info_list_clear(&method->parameter_list);
+	tqueue_free(method->parameter_list);
 	free(method);
 }
 
 int evcpe_get_param_names_response_to_xml(
-		struct evcpe_get_param_names_response *method,
+		evcpe_get_param_names_response *method,
 		struct evbuffer *buffer)
 {
 	DEBUG("marshaling evcpe_get_param_names_response");
-	return evcpe_param_info_list_to_xml(&method->parameter_list,
+	return evcpe_param_info_list_to_xml(method->parameter_list,
 			"ParameterList", buffer);
 }
-

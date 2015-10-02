@@ -24,60 +24,19 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "type.h"
+#include "tqueue.h"
 
-#define QLIST_DEFINE(type) \
-TAILQ_HEAD(type##_head, type); \
-struct type##_list { \
-	struct type##_head head; \
-	unsigned int size; \
-}
-
-#define QLIST_INIT(list) { \
-	TAILQ_INIT(&(list)->head); \
-	(list)->size = 0; \
-}
-
-#define QLIST_SIZE(list) (list)->size
-
-#define QLIST_CLEAR(list, item_type, item_free_func) \
-{ \
-	item_type *item = NULL; \
- 	while((item = TAILQ_FIRST(&(list)->head))) { \
-  		TAILQ_REMOVE(&(list)->head, item, entry); \
-		item_free_func(item); \
-	} \
-	(list)->size = 0; \
-}
-
-#define QLIST_REMOVE(list, item, item_free_func) \
-{ \
-	TAILQ_REMOVE(&(list)->head, item, entry); \
-	item_free_func(item); \
-	(list)->size--; \
-}
-
-#define QLIST_CLONE(src, dst, item_type, item_clone_func, rc_out) {\
-	item_type *src_item = NULL; \
-	item_type *dst_item = NULL; \
-	int rc = 0; \
-	TAILQ_FOREACH(src_item, &(src)->head, entry) { \
-		if ((rc = item_clone_func(src_item, &dst_item)) != 0) break; \
-		TAILQ_INSERT_TAIL(&(dst)->head, dst_item, entry); \
-		(dst)->size++; \
-	} \
-	if (rc_out) *rc_out = rc;\
-}
-
-struct evcpe_device_id {
+typedef struct _evcpe_device_id {
 	char manufacturer[65];
 	char oui[7];
 	char product_class[65];
 	char serial_number[65];
-};
+} evcpe_device_id;
 
-enum evcpe_event_code {
+typedef enum _evcpe_event_code {
   EVCPE_EVENT_0_BOOTSTRAP,
   EVCPE_EVENT_1_BOOT,
   EVCPE_EVENT_2_PERIODIC,
@@ -100,139 +59,56 @@ enum evcpe_event_code {
   EVCPE_EVENT_M_CHANGE_DU_STATE,
   EVCPE_EVENT_M_X_VENDOR_EVENT,
   EVCPE_EVENT_MAX = 999
-};
+} evcpe_event_code_t;
 
-struct evcpe_event {
-	enum evcpe_event_code code;
+typedef struct _evcpe_event {
+	evcpe_event_code_t code;
 	char command_key[33];
-	TAILQ_ENTRY(evcpe_event) entry;
-};
+} evcpe_event;
 
-struct evcpe_event* evcpe_event_new(enum evcpe_event_code c, const char* key);
-int evcpe_event_clone(struct evcpe_event *src, struct evcpe_event **dst);
-const char *evcpe_event_code_to_str(enum evcpe_event_code code);
+evcpe_event* evcpe_event_new(evcpe_event_code_t c, const char* key);
+const char* evcpe_event_code_to_str(evcpe_event_code_t code);
+int evcpe_compare_event(evcpe_event *ev, evcpe_event_code_t code);
 
-QLIST_DEFINE(evcpe_event);
+#define evcpe_event_list_new() tqueue_new((tqueue_compare_func_t)\
+		evcpe_compare_event, free)
 
-#define evcpe_event_list_init(list) QLIST_INIT(list)
-#define evcpe_event_list_clear(list) \
-	QLIST_CLEAR((list), struct evcpe_event, free)
-#define evcpe_event_list_size(list) (list)->size
-#define evcpe_event_list_remove(list, event) QLIST_REMOVE(list, event, free)
-#define evcpe_event_list_clone(src, dst, rc_out) \
-	QLIST_CLONE(src, dst, struct evcpe_event, evcpe_event_clone, rc_out)
-
-int evcpe_event_list_add(struct evcpe_event_list *list,
-		struct evcpe_event **event,
-		enum evcpe_event_code code, const char *command_key);
-struct evcpe_event *evcpe_event_list_find(
-		struct evcpe_event_list *list, enum evcpe_event_code code);
+evcpe_event* evcpe_event_list_add(tqueue* list,
+		evcpe_event_code_t code, const char *command_key);
 
 
-struct evcpe_param_info {
+typedef struct _evcpe_param_info {
 	char name[257];
 	int writable;
-	TAILQ_ENTRY(evcpe_param_info) entry;
-};
+} evcpe_param_info;
 
-struct evcpe_param_info* evcpe_param_info_new();
-int evcpe_param_info_clone(struct evcpe_param_info *src,
-		struct evcpe_param_info **dst);
+evcpe_param_info* evcpe_param_info_new(const char*name, int len, int writable);
+void evcpe_param_info_free(evcpe_param_info* info);
+int evcpe_param_info_compare(evcpe_param_info* param, const char* name);
 
-QLIST_DEFINE(evcpe_param_info);
-/*TAILQ_HEAD(evcpe_param_info_head, evcpe_param_info);
+#define evcpe_param_info_list_new() \
+	tqueue_new((tqueue_compare_func_t)evcpe_param_info_compare, \
+			(tqueue_free_func_t)evcpe_param_info_free)
 
-struct evcpe_param_info_list {
-	struct evcpe_param_info_head head;
-	unsigned int size;
-};
-*/
-#define evcpe_param_info_list_init(list) QLIST_INIT(list)
-#define evcpe_param_info_list_clear(list) \
-	QLIST_CLEAR(list, struct evcpe_param_info, free)
-#define evcpe_param_info_list_size(list) QLIST_SIZE(list)
-#define evcpe_param_info_list_remove(list, info) QLIST_REMOVE(list, info, free)
+evcpe_param_info* evcpe_param_info_list_add(tqueue* list, const char* name,
+		int len, int write);
 
-int evcpe_param_info_list_add(struct evcpe_param_info_list *list,
-		struct evcpe_param_info **param, const char *name, unsigned len,
-		int writable);
-
-
-struct evcpe_param_name {
+typedef struct _evcpe_param_value {
 	char name[257];
-	TAILQ_ENTRY(evcpe_param_name) entry;
-};
-
-struct evcpe_param_name* evcpe_param_name_new();
-
-QLIST_DEFINE(evcpe_param_name);
-/*
-TAILQ_HEAD(evcpe_param_name_head, evcpe_param_name);
-
-struct evcpe_param_name_list {
-	struct evcpe_param_name_head head;
-	unsigned int size;
-};
-*/
-
-#define evcpe_param_name_list_init(list) QLIST_INIT(list)
-#define evcpe_param_name_list_clear(list) \
-	QLIST_CLEAR(list, struct evcpe_param_name, free)
-#define evcpe_param_name_list_size(list) QLIST_SIZE(list)
-#define evcpe_param_name_list_remove(list, item) QLIST_REMOVE(list, item, free)
-
-int evcpe_param_name_list_add(struct evcpe_param_name_list *list,
-		struct evcpe_param_name **param, const char *name, unsigned len);
-
-struct evcpe_param_value {
-	char name[257];
-	enum evcpe_type type;
+	evcpe_type_t type;
 	const char *data;
 	unsigned len;
-	TAILQ_ENTRY(evcpe_param_value) entry;
-};
+} evcpe_param_value;
 
-int evcpe_param_value_set(struct evcpe_param_value *value,
-		const char *data, unsigned len);
+evcpe_param_value* evcpe_param_value_new(const char* name,
+		unsigned name_len, const char* value, unsigned value_len,
+		evcpe_type_t type);
+void evcpe_param_value_free(evcpe_param_value* pv);
 
-QLIST_DEFINE(evcpe_param_value);
+#define evcpe_param_value_list_new() \
+	tqueue_new(NULL, (tqueue_free_func_t)evcpe_param_value_free)
 
-#define evcpe_param_value_list_init(list) QLIST_INIT(list)
-#define evcpe_param_value_list_clear(list) \
-	QLIST_CLEAR(list, struct evcpe_param_value, free)
-#define evcpe_param_value_list_size(list) QLIST_SIZE(list)
-#define evcpe_param_value_list_remove(list, value) \
-	QLIST_REMOVE(list, value, free)
-
-int evcpe_param_value_list_add(struct evcpe_param_value_list *list,
-		struct evcpe_param_value **value, const char *name, unsigned len);
-
-int evcpe_param_value_list_add_value(struct evcpe_param_value_list *list,
-		const char *name, enum evcpe_type type, const char *value);
-
-struct evcpe_access {
-	char entity[65];
-	TAILQ_ENTRY(evcpe_access) entry;
-};
-
-struct evcpe_access * evcpe_access_new();
-
-int evcpe_access_clone(struct evcpe_access *src, struct evcpe_access **dst);
-
-QLIST_DEFINE(evcpe_access);
-
-#define evcpe_access_list_init(list) QLIST_INIT(list)
-#define evcpe_access_list_clear(list) \
-	QLIST_CLEAR(list, struct evcpe_access, free)
-#define evcpe_access_list_size(list) QLIST_SIZE(list)
-#define evcpe_access_list_clone(src, dst, rc_out) \
-	QLIST_CLONE(src, dst, struct evcpe_access,\
-					evcpe_access_clone, rc_out)
-
-int evcpe_access_list_add(struct evcpe_access_list *list,
-		const char *entity, unsigned len);
-
-enum evcpe_notification {
+typedef enum _evcpe_notification {
 	EVCPE_NOTIFICATION_OFF,
 	EVCPE_NOTIFICATION_PASSIVE,
 	EVCPE_NOTIFICATION_ACTIVE,
@@ -240,88 +116,34 @@ enum evcpe_notification {
 	EVCPE_NOTIFICATION_PASSIVE_LIGHTWEIGHT_PASSIVE,
 	EVCPE_NOTIFICATION_ACTIVE_LIGHTWEIGHT,
 	EVCPE_NOTIFICATION_PASSIVE_LIGHTWEIGHT_ACTIVE,
-	EVCPE_NOTIFICATION_FORCED_ACTIVE
-};
+	EVCPE_NOTIFICATION_FORCED_ACTIVE,
+	EVCPE_NOTIFICATION_UNKNOWN
+} evcpe_notification_t;
 
-struct evcpe_param_attr {
+typedef struct _evcpe_param_attr {
 	char name[257];
-	enum evcpe_notification notification;
-	struct evcpe_access_list access_list;
-	TAILQ_ENTRY(evcpe_param_attr) entry;
-};
+	evcpe_notification_t notification;
+	tqueue* access_list;
+} evcpe_param_attr;
 
-QLIST_DEFINE(evcpe_param_attr);
+evcpe_param_attr* evcpe_param_attr_new(const char* name, unsigned len,
+		evcpe_notification_t notification);
 
-#define evcpe_param_attr_list_init(list) QLIST_INIT(list)
-#define evcpe_param_attr_list_clear(list) \
-	QLIST_CLEAR(list, struct evcpe_param_attr, free)
-#define evcpe_param_attr_list_size(list) QLIST_SIZE(list)
-#define evcpe_param_attr_list_remove(list, attr) \
-	QLIST_REMOVE(list, attr, free)
+void evcpe_param_attr_free(evcpe_param_attr* pa);
 
-int evcpe_param_attr_list_add(struct evcpe_param_attr_list *list,
-		struct evcpe_param_attr **attr, const char *name, unsigned len);
+#define evcpe_param_attr_list_new() \
+	tqueue_new(NULL, (tqueue_free_func_t)evcpe_param_attr_free)
 
-struct evcpe_set_param_attr {
-	char name[257];
+typedef struct _evcpe_set_param_attr {
 	int notification_change;
-	enum evcpe_notification notification;
 	int access_list_change;
-	struct evcpe_access_list access_list;
-	TAILQ_ENTRY(evcpe_set_param_attr) entry;
-};
+	evcpe_param_attr *info;
+} evcpe_set_param_attr;
 
-struct evcpe_set_param_attr* evcpe_set_param_attr_new();
+evcpe_set_param_attr* evcpe_set_param_attr_new(const char* name, unsigned len);
+void evcpe_set_param_attr_free(evcpe_set_param_attr* info);
 
-QLIST_DEFINE(evcpe_set_param_attr);
-
-#define evcpe_set_param_attr_list_init(list) QLIST_INIT(list)
-#define evcpe_set_param_attr_list_clear(list) \
-	QLIST_CLEAR(list, struct evcpe_set_param_attr, free)
-#define evcpe_set_param_attr_list_size(list) QLIST_SIZE(list)
-#define evcpe_set_param_attr_list_remove(list, attr) \
-	QLIST_REMOVE(list, attr, free)
-
-int evcpe_set_param_attr_list_add(struct evcpe_set_param_attr_list *list,
-		struct evcpe_set_param_attr **attr, const char *name, unsigned len);
-
-struct evcpe_set_param_value {
-	char name[257];
-	const char *data;
-	unsigned int len;
-	TAILQ_ENTRY(evcpe_set_param_value) entry;
-};
-
-int evcpe_set_param_value_set(struct evcpe_set_param_value *param,
-		const char *data, unsigned len);
-
-QLIST_DEFINE(evcpe_set_param_value);
-
-#define evcpe_set_param_value_list_init(list) QLIST_INIT(list)
-#define evcpe_set_param_value_list_clear(list) \
-	QLIST_CLEAR(list, struct evcpe_set_param_value, free)
-#define evcpe_set_param_value_list_size(list) QLIST_SIZE(list)
-
-int evcpe_set_param_value_list_add(struct evcpe_set_param_value_list *list,
-		struct evcpe_set_param_value **value, const char *name, unsigned len);
-
-struct evcpe_method {
-	char name[65];
-	TAILQ_ENTRY(evcpe_method) entry;
-};
-
-QLIST_DEFINE(evcpe_method);
-
-#define evcpe_method_list_init(list) QLIST_INIT(list)
-#define evcpe_method_list_clear(list) \
-	QLIST_CLEAR(list, struct evcpe_method, free)
-#define evcpe_method_list_size(list) QLIST_SIZE(list)
-#define evcpe_method_list_remove(list, method) QLIST_REMOVE(list, method, free)
-
-int evcpe_method_list_add(struct evcpe_method_list *list,
-		struct evcpe_method **item, const char *name, unsigned len);
-
-int evcpe_method_list_add_method(struct evcpe_method_list *list,
-		const char *method);
+#define evcpe_set_param_attr_list_new() \
+	tqueue_new(NULL, (tqueue_free_func_t)evcpe_set_param_attr_free);
 
 #endif /* EVCPE_DATA_H_ */

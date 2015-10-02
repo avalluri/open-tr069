@@ -65,7 +65,7 @@ const char *types[] = {
 }
 #endif
 
-const char *evcpe_type_to_str(enum evcpe_type type)
+const char *evcpe_type_to_str(evcpe_type_t type)
 {
   return types[type];
   /*
@@ -93,20 +93,20 @@ const char *evcpe_type_to_str(enum evcpe_type type)
   */
 }
 
-enum evcpe_type evcpe_type_from_str(const char *type_str, unsigned len)
+evcpe_type_t evcpe_type_from_str(const char *type_str, unsigned len)
 {
   int i = 0;
   for(i = 0; i < EVCPE_TYPE_UNKNOWN; i++) {
 		if (!evcpe_strncmp(types[i], type_str, len)) {
-      return (enum evcpe_type)i;
+      return (evcpe_type_t)i;
     }
   }
 
   return EVCPE_TYPE_UNKNOWN;
 }
 
-int evcpe_type_validate(enum evcpe_type type, const char *value, unsigned len,
-		struct evcpe_constraint *cons, const char *pattern)
+int evcpe_type_validate(evcpe_type_t type, const char *value, unsigned len,
+		evcpe_constraint *cons, const char *pattern)
 {
 	int rc = 0;
 	long val = 0;

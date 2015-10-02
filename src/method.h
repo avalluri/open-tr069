@@ -25,8 +25,7 @@
 
 #include "data.h"
 
-enum evcpe_method_type {
-	EVCPE_UNKNOWN_METHOD,
+typedef enum _evcpe_method_type {
 	EVCPE_GET_RPC_METHODS,
 	// CPE Methods
 	EVCPE_SET_PARAMETER_VALUES,
@@ -57,9 +56,11 @@ enum evcpe_method_type {
 	EVCPE_KICKED,
 	EVCPE_REQUEST_DOWNLOAD,
 	EVCPE_DU_STATE_CHANGE_COMPLETE,
-	EVCPE_AUTONOMUS_DU_STATE_CHANGE_COMPLETE
-};
+	EVCPE_AUTONOMUS_DU_STATE_CHANGE_COMPLETE,
+	EVCPE_UNKNOWN_METHOD
+} evcpe_method_type_t;
 
-const char *evcpe_method_type_to_str(enum evcpe_method_type type);
+const char *evcpe_method_type_to_str(evcpe_method_type_t type);
+evcpe_method_type_t evcpe_method_type_from_str(const char*, unsigned);
 
 #endif /* EVCPE_METHOD_H_ */

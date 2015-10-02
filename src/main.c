@@ -38,11 +38,11 @@
 
 static struct {
 	struct event_base *evbase;
-	struct evcpe *cpe;
-	struct evcpe_class *cls;
-	struct evcpe_obj *obj;
+	evcpe *cpe;
+	evcpe_class *cls;
+	evcpe_obj *obj;
 	struct evcpe_persister *persist;
-	struct evcpe_repo *repo;
+	evcpe_repo *repo;
 } this;
 
 static
@@ -107,7 +107,7 @@ void sig_handler(int signal)
 }
 
 static
-void error_cb(struct evcpe *cpe, enum evcpe_error_type type, int code,
+void error_cb(evcpe *cpe, evcpe_error_type_t type, int code,
 		const char *reason, void *cbarg)
 {
 	ERROR("type: %d, code: %d, reason: %s", type, code, reason);

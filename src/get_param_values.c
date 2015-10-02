@@ -24,53 +24,52 @@
 
 #include "get_param_values.h"
 
-struct evcpe_get_param_values *evcpe_get_param_values_new(void)
+evcpe_get_param_values *evcpe_get_param_values_new(void)
 {
-	struct evcpe_get_param_values *method;
+	evcpe_get_param_values *method;
 	DEBUG("constructing evcpe_get_param_values");
-	if (!(method = calloc(1, sizeof(struct evcpe_get_param_values)))) {
+	if (!(method = calloc(1, sizeof(evcpe_get_param_values)))) {
 		ERROR("failed to calloc evcpe_get_param_values");
 		return NULL;
 	}
-	evcpe_param_name_list_init(&method->parameter_names);
+	method->parameter_names = tqueue_new(NULL, free);
 	return method;
 }
 
-void evcpe_get_param_values_free(struct evcpe_get_param_values *method)
+void evcpe_get_param_values_free(evcpe_get_param_values *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_get_param_values");
-	evcpe_param_name_list_clear(&method->parameter_names);
+	tqueue_free(method->parameter_names);
 	free(method);
 }
 
-struct evcpe_get_param_values_response *evcpe_get_param_values_response_new(void)
+evcpe_get_param_values_response *evcpe_get_param_values_response_new(void)
 {
-	struct evcpe_get_param_values_response *method;
+	evcpe_get_param_values_response *method;
 	DEBUG("constructing evcpe_get_param_values_response");
-	if (!(method = calloc(1, sizeof(struct evcpe_get_param_values_response)))) {
+	if (!(method = calloc(1, sizeof(evcpe_get_param_values_response)))) {
 		ERROR("failed to calloc evcpe_get_param_values");
 		return NULL;
 	}
-	evcpe_param_value_list_init(&method->parameter_list);
+	method->parameter_list = evcpe_param_value_list_new();
 	return method;
 }
 
 void evcpe_get_param_values_response_free(
-		struct evcpe_get_param_values_response *method)
+		evcpe_get_param_values_response *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_get_param_values_response");
-	evcpe_param_value_list_clear(&method->parameter_list);
+	tqueue_free(method->parameter_list);
 	free(method);
 }
 
 int evcpe_get_param_values_response_to_xml(
-		struct evcpe_get_param_values_response *method,
-		struct evbuffer *buffer)
+		evcpe_get_param_values_response *method, struct evbuffer *buffer)
 {
 	DEBUG("marshaling evcpe_get_param_values_response");
-	return evcpe_param_value_list_to_xml(&method->parameter_list,
+	return evcpe_param_value_list_to_xml(method->parameter_list,
 			"ParameterList", buffer);
 }
 

@@ -24,25 +24,25 @@
 
 #include "fault.h"
 
-struct evcpe_fault *evcpe_fault_new(void)
+evcpe_fault *evcpe_fault_new(void)
 {
-	struct evcpe_fault *fault;
+	evcpe_fault *fault;
 	DEBUG("constructing evcpe_fault");
-	if (!(fault = calloc(1, sizeof(struct evcpe_fault)))) {
+	if (!(fault = calloc(1, sizeof(evcpe_fault)))) {
 		ERROR("failed to calloc evcpe_fault");
 		return NULL;
 	}
 	return fault;
 }
 
-void evcpe_fault_free(struct evcpe_fault *fault)
+void evcpe_fault_free(evcpe_fault *fault)
 {
 	if (!fault) return;
 	DEBUG("destructing evcpe_fault");
 	free(fault);
 }
 
-int evcpe_fault_to_xml(struct evcpe_fault *fault, struct evbuffer *buffer)
+int evcpe_fault_to_xml(evcpe_fault *fault, struct evbuffer *buffer)
 {
 	int rc = 0;
 

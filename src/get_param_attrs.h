@@ -23,21 +23,20 @@
 
 #include "data.h"
 
-struct evcpe_get_param_attrs {
-	struct evcpe_param_name_list parameter_names;
-};
+typedef struct _evcpe_get_param_attrs {
+	tqueue* parameter_names;
+} evcpe_get_param_attrs;
 
-struct evcpe_get_param_attrs *evcpe_get_param_attrs_new(void);
+evcpe_get_param_attrs *evcpe_get_param_attrs_new(void);
 
-void evcpe_get_param_attrs_free(struct evcpe_get_param_attrs *method);
+void evcpe_get_param_attrs_free(evcpe_get_param_attrs *method);
 
-struct evcpe_get_param_attrs_response {
-	struct evcpe_param_attr_list parameter_list;
-};
+typedef struct _evcpe_get_param_attrs_response {
+	tqueue* parameter_list;
+} evcpe_get_param_attrs_response;
 
-struct evcpe_get_param_attrs_response *evcpe_get_param_attrs_response_new(void);
+evcpe_get_param_attrs_response *evcpe_get_param_attrs_response_new(void);
 
-void evcpe_get_param_attrs_response_free(
-		struct evcpe_get_param_attrs_response *method);
+void evcpe_get_param_attrs_response_free(evcpe_get_param_attrs_response *method);
 
 #endif /* EVCPE_GET_PARAM_ATTRS_H_ */

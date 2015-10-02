@@ -24,43 +24,42 @@
 
 #include "get_param_attrs.h"
 
-struct evcpe_get_param_attrs *evcpe_get_param_attrs_new(void)
+evcpe_get_param_attrs *evcpe_get_param_attrs_new(void)
 {
-	struct evcpe_get_param_attrs *method;
+	evcpe_get_param_attrs *method;
 	DEBUG("constructing evcpe_get_param_attrs");
-	if (!(method = calloc(1, sizeof(struct evcpe_get_param_attrs)))) {
+	if (!(method = calloc(1, sizeof(evcpe_get_param_attrs)))) {
 		ERROR("failed to calloc evcpe_get_param_attrs");
 		return NULL;
 	}
-	evcpe_param_name_list_init(&method->parameter_names);
+	method->parameter_names = tqueue_new(NULL, free);
 	return method;
 }
 
-void evcpe_get_param_attrs_free(struct evcpe_get_param_attrs *method)
+void evcpe_get_param_attrs_free(evcpe_get_param_attrs *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_get_param_attrs");
-	evcpe_param_name_list_clear(&method->parameter_names);
+	tqueue_free(method->parameter_names);
 	free(method);
 }
 
-struct evcpe_get_param_attrs_response *evcpe_get_param_attrs_response_new(void)
+evcpe_get_param_attrs_response *evcpe_get_param_attrs_response_new(void)
 {
-	struct evcpe_get_param_attrs_response *method;
+	evcpe_get_param_attrs_response *method;
 	DEBUG("constructing evcpe_get_param_attrs_response");
-	if (!(method = calloc(1, sizeof(struct evcpe_get_param_attrs_response)))) {
+	if (!(method = calloc(1, sizeof(evcpe_get_param_attrs_response)))) {
 		ERROR("failed to calloc evcpe_get_param_attrs");
 		return NULL;
 	}
-	evcpe_param_attr_list_init(&method->parameter_list);
+	method->parameter_list = evcpe_param_attr_list_new();
 	return method;
 }
 
-void evcpe_get_param_attrs_response_free(
-		struct evcpe_get_param_attrs_response *method)
+void evcpe_get_param_attrs_response_free(evcpe_get_param_attrs_response *method)
 {
 	if (!method) return;
 	DEBUG("destructing evcpe_get_param_attrs_response");
-	evcpe_param_attr_list_clear(&method->parameter_list);
+	tqueue_free(method->parameter_list);
 	free(method);
 }

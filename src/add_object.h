@@ -21,25 +21,27 @@
 #ifndef EVCPE_ADD_OBJECT_H_
 #define EVCPE_ADD_OBJECT_H_
 
-struct evcpe_add_object {
+#include <event.h>
+
+typedef struct _evcpe_add_object {
 	char object_name[257];
 	char parameter_key[33];
-};
+} evcpe_add_object;
 
-struct evcpe_add_object *evcpe_add_object_new(void);
+evcpe_add_object *evcpe_add_object_new(void);
 
-void evcpe_add_object_free(struct evcpe_add_object *method);
+void evcpe_add_object_free(evcpe_add_object *method);
 
-struct evcpe_add_object_response {
+typedef struct _evcpe_add_object_response {
 	unsigned int instance_number;
 	int status;
-};
+} evcpe_add_object_response;
 
-struct evcpe_add_object_response *evcpe_add_object_response_new(void);
+evcpe_add_object_response *evcpe_add_object_response_new(void);
 
-void evcpe_add_object_response_free(struct evcpe_add_object_response *method);
+void evcpe_add_object_response_free(evcpe_add_object_response *method);
 
-int evcpe_add_object_response_to_xml(struct evcpe_add_object_response *method,
+int evcpe_add_object_response_to_xml(evcpe_add_object_response *method,
 		struct evbuffer *buffer);
 
 #endif /* EVCPE_ADD_OBJECT_H_ */

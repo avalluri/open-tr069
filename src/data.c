@@ -23,7 +23,7 @@
 #include "log.h"
 #include "data.h"
 
-const char *evcpe_event_code_to_str(enum evcpe_event_code code) {
+const char *evcpe_event_code_to_str(evcpe_event_code_t code) {
   switch(code) {
     case EVCPE_EVENT_0_BOOTSTRAP: return "0 BOOTSTRAP";
     case EVCPE_EVENT_1_BOOT: return "1 BOOT";
@@ -44,10 +44,10 @@ const char *evcpe_event_code_to_str(enum evcpe_event_code code) {
   }
 }
 
-struct evcpe_event *evcpe_event_new(enum evcpe_event_code code,
+evcpe_event *evcpe_event_new(evcpe_event_code_t code,
 		const char* command_key)
 {
-	struct evcpe_event* ev = calloc(1, sizeof(struct evcpe_event));
+	evcpe_event* ev = calloc(1, sizeof(evcpe_event));
 	if (!ev) return NULL;
 
 	ev->code = code;
@@ -60,263 +60,143 @@ struct evcpe_event *evcpe_event_new(enum evcpe_event_code code,
 	return ev;
 }
 
-int evcpe_event_clone(struct evcpe_event *src, struct evcpe_event **dst) {
-
-	if (!dst || !src) return EINVAL;
-	if ((*dst = evcpe_event_new(src->code, src->command_key)) == NULL)
-		return ENOMEM;
-
-	return 0;
+void evcpe_event_free(evcpe_event* ev) {
+	if (ev) free(ev);
 }
 
-struct evcpe_event *evcpe_event_list_find(
-		struct evcpe_event_list *list, enum evcpe_event_code code)
-{
-	struct evcpe_event *event;
-
-	TRACE("finding event: %s", evcpe_event_code_to_str(code));
-
-	TAILQ_FOREACH(event, &list->head, entry) {
-		if (code == event->code)
-			return event;
-	}
-	return NULL;
+int evcpe_compare_event(evcpe_event *ev, evcpe_event_code_t code) {
+	return ev->code == code ? 0 : 1;
 }
 
-int evcpe_event_list_add(struct evcpe_event_list *list,
-		struct evcpe_event **event,
-		enum evcpe_event_code code, const char *command_key)
+evcpe_event * evcpe_event_list_add(tqueue *list,
+		evcpe_event_code_t code, const char *command_key)
 {
-	int rc;
-	struct evcpe_event *ev;
+	evcpe_event *ev = NULL;
 
-	if (!command_key) return EINVAL;
-	if (strlen(command_key) >= sizeof(ev->command_key))
-		return EOVERFLOW;
+	if (!list) return NULL;
+	if (command_key && (strlen(command_key) >= sizeof(ev->command_key)))
+		return NULL;
 
 	if ((code <= EVCPE_EVENT_13_WAKEUP) &&
-		 evcpe_event_list_find(list, code) != NULL) {
-		return 0;
+		 (tqueue_find(list, (void*)code) != NULL)) {
+		return NULL;
 	}
 
 	TRACE("adding event: %s", evcpe_event_code_to_str(code));
 
 	if (!(ev = evcpe_event_new(code, command_key))) {
 		ERROR("failed to calloc evcpe_event");
-		rc = ENOMEM;
-		goto finally;
-	}
-	TAILQ_INSERT_TAIL(&list->head, ev, entry);
-	if(event) *event = ev;
-	list->size ++;
-	rc = 0;
-
-finally:
-	return rc;
-}
-
-int evcpe_param_info_list_add(struct evcpe_param_info_list *list,
-		struct evcpe_param_info **param, const char *name, unsigned len,
-		int writable)
-{
-	struct evcpe_param_info *p = NULL;
-	if (!name || !len) return EINVAL;
-	if (len >= sizeof((*param)->name)) return EOVERFLOW;
-
-	DEBUG("adding param name: %.*s", len, name);
-
-	if (!(p = calloc(1, sizeof(struct evcpe_param_info))))
-		return ENOMEM;
-
-	strncpy(p->name, name, len);
-	p->writable = writable;
-	TAILQ_INSERT_TAIL(&list->head, p, entry);
-	list->size ++;
-
-	if(param) *param = p;
-	return 0;
-}
-
-int evcpe_param_name_list_add(struct evcpe_param_name_list *list,
-		struct evcpe_param_name **param, const char *name, unsigned len)
-{
-	struct evcpe_param_name *param_name;
-
-	if (!name || !len) return EINVAL;
-	if (len >= sizeof(param_name->name)) return EOVERFLOW;
-
-	DEBUG("adding param name: %.*s", len, name);
-
-	if (!(param_name = calloc(1, sizeof(struct evcpe_param_name))))
-		return ENOMEM;
-
-	strncpy(param_name->name, name, len);
-	TAILQ_INSERT_TAIL(&list->head, param_name, entry);
-	list->size ++;
-	if (param) *param = param_name;
-	return 0;
-}
-
-int evcpe_param_value_set(struct evcpe_param_value *param,
-		const char *data, unsigned len)
-{
-	if (!param) return EINVAL;
-
-	param->data = data;
-	param->len = len;
-	return 0;
-}
-
-int evcpe_param_value_list_add(struct evcpe_param_value_list *list,
-		struct evcpe_param_value **value, const char *name, unsigned len)
-{
-	int rc;
-	struct evcpe_param_value *param;
-
-	if (!name || !len) return EINVAL;
-	if (len >= sizeof(param->name)) return EOVERFLOW;
-
-	DEBUG("adding parameter: %.*s", len, name);
-
-	if (!(param = calloc(1, sizeof(struct evcpe_param_value)))) {
-		ERROR("failed to calloc evcpe_param_value");
-		rc = ENOMEM;
-		goto finally;
-	}
-	strncpy(param->name, name, len);
-	TAILQ_INSERT_TAIL(&list->head, param, entry);
-	if (value) *value = param;
-	list->size ++;
-	rc = 0;
-
-finally:
-	return rc;
-}
-
-struct evcpe_access* evcpe_access_new(const char* access) {
-	struct evcpe_access *ptr = calloc(1, sizeof(struct evcpe_access));
-	if (!ptr) return NULL;
-
-	if (access) {
-		size_t len = sizeof(ptr->entity) - 1;
-		strncpy(ptr->entity, access, len);
-		ptr->entity[len] = '\0';
+		return NULL;
 	}
 
-	return ptr;
+	tqueue_insert(list, ev);
+
+	return ev;
 }
 
-int evcpe_access_clone(struct evcpe_access *src,
-		struct evcpe_access **dst)
+evcpe_param_info* evcpe_param_info_new(const char* name, int len, int writable)
 {
-	if (!src || !dst) return EINVAL;
-	if ((*dst = evcpe_access_new(src->entity)) == NULL) return ENOMEM;
+	evcpe_param_info* info = NULL;
 
-	return 0;
+	if (!name || !len) return NULL;
+	if (len == -1) len = strlen(name);
+	if (len >= sizeof(info->name)) return NULL;
+
+	info = (evcpe_param_info*)calloc(1, sizeof(*info));
+	if (!info) return NULL;
+
+	strncpy(info->name, name, len);
+	info->writable = writable;
+
+	return info;
 }
 
-int evcpe_access_list_add(struct evcpe_access_list *list,
-		const char *entity, unsigned len)
+void evcpe_param_info_free(evcpe_param_info* info) {
+	if (info) free(info);
+}
+
+int evcpe_param_info_compare(evcpe_param_info* param, const char* name) {
+	if (param && name) return strncmp(param->name, name, sizeof(param->name));
+	return 1;
+}
+
+evcpe_param_info* evcpe_param_info_list_add(tqueue* list, const char* name,
+		int len, int write)
 {
-	struct evcpe_access *item = NULL;
+	int rc = 0;
+	evcpe_param_info* i = NULL;
 
-	TRACE("adding entity: %.*s", len, entity);
+	if (!list) return NULL;
 
-	if (!(item = evcpe_access_new(NULL))) {
-		return ENOMEM;
+	if (!(i = evcpe_param_info_new(name, len, write))) return NULL;
+
+	if (!tqueue_insert(list, i)) {
+		evcpe_param_info_free(i);
+		return NULL;
 	}
-	if (len > sizeof(item->entity)) {
-		free(item); return EOVERFLOW;
+
+	return i;
+}
+
+evcpe_param_value* evcpe_param_value_new(const char* name,
+		unsigned name_len, const char* value, unsigned value_len,
+		evcpe_type_t type) {
+	evcpe_param_value* pv = NULL;
+
+	if (!name || !name_len) return NULL;
+	if (name_len > sizeof(pv->name)) return NULL;
+
+	pv = (evcpe_param_value*)calloc(1, sizeof(*pv));
+	if (!pv) return NULL;
+	strncpy(pv->name, name, name_len);
+	pv->data = value;
+	pv->len = value_len;
+	pv->type = type;
+
+	return pv;
+}
+
+void evcpe_param_value_free(evcpe_param_value* pv) {
+	if (pv) free(pv);
+}
+
+evcpe_param_attr* evcpe_param_attr_new(const char* name, unsigned len,
+		evcpe_notification_t notification) {
+	evcpe_param_attr* pa = NULL;
+	if (!name || !len) return NULL;
+	if (len >= sizeof(pa->name)) return NULL;
+
+	pa = (evcpe_param_attr*) calloc(1, sizeof(*pa));
+	if (!pa) return NULL;
+
+	strncpy(pa->name, name, len);
+	pa->notification = notification;
+	pa->access_list = tqueue_new(NULL, free);
+
+	return pa;
+}
+
+void evcpe_param_attr_free(evcpe_param_attr* pa) {
+	if (pa) {
+		tqueue_free(pa->access_list);
+		free(pa);
 	}
-	strncpy(item->entity, entity, len);
-	TAILQ_INSERT_TAIL(&list->head, item, entry);
-	list->size ++;
-	return 0;
 }
 
+evcpe_set_param_attr* evcpe_set_param_attr_new(const char* name,
+		unsigned len) {
+	evcpe_set_param_attr* info = calloc(1, sizeof(*info));
+	if(!info) return NULL;
 
-int evcpe_method_list_add(struct evcpe_method_list *list,
-		struct evcpe_method **item, const char *name, unsigned len)
-{
-	struct evcpe_method *i = NULL;
-
-	if (!(i = calloc(1, sizeof(struct evcpe_method)))) {
-		ERROR("failed to calloc evcpe_method_list_item");
-		return ENOMEM;
+	info->info = evcpe_param_attr_new(name, len, EVCPE_NOTIFICATION_UNKNOWN);
+	if (!info->info) {
+		free(info); return NULL;
 	}
-	strncpy(i->name, name, len);
-	TAILQ_INSERT_TAIL(&list->head, i, entry);
-	list->size ++;
-	if (item) *item = i;
-	return 0;
+	return info;
 }
 
-int evcpe_method_list_add_method(struct evcpe_method_list *list,
-		const char *method)
-{
-	return evcpe_method_list_add(list, NULL, method, strlen(method));
+void evcpe_set_param_attr_free(evcpe_set_param_attr* info) {
+	if (!info) return;
+	if (info->info) evcpe_param_attr_free(info->info);
+	free(info);
 }
-
-int evcpe_set_param_attr_list_add(struct evcpe_set_param_attr_list *list,
-		struct evcpe_set_param_attr **attr, const char *name, unsigned len)
-{
-	struct evcpe_set_param_attr *a = NULL;
-	if (!name || !len) return EINVAL;
-
-	if (!(a = calloc(1, sizeof(struct evcpe_set_param_attr))))
-		return ENOMEM;
-	strncpy(a->name, name, len);
-	evcpe_access_list_init(&a->access_list);
-	TAILQ_INSERT_TAIL(&list->head, a, entry);
-	list->size ++;
-
-	if (attr) *attr = a;
-	return 0;
-}
-
-int evcpe_set_param_value_list_add(struct evcpe_set_param_value_list *list,
-		struct evcpe_set_param_value **value, const char *name, unsigned len)
-{
-	struct evcpe_set_param_value *v = NULL;
-
-	if (!name || !len) return EINVAL;
-
-	if (!(v = calloc(1, sizeof(struct evcpe_set_param_value))))
-		return ENOMEM;
-	strncpy(v->name, name, len);
-	TAILQ_INSERT_TAIL(&list->head, v, entry);
-	list->size ++;
-	if (value) *value = v;
-	return 0;
-}
-
-int evcpe_set_param_value_set(struct evcpe_set_param_value *param,
-		const char *data, unsigned len)
-{
-	if (!param || !data) return EINVAL;
-
-	DEBUG("setting value: %s => %.*s", param->name, len, data);
-	param->data = data;
-	param->len = len;
-	return 0;
-}
-
-int evcpe_param_attr_list_add(struct evcpe_param_attr_list *list,
-		struct evcpe_param_attr **attr, const char *name, unsigned len)
-{
-	struct evcpe_param_attr *a = NULL;
-	if (!name || !len) return EINVAL;
-
-	DEBUG("adding param attr: %.*s", len, name);
-
-	if (!(a = calloc(1, sizeof(struct evcpe_param_attr))))
-		return ENOMEM;
-	evcpe_access_list_init(&a->access_list);
-	strncpy(a->name, name, len);
-	TAILQ_INSERT_TAIL(&list->head, a, entry);
-	list->size ++;
-
-	if (attr) *attr = a;
-	return 0;
-}
-

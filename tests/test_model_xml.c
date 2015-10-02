@@ -26,7 +26,7 @@
 #include "test_suite.h"
 
 static struct evbuffer *buffer;
-static struct evcpe_class *cls;
+static evcpe_class *cls;
 
 static void test_setup(void)
 {

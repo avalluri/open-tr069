@@ -41,12 +41,12 @@ static int evcpe_class_xml_attr_cb(void *data,
 		const char *name, unsigned name_len,
 		const char *value, unsigned value_len);
 
-int evcpe_class_from_xml(struct evcpe_class *class, struct evbuffer *buffer)
+int evcpe_class_from_xml(evcpe_class *class, struct evbuffer *buffer)
 {
 	int rc;
-	struct evcpe_class_parser parser;
-	struct evcpe_attr_schema root;
-	struct evcpe_xml_element *elm;
+	evcpe_class_parser parser;
+	evcpe_attr_schema root;
+	evcpe_xml_element *elm;
 
 	DEBUG("unmarshalling class from XML");
 
@@ -83,15 +83,15 @@ int evcpe_class_xml_elm_begin_cb(void *data,
 		const char *ns, unsigned nslen, const char *name, unsigned len)
 {
 	int rc, extension;
-	struct evcpe_class_parser *parser = data;
-	struct evcpe_xml_element *parent, *elm;
-	struct evcpe_attr_schema *schema, *parent_schema;
+	evcpe_class_parser *parser = data;
+	evcpe_xml_element *parent, *elm;
+	evcpe_attr_schema *schema, *parent_schema;
 
 	TRACE("element begin: %.*s (namespace: %.*s)", len, name, nslen, ns);
 
 	parent = evcpe_xml_stack_peek(&parser->stack);
 
-	if (!(elm = calloc(1, sizeof(struct evcpe_xml_element)))) {
+	if (!(elm = calloc(1, sizeof(evcpe_xml_element)))) {
 		ERROR("failed to calloc evcpe_soap_element");
 		return ENOMEM;
 	}
@@ -146,9 +146,9 @@ int evcpe_class_xml_elm_end_cb(void *data,
 		const char *ns, unsigned nslen, const char *name, unsigned len)
 {
 	int rc = 0;
-	struct evcpe_class_parser *parser = data;
-	struct evcpe_xml_element *elm;
-	struct evcpe_attr_schema *schema;
+	evcpe_class_parser *parser = data;
+	evcpe_xml_element *elm;
+	evcpe_attr_schema *schema;
 
 	if (!(elm = evcpe_xml_stack_pop(&parser->stack))) return -1;
 
@@ -210,9 +210,9 @@ int evcpe_class_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 {
 	int rc = 0;
 	long val = 0;
-	struct evcpe_class_parser *parser = data;
-	struct evcpe_xml_element *elm = NULL;
-	struct evcpe_attr_schema *schema = NULL;
+	evcpe_class_parser *parser = data;
+	evcpe_xml_element *elm = NULL;
+	evcpe_attr_schema *schema = NULL;
 	const char *error = NULL;
 	int getter = 0;
 
@@ -227,7 +227,7 @@ int evcpe_class_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 	}
 
 	if (!evcpe_strncmp("type", name, name_len)) {
-		enum evcpe_type type = evcpe_type_from_str(value, value_len);
+		evcpe_type_t type = evcpe_type_from_str(value, value_len);
 		if (type == EVCPE_TYPE_UNKNOWN) {
 			ERROR("unexpected type: %.*s", value_len, value);
 			return EPROTO;

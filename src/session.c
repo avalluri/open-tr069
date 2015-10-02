@@ -26,14 +26,13 @@
 
 #include <evhttp.h>
 
+#include "evcpe-config.h"
 #include "log.h"
 #include "util.h"
 #include "msg.h"
 #include "method.h"
 
 #include "session.h"
-
-#define PRINTLOC printf("%s(%d)\n", __func__, __LINE__)
 
 static
 void evcpe_session_http_cb(struct evhttp_request *http_req, void *arg);
@@ -46,11 +45,12 @@ void evcpe_session_http_close_cb(struct evhttp_connection *conn, void *arg)
 }
 
 static
-int evcpe_session_handle_incoming(struct evcpe_session *session,
+int evcpe_session_handle_incoming(evcpe_session *session,
 		struct evbuffer *buffer)
 {
 	int rc;
-	struct evcpe_msg *msg, *req;
+	evcpe_msg *msg, *req;
+	tqueue_element* node = NULL;
 
 	if (!(msg = evcpe_msg_new())) {
 		ERROR("failed to create evcpe_msg");
@@ -65,17 +65,18 @@ int evcpe_session_handle_incoming(struct evcpe_session *session,
 
 	switch (msg->type) {
 	case EVCPE_MSG_REQUEST:
-		TAILQ_INSERT_TAIL(&session->req_in, msg, entry);
+		tqueue_insert(session->req_in, msg);
 		(*session->cb)(session, msg->type, msg->method_type,
 				msg->data, NULL, session->cbarg);
 		break;
 	case EVCPE_MSG_RESPONSE:
 	case EVCPE_MSG_FAULT:
-		if (!(req = TAILQ_FIRST(&session->req_out))) {
+		if (!(node = tqueue_first(session->req_out))) {
 			ERROR("no pending CPE request");
 			rc = EPROTO;
 			goto finally;
 		}
+		req = (evcpe_msg*)node->data;
 		if (msg->type == EVCPE_MSG_RESPONSE
 				&& msg->method_type != req->method_type) {
 			ERROR("method of request/response doesn't match: "
@@ -85,8 +86,7 @@ int evcpe_session_handle_incoming(struct evcpe_session *session,
 		}
 		(*session->cb)(session, msg->type, msg->method_type,
 				req, msg->data, session->cbarg);
-		TAILQ_REMOVE(&session->req_out, req, entry);
-		evcpe_msg_free(req);
+		tqueue_remove(session->req_out, node);
 		evcpe_msg_free(msg);
 		break;
 	default:
@@ -109,12 +109,12 @@ int evcpe_session_add_header(struct evkeyvalq *keyvalq,
 }
 
 static
-int evcpe_session_send_do(struct evcpe_session *session, struct evcpe_msg *msg)
+int evcpe_session_send_do(evcpe_session *session, evcpe_msg *msg)
 {
 	int rc, len;
 	char buffer[513];
 	struct evhttp_request *req;
-	struct evcpe_cookie *cookie;
+	evcpe_cookie *cookie;
 
 	if (msg)
 		INFO("sending CWMP %s message in HTTP request",
@@ -128,8 +128,7 @@ int evcpe_session_send_do(struct evcpe_session *session, struct evcpe_msg *msg)
 		rc = ENOMEM;
 		goto finally;
 	}
-	if (msg && msg->data && (rc = evcpe_msg_to_xml(msg,
-			req->output_buffer))) {
+	if (msg && msg->data && (rc = evcpe_msg_to_xml(msg, req->output_buffer))) {
 		ERROR("failed to create SOAP message");
 		evhttp_request_free(req);
 		goto finally;
@@ -138,15 +137,14 @@ int evcpe_session_send_do(struct evcpe_session *session, struct evcpe_msg *msg)
 	req->minor = 1;
 	snprintf(buffer, sizeof(buffer), "%s:%d",
 			session->acs->host, session->acs->port);
-	if ((rc = evcpe_session_add_header(req->output_headers,
-			"Host", buffer))) {
+	if ((rc = evcpe_session_add_header(req->output_headers, "Host", buffer))) {
 		ERROR("failed to add header: Host=\"%s\"", buffer);
 		evhttp_request_free(req);
 		goto finally;
 	}
 	if (!RB_EMPTY(&session->cookies)) {
 		len = 0;
-		RB_FOREACH(cookie, evcpe_cookies, &session->cookies) {
+		RB_FOREACH(cookie, _evcpe_cookies, &session->cookies) {
 			len += snprintf(buffer + len, sizeof(buffer) - len, "%s=%s; ",
 					cookie->name, cookie->value);
 		}
@@ -167,8 +165,7 @@ int evcpe_session_send_do(struct evcpe_session *session, struct evcpe_msg *msg)
 	}
 	if ((rc = evcpe_session_add_header(req->output_headers,
 			"User-Agent", "evcpe-"EVCPE_VERSION))) {
-		ERROR("failed to add header: "
-				"User-Agent=\"evcpe-"EVCPE_VERSION"\"");
+		ERROR("failed to add header: User-Agent=\"evcpe-"EVCPE_VERSION"\"");
 		evhttp_request_free(req);
 		goto finally;
 	}
@@ -203,8 +200,9 @@ void evcpe_session_http_cb(struct evhttp_request *http_req, void *arg)
 {
 	int rc;
 	const char *cookies;
-	struct evcpe_msg *msg;
-	struct evcpe_session *session = arg;
+	evcpe_msg *msg;
+	evcpe_session *session = arg;
+	tqueue_element* node = NULL;
 
 	if (0 == http_req->response_code) {
 		INFO("session timed out");
@@ -229,25 +227,26 @@ void evcpe_session_http_cb(struct evhttp_request *http_req, void *arg)
 		ERROR("failed to handle incoming data");
 		goto close;
 	}
-	if ((msg = TAILQ_FIRST(&session->res_pending))) {
+	if ((node = tqueue_first(session->res_pending))) {
+		msg = (evcpe_msg*)node->data;
 		if ((rc = evcpe_session_send_do(session, msg))) {
 			ERROR("failed to response ACS request");
 			goto close;
 		}
-		TAILQ_REMOVE(&session->res_pending, msg, entry);
-		evcpe_msg_free(msg);
+		tqueue_remove(session->res_pending, node);
 	} else if (session->hold_requests) {
 		if ((rc = evcpe_session_send_do(session, NULL))) {
 			ERROR("failed to send empty HTTP request");
 			goto close;
 		}
-	} else if ((msg = TAILQ_FIRST(&session->req_pending))) {
+	} else if ((node = tqueue_first(session->req_pending))) {
+		msg = (evcpe_msg*)node->data;
 		if ((rc = evcpe_session_send_do(session, msg))) {
 			ERROR("failed to send CPE request");
 			goto close;
 		}
-		TAILQ_REMOVE(&session->req_pending, msg, entry);
-		TAILQ_INSERT_TAIL(&session->req_out, msg, entry);
+		tqueue_remove(session->req_pending, node);
+		tqueue_insert(session->req_out, msg);
 	} else if (!evbuffer_get_length(http_req->input_buffer)) {
 		INFO("session termination criteria are met");
 		goto close;
@@ -263,22 +262,22 @@ close:
 	evcpe_session_close(session, rc);
 }
 
-struct evcpe_session *evcpe_session_new(struct evhttp_connection *conn,
-		struct evcpe_url *acs, evcpe_session_cb cb, void *cbarg)
+evcpe_session *evcpe_session_new(struct evhttp_connection *conn,
+		evcpe_url *acs, evcpe_session_cb_t cb, void *cbarg)
 {
-	struct evcpe_session *session;
+	evcpe_session *session;
 
 	DEBUG("constructing evcpe_session");
 
-	if (!(session = calloc(1, sizeof(struct evcpe_session)))) {
+	if (!(session = calloc(1, sizeof(evcpe_session)))) {
 		ERROR("failed to calloc evcpe_session");
 		return NULL;
 	}
 	RB_INIT(&session->cookies);
-	TAILQ_INIT(&session->req_in);
-	TAILQ_INIT(&session->req_out);
-	TAILQ_INIT(&session->req_pending);
-	TAILQ_INIT(&session->res_pending);
+	session->req_in = tqueue_new(NULL, (tqueue_free_func_t)evcpe_msg_free);
+	session->req_out = tqueue_new(NULL, (tqueue_free_func_t)evcpe_msg_free);
+	session->req_pending = tqueue_new(NULL, (tqueue_free_func_t)evcpe_msg_free);
+	session->res_pending = tqueue_new(NULL, (tqueue_free_func_t)evcpe_msg_free);
 	session->conn = conn;
 	session->acs = acs;
 	session->cb = cb;
@@ -287,7 +286,7 @@ struct evcpe_session *evcpe_session_new(struct evhttp_connection *conn,
 	return session;
 }
 
-void evcpe_session_close(struct evcpe_session *session, int code)
+void evcpe_session_close(evcpe_session *session, int code)
 {
 	INFO("closing CWMP session");
 	evhttp_connection_set_closecb(session->conn, NULL, NULL);
@@ -295,76 +294,81 @@ void evcpe_session_close(struct evcpe_session *session, int code)
 		(*session->close_cb)(session, code, session->close_cbarg);
 }
 
-void evcpe_session_free(struct evcpe_session *session)
+void evcpe_session_free(evcpe_session *session)
 {
 	if (!session) return;
 
 	DEBUG("destructing evcpe_session");
 
 	evcpe_cookies_clear(&session->cookies);
-	evcpe_msg_queue_clear(&session->req_in);
-	evcpe_msg_queue_clear(&session->req_out);
-	evcpe_msg_queue_clear(&session->req_pending);
-	evcpe_msg_queue_clear(&session->res_pending);
+	tqueue_free(session->req_in);
+	tqueue_free(session->req_out);
+	tqueue_free(session->req_pending);
+	tqueue_free(session->res_pending);
 	if (session->conn) {
 		evhttp_connection_set_closecb(session->conn, NULL, NULL);
 	}
 	free(session);
 }
 
-void evcpe_session_set_close_cb(struct evcpe_session *session,
-		evcpe_session_close_cb close_cb, void *cbarg)
+void evcpe_session_set_close_cb(evcpe_session *session,
+		evcpe_session_close_cb_t close_cb, void *cbarg)
 {
 	session->close_cb = close_cb;
 	session->close_cbarg = cbarg;
 }
 
-int evcpe_session_start(struct evcpe_session *session)
+int evcpe_session_start(evcpe_session *session)
 {
-	int rc;
-	struct evcpe_msg *req;
+	int rc = 0;
+	evcpe_msg *req;
+	tqueue_element* node = NULL;
 
-	if (!(req = TAILQ_FIRST(&session->req_pending))) {
+	if (!(node = tqueue_first(session->req_pending))) {
 		ERROR("no pending CPE request");
 		rc = EINVAL;
 		goto finally;
 	}
+	req = (evcpe_msg*)node->data;
 	if (req->method_type != EVCPE_INFORM) {
 		ERROR("first CPE request must be an inform");
 		rc = EINVAL;
 		goto finally;
 	}
-	req = TAILQ_FIRST(&session->req_pending);
+	//req = TAILQ_FIRST(&session->req_pending);
 	if ((rc = evcpe_session_send_do(session, req))) {
 		ERROR("failed to send first request");
 		goto finally;
 	}
-	TAILQ_REMOVE(&session->req_pending, req, entry);
-	TAILQ_INSERT_TAIL(&session->req_out, req, entry);
-	rc = 0;
+	node->data = NULL;
+	tqueue_remove(session->req_pending, node);
+	tqueue_insert(session->req_out, req);
 
 finally:
 	return rc;
 }
 
-int evcpe_session_send(struct evcpe_session *session, struct evcpe_msg *msg)
+int evcpe_session_send(evcpe_session *session, evcpe_msg *msg)
 {
-	int rc;
-	struct evcpe_msg *req;
+	int rc = 0;
+	evcpe_msg *req = NULL;
+	tqueue_element* node = NULL;
 
 	if (!session || !msg) return EINVAL;
 
 	switch (msg->type) {
 	case EVCPE_MSG_REQUEST:
-		TAILQ_INSERT_TAIL(&session->req_pending, msg, entry);
+		tqueue_insert(session->req_pending, msg);
 		break;
 	case EVCPE_MSG_RESPONSE:
 	case EVCPE_MSG_FAULT:
-		if (!(req = TAILQ_FIRST(&session->req_in))) {
+		if (!(node = tqueue_first(session->req_in))) {
 			ERROR("no pending ACS request");
 			rc = -1;
 			goto finally;
-		} else if (req->method_type != msg->method_type) {
+		}
+		req = (evcpe_msg*)node->data;
+		if (req->method_type != msg->method_type) {
 			ERROR("method type mismatch: %s != %s",
 					evcpe_method_type_to_str(req->method_type),
 					evcpe_method_type_to_str(msg->method_type));
@@ -376,9 +380,8 @@ int evcpe_session_send(struct evcpe_session *session, struct evcpe_msg *msg)
 			rc = ENOMEM;
 			goto finally;
 		}
-		TAILQ_INSERT_TAIL(&session->res_pending, msg, entry);
-		TAILQ_REMOVE(&session->req_in, req, entry);
-		evcpe_msg_free(req);
+		tqueue_insert(session->res_pending, msg);
+		tqueue_remove(session->req_in, node);
 		break;
 	default:
 		ERROR("unexpected message type: %d", msg->type);

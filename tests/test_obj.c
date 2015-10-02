@@ -24,8 +24,8 @@
 
 #include "obj.h"
 
-static struct evcpe_class *cls;
-static struct evcpe_obj *obj;
+static evcpe_class *cls;
+static evcpe_obj *obj;
 
 static void test_setup(void)
 {
@@ -46,8 +46,8 @@ static void test_simple(void)
 {
 	const char *value;
 	unsigned int len;
-	struct evcpe_attr_schema *schema;
-	struct evcpe_attr *attr;
+	evcpe_attr_schema *schema;
+	evcpe_attr *attr;
 
 	TEST_ASSERT_EQUAL_INT(0, evcpe_class_add_new_schema(cls, &schema));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_attr_schema_set_name(schema, "foo", strlen("foo")));
@@ -76,9 +76,9 @@ static void test_simple(void)
 
 static void test_obj(void)
 {
-	struct evcpe_obj *child;
-	struct evcpe_attr_schema *schema;
-	struct evcpe_attr *attr;
+	evcpe_obj *child;
+	evcpe_attr_schema *schema;
+	evcpe_attr *attr;
 	const char *value;
 	unsigned int len;
 
@@ -102,9 +102,9 @@ static void test_obj(void)
 
 static void test_multiple(void)
 {
-	struct evcpe_obj *child1, *child2;
-	struct evcpe_attr_schema *schema;
-	struct evcpe_attr *attr;
+	evcpe_obj *child1, *child2;
+	evcpe_attr_schema *schema;
+	evcpe_attr *attr;
 	const char *value;
 	unsigned int index, len;
 

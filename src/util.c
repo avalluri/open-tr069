@@ -123,20 +123,21 @@ char *evcpe_ltoa(long value)
 	return strdup(buffer);
 }
 
-int evcpe_strdup(const char *string, unsigned len, char **ptr)
+char* evcpe_strdup(const char *string, unsigned len)
 {
-	if (!(*ptr = malloc(len + 1))) {
-//		ERROR("failed to malloc: %d", len + 1);
-		return ENOMEM;
+	char *ptr = NULL;
+	if (!(ptr = malloc(len + 1))) {
+		return NULL;
 	}
-	memcpy(*ptr, string, len);
-	(*ptr)[len] = '\0';
-	return 0;
+	memcpy(ptr, string, len);
+	ptr[len] = '\0';
+
+	return ptr;
 }
 
 
 int evcpe_str_split(const char *string, unsigned len, char delim,
-		evcpe_str_split_cb cb, void *cb_data)
+		evcpe_str_split_cb_t cb, void *cb_data)
 {
 	int rc = 0;
 	const char *start = NULL, *end = NULL;

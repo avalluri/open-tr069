@@ -42,7 +42,7 @@ static int evcpe_obj_xml_attr_cb(void *data,
 		const char *name, unsigned name_len,
 		const char *value, unsigned value_len);
 
-int evcpe_obj_to_xml(struct evcpe_obj *obj, struct evbuffer *buffer)
+int evcpe_obj_to_xml(evcpe_obj *obj, struct evbuffer *buffer)
 {
 	int rc;
 
@@ -60,11 +60,11 @@ finally:
 	return rc;
 }
 
-int evcpe_obj_from_xml(struct evcpe_obj *obj, struct evbuffer *buffer)
+int evcpe_obj_from_xml(evcpe_obj *obj, struct evbuffer *buffer)
 {
 	int rc;
-	struct evcpe_obj_parser parser;
-	struct evcpe_xml_element *elm;
+	evcpe_obj_parser parser;
+	evcpe_xml_element *elm;
 
 	DEBUG("unmarshalling object from XML");
 
@@ -93,10 +93,10 @@ int evcpe_obj_xml_elm_begin_cb(void *data, const char *ns, unsigned nslen,
 		const char *name, unsigned len)
 {
 	int rc = 0;
-	struct evcpe_obj_parser *parser = data;
-	struct evcpe_xml_element *parent = NULL, *elm = NULL;
-	struct evcpe_obj *parent_obj = NULL, *obj = NULL;
-	struct evcpe_attr *attr = NULL;
+	evcpe_obj_parser *parser = data;
+	evcpe_xml_element *parent = NULL, *elm = NULL;
+	evcpe_obj *parent_obj = NULL, *obj = NULL;
+	evcpe_attr *attr = NULL;
 	unsigned int index;
 
 	TRACE("element begin: %.*s (namespace: %.*s)", len, name, nslen, ns);
@@ -108,7 +108,7 @@ int evcpe_obj_xml_elm_begin_cb(void *data, const char *ns, unsigned nslen,
 
 	parent = evcpe_xml_stack_peek(&parser->stack);
 
-	if (!(elm = calloc(1, sizeof(struct evcpe_xml_element)))) {
+	if (!(elm = calloc(1, sizeof(evcpe_xml_element)))) {
 		ERROR("failed to calloc evcpe_soap_element");
 		return ENOMEM;
 	}
@@ -149,12 +149,15 @@ int evcpe_obj_xml_elm_end_cb(void *data,
 		const char *ns, unsigned nslen, const char *name, unsigned len)
 {
 	int rc = 0;
-	struct evcpe_obj_parser *parser = data;
-	struct evcpe_xml_element *elm;
-
-	if (!(elm = evcpe_xml_stack_pop(&parser->stack))) return -1;
+	evcpe_obj_parser *parser = data;
+	evcpe_xml_element *elm;
 
 	TRACE("element end: %.*s (namespace: %.*s)", len, name, nslen, ns);
+
+	if (!(elm = evcpe_xml_stack_pop(&parser->stack))) {
+		ERROR("No element found in the stack");
+		return -1;
+	}
 
 	if ((nslen && evcpe_strcmp(elm->ns, elm->nslen, ns, nslen)) ||
 			evcpe_strcmp(elm->name, elm->len, name, len)) {
@@ -171,10 +174,10 @@ finally:
 int evcpe_obj_xml_data_cb(void *data, const char *text, unsigned len)
 {
 	int rc = 0;
-	struct evcpe_obj_parser *parser = data;
-	struct evcpe_xml_element *elm = NULL;
-	struct evcpe_obj *obj = NULL;
-	struct evcpe_attr *attr = NULL;
+	evcpe_obj_parser *parser = data;
+	evcpe_xml_element *elm = NULL;
+	evcpe_obj *obj = NULL;
+	evcpe_attr *attr = NULL;
 	struct evcpe_access *item = NULL;
 
 	if (!len) return 0;
@@ -212,12 +215,16 @@ int evcpe_obj_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 		const char *value, unsigned value_len)
 {
 	int rc = 0;
-	struct evcpe_xml_element *elm = NULL;
-	struct evcpe_obj *obj = NULL;
-	struct evcpe_obj_parser *parser = data;
+	evcpe_xml_element *elm = NULL;
+	evcpe_obj *obj = NULL;
+	evcpe_obj_parser *parser = data;
 
 	TRACE("attribute %.*s=%.*s", name_len, name, value_len, value);
-	if (!name_len || value_len) return -1;
+	if (!name_len || !value_len) {
+		ERROR("Empty name(%.*s) or value(%.*s)", name_len, name, value_len,
+				value);
+		return -1;
+	}
 
 	if (!(elm = evcpe_xml_stack_peek(&parser->stack))) {
 		ERROR("Stack is empty");
@@ -227,7 +234,7 @@ int evcpe_obj_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 	obj = elm->data;
 	if (!evcpe_strncmp("notification", name, name_len)) {
 		long n = 0;
-		struct evcpe_attr *attr = NULL;
+		evcpe_attr *attr = NULL;
 
 		if ((rc = evcpe_atol(value, value_len, &n))) {
 			ERROR("failed to convert to integer: %.*s", value_len, value);
@@ -241,8 +248,8 @@ int evcpe_obj_xml_attr_cb(void *data, const char *ns, unsigned nslen,
 			ERROR("failed to set notification: %ld", n);
 			return rc;
 		}
-	} else if (!evcpe_strncmp("accesslist", name, name_len)) {
-		struct evcpe_attr *attr = NULL;
+	} else if (!evcpe_strncmp("access-list", name, name_len)) {
+		evcpe_attr *attr = NULL;
 
 		if ((rc = evcpe_obj_get(obj, elm->name, elm->len, &attr))) {
 			ERROR("failed to get attribute: %.*s",elm->len, elm->name);

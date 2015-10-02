@@ -25,7 +25,7 @@
 
 #include "constraint.h"
 
-enum evcpe_type {
+typedef enum _evcpe_type {
 	EVCPE_TYPE_OBJECT,
 	EVCPE_TYPE_MULTIPLE,
 	EVCPE_TYPE_STRING,
@@ -53,16 +53,13 @@ enum evcpe_type {
 	EVCPE_TYPE_UUID,                      // string(36:36)
 	EVCPE_TYPE_ZIG_BEE_NETWORK_ADDRESS,   // string(4)
 	EVCPE_TYPE_UNKNOWN
-};
+} evcpe_type_t;
 
-const char *evcpe_type_to_str(enum evcpe_type type);
+const char *evcpe_type_to_str(evcpe_type_t type);
 
-enum evcpe_type evcpe_type_from_str(const char *type_string, unsigned len);
+evcpe_type_t evcpe_type_from_str(const char *type_string, unsigned len);
 
-int evcpe_type_validate(
-		enum evcpe_type type,
-		const char *value, unsigned len,
-		struct evcpe_constraint *cons,
-		const char *pattern);
+int evcpe_type_validate(evcpe_type_t type, const char *value, unsigned len,
+		evcpe_constraint *cons, const char *pattern);
 
 #endif /* EVCPE_TYPE_H_ */

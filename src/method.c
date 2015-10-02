@@ -20,54 +20,52 @@
 
 #include "method.h"
 
-const char *evcpe_method_type_to_str(enum evcpe_method_type type)
+const char *methods[] = {
+		[EVCPE_GET_RPC_METHODS] = "GetRPCMethods",
+		[EVCPE_SET_PARAMETER_VALUES] = "SetParameterValues",
+		[EVCPE_GET_PARAMETER_VALUES] = "GetParameterValues",
+		[EVCPE_GET_PARAMETER_NAMES] = "GetParameterNames",
+		[EVCPE_SET_PARAMETER_ATTRIBUTES] = "SetParameterAttributes",
+		[EVCPE_GET_PARAMETER_ATTRIBUTES] = "GetParameterAttributes",
+		[EVCPE_ADD_OBJECT] = "AddObject",
+		[EVCPE_DELETE_OBJECT] = "DeleteObject",
+		[EVCPE_REBOOT] = "Reboot",
+		[EVCPE_DOWNLOAD] = "Download",
+		[EVCPE_UPLOAD] = "Upload",
+		[EVCPE_FACTORY_RESET] = "FactoryReset",
+		[EVCPE_GET_QUEUED_TRANSFERS] = "GetQueuedTransfers",
+		[EVCPE_GET_ALL_QUEUED_TRANSFERS] = "GetAllQueuedTransfers",
+		[EVCPE_SCHEDULE_INFORM] = "ScheduleInform",
+		[EVCPE_SET_VOUCHERS] = "SetVouchers",
+		[EVCPE_GET_OPTIONS] = "GetOptions",
+		[EVCPE_INFORM] = "Inform",
+		[EVCPE_TRANSFER_COMPLETE] = "TransferComplete",
+		[EVCPE_AUTONOMOUS_TRANSFER_COMPLETE] = "AutonomousTransferComplete",
+		[EVCPE_REQUEST_DOWNLOAD] = "RequestDownload",
+		[EVCPE_KICKED] = "Kicked",
+		[EVCPE_UNKNOWN_METHOD] = "Unknown"
+};
+
+const char* evcpe_method_type_to_str(evcpe_method_type_t type)
 {
-	switch(type) {
-	case EVCPE_GET_RPC_METHODS:
-		return "GetRPCMethods";
-	case EVCPE_SET_PARAMETER_VALUES:
-		return "SetParameterValues";
-	case EVCPE_GET_PARAMETER_VALUES:
-		return "GetParameterValues";
-	case EVCPE_GET_PARAMETER_NAMES:
-		return "GetParameterNames";
-	case EVCPE_SET_PARAMETER_ATTRIBUTES:
-		return "SetParameterAttributes";
-	case EVCPE_GET_PARAMETER_ATTRIBUTES:
-		return "GetParameterAttributes";
-	case EVCPE_ADD_OBJECT:
-		return "AddObject";
-	case EVCPE_DELETE_OBJECT:
-		return "DeleteObject";
-	case EVCPE_REBOOT:
-		return "Reboot";
-	case EVCPE_DOWNLOAD:
-		return "Download";
-	case EVCPE_UPLOAD:
-		return "Upload";
-	case EVCPE_FACTORY_RESET:
-		return "FactoryReset";
-	case EVCPE_GET_QUEUED_TRANSFERS:
-		return "GetQueuedTransfers";
-	case EVCPE_GET_ALL_QUEUED_TRANSFERS:
-		return "GetAllQueuedTransfers";
-	case EVCPE_SCHEDULE_INFORM:
-		return "ScheduleInform";
-	case EVCPE_SET_VOUCHERS:
-		return "SetVouchers";
-	case EVCPE_GET_OPTIONS:
-		return "GetOptions";
-	case EVCPE_INFORM:
-		return "Inform";
-	case EVCPE_TRANSFER_COMPLETE:
-		return "TransferComplete";
-	case EVCPE_AUTONOMOUS_TRANSFER_COMPLETE:
-		return "AutonomousTransferComplete";
-	case EVCPE_REQUEST_DOWNLOAD:
-		return "RequestDownload";
-	case EVCPE_KICKED:
-		return "Kicked";
-	default:
-		return "unknown";
-	}
+	if (type < 0 || type >= EVCPE_UNKNOWN_METHOD) return "Unknown";
+
+	return methods[type];
+}
+
+
+evcpe_method_type_t evcpe_method_type_from_str(const char *method,
+		unsigned len)
+{
+  int i = 0;
+
+  if (!method || !len) return EVCPE_UNKNOWN_METHOD;
+
+  for(i = 0; i < EVCPE_UNKNOWN_METHOD; i++) {
+		if (!evcpe_strncmp(methods[i], method, len)) {
+      return (evcpe_method_type_t)i;
+    }
+  }
+
+  return EVCPE_TYPE_UNKNOWN;
 }

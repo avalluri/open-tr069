@@ -22,26 +22,25 @@
 #define EVCPE_GET_RPC_METHODS_H_
 
 #include "data.h"
+#include "method.h"
 
-struct evcpe_get_rpc_methods {
-};
+typedef struct _evcpe_get_rpc_methods {
+} evcpe_get_rpc_methods;
 
-struct evcpe_get_rpc_methods *evcpe_get_rpc_methods_new(void);
+evcpe_get_rpc_methods *evcpe_get_rpc_methods_new(void);
 
-void evcpe_get_rpc_methods_free(struct evcpe_get_rpc_methods *method);
+void evcpe_get_rpc_methods_free(evcpe_get_rpc_methods *method);
 
-struct evcpe_get_rpc_methods_response {
-	struct evcpe_method_list method_list;
-};
+typedef struct _evcpe_get_rpc_methods_response {
+	tqueue *method_list;
+} evcpe_get_rpc_methods_response;
 
-struct evcpe_get_rpc_methods_response *evcpe_get_rpc_methods_response_new(void);
+evcpe_get_rpc_methods_response *evcpe_get_rpc_methods_response_new(void);
 
-void evcpe_get_rpc_methods_response_free(
-		struct evcpe_get_rpc_methods_response *resp);
+void evcpe_get_rpc_methods_response_free(evcpe_get_rpc_methods_response *resp);
 
 int evcpe_get_rpc_methods_response_to_xml(
-		struct evcpe_get_rpc_methods_response *method,
-		struct evbuffer *buffer);
+		evcpe_get_rpc_methods_response *method, struct evbuffer *buffer);
 
 
 #endif /* EVCPE_GET_RPC_METHODS_H_ */

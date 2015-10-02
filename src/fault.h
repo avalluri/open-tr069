@@ -23,7 +23,7 @@
 
 #include <event.h>
 
-enum evcpe_fault_code {
+typedef enum _evcpe_fault_code {
 	EVCEP_FAULT_CODE_NONE = 0,
 	EVCPE_ACS_FAULT_MIN = 8000,
 	EVCPE_ACS_METHOD_NOT_SUPPORTED = 8000,
@@ -69,18 +69,18 @@ enum evcpe_fault_code {
 	EVCPE_CPE_INVALID_DU_UPDATE_NO_VERSION = 9031,
 	EVCPE_CPE_INVALID_DU_UPDATE_VERSION_EXISTS = 9032,
 	EVCPE_CPE_FAULT_MAX = 9899
-};
+} evcpe_fault_code_t;
 
-struct evcpe_fault {
-	enum evcpe_fault_code code;
+typedef struct _evcpe_fault {
+	evcpe_fault_code_t code;
 	char string[256];
 	void *detail;
-};
+} evcpe_fault;
 
-struct evcpe_fault *evcpe_fault_new(void);
+evcpe_fault *evcpe_fault_new(void);
 
-void evcpe_fault_free(struct evcpe_fault *fault);
+void evcpe_fault_free(evcpe_fault *fault);
 
-int evcpe_fault_to_xml(struct evcpe_fault *fault, struct evbuffer *buffer);
+int evcpe_fault_to_xml(evcpe_fault *fault, struct evbuffer *buffer);
 
 #endif /* EVCPE_FAULT_H_ */

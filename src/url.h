@@ -25,24 +25,24 @@
 #include <event.h>
 #include <stdio.h>
 
-struct evcpe_url {
+typedef struct _evcpe_url {
 	char *protocol;
 	char *username;
 	char *password;
 	char *host;
 	u_short port;
 	char *uri;
-};
+} evcpe_url;
 
 u_short evcpe_url_default_port(const char *protocol);
 
-struct evcpe_url *evcpe_url_new(void);
+evcpe_url *evcpe_url_new(void);
 
-void evcpe_url_free(struct evcpe_url *url);
+void evcpe_url_free(evcpe_url *url);
 
-void evcpe_url_reset(struct evcpe_url *url);
+void evcpe_url_reset(evcpe_url *url);
 
-int evcpe_url_from_str(struct evcpe_url *url, const char *str);
+int evcpe_url_from_str(evcpe_url *url, const char *str);
 
 void evcpe_print_buffer(FILE *file, const char *msg, struct evbuffer *buffer);
 

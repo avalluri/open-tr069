@@ -26,74 +26,74 @@
 #include "inform.h"
 #include "tqueue.h"
 
-struct evcpe_repo;
+typedef struct _evcpe_repo evcpe_repo;
 
-typedef void (*evcpe_repo_listen_cb)(struct evcpe_repo *repo,
+typedef void (*evcpe_repo_listen_cb_t)(evcpe_repo *repo,
 		enum evcpe_attr_event event, const char *param_name, void *cbarg);
 
-struct evcpe_repo_listener {
-	evcpe_repo_listen_cb cb;
+typedef struct _evcpe_repo_listener {
+	evcpe_repo_listen_cb_t cb;
 	void *cbarg;
+} evcpe_repo_listener;
+
+struct _evcpe_repo {
+	evcpe_obj* root;
+	tqueue* forced_inform_attrs;
+	tqueue* changed_atts;
+	tqueue* pending_events;
+	tqueue* listeners;
 };
 
-struct evcpe_repo {
-	struct evcpe_obj* root;
-	struct tqueue* forced_inform_attrs;
-	struct tqueue* changed_atts;
-	struct evcpe_event_list pending_events;
-	struct tqueue* listeners;
-};
+evcpe_repo *evcpe_repo_new(evcpe_obj *root);
 
-struct evcpe_repo *evcpe_repo_new(struct evcpe_obj *root);
+void evcpe_repo_free(evcpe_repo *repo);
 
-void evcpe_repo_free(struct evcpe_repo *repo);
+int evcpe_repo_init(evcpe_repo* repo);
 
-int evcpe_repo_init(struct evcpe_repo* repo);
+int evcpe_repo_listen(evcpe_repo *repo,
+		evcpe_repo_listen_cb_t cb, void *arg);
 
-int evcpe_repo_listen(struct evcpe_repo *repo,
-		evcpe_repo_listen_cb cb, void *arg);
+int evcpe_repo_unlisten(evcpe_repo *repo,
+		evcpe_repo_listen_cb_t cb);
 
-int evcpe_repo_unlisten(struct evcpe_repo *repo,
-		evcpe_repo_listen_cb cb);
+int evcpe_repo_get_obj(evcpe_repo *repo, const char *name,
+		evcpe_obj **obj);
 
-int evcpe_repo_get_obj(struct evcpe_repo *repo, const char *name,
-		struct evcpe_obj **obj);
-
-int evcpe_repo_get(struct evcpe_repo *repo, const char *name,
+int evcpe_repo_get(evcpe_repo *repo, const char *name,
 		const char **value, unsigned int *len);
 
-int evcpe_repo_set(struct evcpe_repo *repo, const char *name,
+int evcpe_repo_set(evcpe_repo *repo, const char *name,
 		const char *value, unsigned int len);
 
-int evcpe_repo_getcpy(struct evcpe_repo *repo, const char *name,
+int evcpe_repo_getcpy(evcpe_repo *repo, const char *name,
 		char *value, unsigned len);
 
-const char *evcpe_repo_find(struct evcpe_repo *repo, const char *name);
+const char *evcpe_repo_find(evcpe_repo *repo, const char *name);
 
-int evcpe_repo_add_obj(struct evcpe_repo *repo, const char *name,
+int evcpe_repo_add_obj(evcpe_repo *repo, const char *name,
 		unsigned int *index);
 
-int evcpe_repo_del_obj(struct evcpe_repo *repo, const char *name);
+int evcpe_repo_del_obj(evcpe_repo *repo, const char *name);
 
-int evcpe_repo_get_objs(struct evcpe_repo *repo, const char *name,
-		struct tqueue **list, unsigned int *size);
+int evcpe_repo_get_objs(evcpe_repo *repo, const char *name,
+		tqueue **list, unsigned int *size);
 
-int evcpe_repo_add_event(struct evcpe_repo *repo,
-		enum evcpe_event_code code, const char *command_key);
+int evcpe_repo_add_event(evcpe_repo *repo,
+		evcpe_event_code_t code, const char *command_key);
 
-int evcpe_repo_del_event(struct evcpe_repo *repo, enum evcpe_event_code code);
+int evcpe_repo_del_event(evcpe_repo *repo, evcpe_event_code_t code);
 
-int evcpe_repo_to_inform(struct evcpe_repo *repo, struct evcpe_inform *inform);
+int evcpe_repo_to_inform(evcpe_repo *repo, evcpe_inform *inform);
 
-int evcpe_repo_to_param_info_list(struct evcpe_repo *repo, const char *name,
-		struct evcpe_param_info_list *list, int next_level);
+int evcpe_repo_to_param_info_list(evcpe_repo *repo, const char *name,
+		tqueue *list, int next_level);
 
-int evcpe_repo_to_param_attr_list(struct evcpe_repo *repo, const char *name,
-		struct evcpe_param_attr_list *list);
+int evcpe_repo_to_param_attr_list(evcpe_repo *repo, const char *name,
+		tqueue *list);
 
-int evcpe_repo_to_param_value_list(struct evcpe_repo *repo, const char *name,
-		struct evcpe_param_value_list *list);
+int evcpe_repo_to_param_value_list(evcpe_repo *repo, const char *name,
+		tqueue *list);
 
-void evcpe_repo_clear_pending_events(struct evcpe_repo* repo);
+void evcpe_repo_clear_pending_events(evcpe_repo* repo);
 
 #endif /* EVCPE_REPO_H_ */

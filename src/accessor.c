@@ -25,7 +25,7 @@
 
 #include "accessor.h"
 
-int evcpe_get_curtime(struct evcpe_attr *attr,
+int evcpe_get_curtime(evcpe_attr *attr,
 		const char **value, unsigned int *len)
 {
 	char buf[32];
@@ -42,7 +42,7 @@ int evcpe_get_curtime(struct evcpe_attr *attr,
 	return 0;
 }
 
-int evcpe_set_curtime(struct evcpe_attr *attr,
+int evcpe_set_curtime(evcpe_attr *attr,
 		const char *buffer, unsigned int len)
 {
 	ERROR("not implemented");

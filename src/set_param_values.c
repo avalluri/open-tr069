@@ -24,46 +24,46 @@
 
 #include "set_param_values.h"
 
-struct evcpe_set_param_values *evcpe_set_param_values_new(void)
+evcpe_set_param_values *evcpe_set_param_values_new(void)
 {
-	struct evcpe_set_param_values *method;
+	evcpe_set_param_values *method;
 
-	if (!(method = calloc(1, sizeof(struct evcpe_set_param_values)))) {
+	if (!(method = calloc(1, sizeof(evcpe_set_param_values)))) {
 		ERROR("failed to calloc evcpe_set_param_values");
 		return NULL;
 	}
-	evcpe_set_param_value_list_init(&method->parameter_list);
+	method->parameter_list = evcpe_param_value_list_new();
 	return method;
 }
 
-void evcpe_set_param_values_free(struct evcpe_set_param_values *method)
+void evcpe_set_param_values_free(evcpe_set_param_values *method)
 {
 	if (!method) return;
 
-	evcpe_set_param_value_list_clear(&method->parameter_list);
+	tqueue_free(method->parameter_list);
+
 	free(method);
 }
 
-struct evcpe_set_param_values_response *evcpe_set_param_values_response_new(void)
+evcpe_set_param_values_response *evcpe_set_param_values_response_new(void)
 {
-	struct evcpe_set_param_values_response *method;
+	evcpe_set_param_values_response *response;
 
-	if (!(method = calloc(1, sizeof(struct evcpe_set_param_values_response)))) {
+	if (!(response = calloc(1, sizeof(evcpe_set_param_values_response)))) {
 		ERROR("failed to calloc evcpe_set_param_values_response");
 		return NULL;
 	}
-	return method;
+	return response;
 }
 
-void evcpe_set_param_values_response_free(struct evcpe_set_param_values_response *method)
+void evcpe_set_param_values_response_free(
+		evcpe_set_param_values_response *response)
 {
-	if (!method) return;
-
-	free(method);
+	if (response) free(response);
 }
 
 int evcpe_set_param_values_response_to_xml(
-		struct evcpe_set_param_values_response *method,
+		evcpe_set_param_values_response *method,
 		struct evbuffer *buffer)
 {
 	DEBUG("marshaling evcpe_set_param_values_response");

@@ -32,7 +32,7 @@ libevcpe_la_SOURCES = \
 	persister.c \
 	plugin.c plugin.h \
 	repo.c \
-	response.c xml_\
+	response.c \
 	session.c session.h \
 	set_param_attrs.c \
 	set_param_values.c \

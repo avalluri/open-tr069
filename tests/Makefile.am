@@ -1,3 +1,4 @@
+if ENABLE_TESTS
 noinst_PROGRAMS = test_suite
 
 test_suite_SOURCES = \
@@ -13,7 +14,8 @@ test_suite_SOURCES = \
 test_suite_CPPFLAGS = \
 	-I$(abs_top_srcdir)/embunit/ \
 	-I$(abs_top_srcdir)/src/ \
-	-I$(abs_top_srcdir)/src/compat/
+	-I$(abs_top_srcdir)/src/compat/\
+	-DTEST_DATA_DIR="\"$(abs_top_builddir)/data\""
 
 test_suite_LDFALGS = \
 	-L$(abs_top_builddir)/embunit/lib/
@@ -23,3 +25,4 @@ test_suite_LDADD = \
 	$(abs_top_builddir)/embunit/lib/libtextui.a \
 	$(abs_top_builddir)/src/libevcpe.la \
 	-ldl $(LIBEVENT_LIBS)
+endif

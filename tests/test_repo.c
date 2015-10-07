@@ -186,11 +186,11 @@ static void test_tr098(void)
 
 	int i;
 
-	test_load("testfiles/tr098_model.xml");
+	test_load(TEST_DATA_DIR"/tr098_model.xml");
 	TEST_ASSERT_EQUAL_INT(0, evcpe_class_from_xml(cls, buffer));
 	TEST_ASSERT_NOT_NULL((obj = evcpe_obj_new(cls, NULL)));
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_init(obj));
-	test_load("testfiles/tr098_data.xml");
+	test_load(TEST_DATA_DIR"/tr098_data.xml");
 	TEST_ASSERT_EQUAL_INT(0, evcpe_obj_from_xml(obj, buffer));
 	TEST_ASSERT_NOT_NULL((repo = evcpe_repo_new(obj)));
 

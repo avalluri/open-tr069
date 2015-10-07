@@ -59,7 +59,7 @@ static void test_load(const char *filename)
 
 static void test_tr098(void)
 {
-	test_load("testfiles/tr098_model.xml");
+	test_load(TEST_DATA_DIR"/tr098_model.xml");
 	TEST_ASSERT_EQUAL_INT(0, evcpe_class_from_xml(cls, buffer));
 }
 

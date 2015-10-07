@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 	TextUIRunner_runTest(evcpe_model_xml_test_case());
 	TextUIRunner_runTest(evcpe_url_test_case());
 	TextUIRunner_runTest(evcpe_cookie_test_case());
-	TextUIRunner_runTest(evcpe_repo_test_case());
+	//TextUIRunner_runTest(evcpe_repo_test_case());
 	TextUIRunner_end();
 
 	evcpe_remove_logger("stdout");

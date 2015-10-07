@@ -38,8 +38,18 @@ AC_ARG_ENABLE(plugins-dir,
               [plugins_dir=$enableval], [plugins_dir="$ac_default_prefix/evcpe/plugins"])
 AC_DEFINE_UNQUOTED(PLUGINS_DIR, ["$plugins_dir"], [Evcpe plugins location])
 
+AC_ARG_ENABLE(tests,
+              [  --enable-tests build evcpe unit tests],
+              [enable_tests=$enableval], [enable_tests="yes"])
+AM_CONDITIONAL([ENABLE_TESTS], [test x$tests = x"yes"])
+
+
 AC_CONFIG_FILES([Makefile
-                 src/Makefile
-                 embunit/Makefile
-                 tests/Makefile])
-AC_OUTPUT
+                 src/Makefile])
+
+if test "x$enable_tests" = "xyes" ; then
+AC_OUTPUT([
+           embunit/Makefile
+           tests/Makefile
+           ])
+fi

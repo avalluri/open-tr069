@@ -26,8 +26,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-
 #include <evdns.h>
+
+#include "config.h"
 
 #include "evcpe.h"
 #include "class_xml.h"
@@ -48,13 +49,14 @@ static struct {
 static
 void help(FILE *stream)
 {
-	fprintf(stream, "evcpe, version "EVCPE_VERSION"\n\n"
+	fprintf(stream, "evcpe, version "PACKAGE_VERSION"\n\n"
 			"Usage: evcpe [options]\n\n"
 			" Options are:\n"
 			"  -m REPO_MODEL\tmodel of TR-069 repository\n"
 			"  -d REPO_DATA\tdata of TR-069 repository\n"
 			"  -v\t\tdisplay more logs\n"
 			"  -s\t\tsuppress logs\n"
+			"  -b bootstrap"
 			"\n");
 }
 
@@ -116,7 +118,7 @@ void error_cb(evcpe *cpe, evcpe_error_type_t type, int code,
 
 int main(int argc, char **argv)
 {
-	int c, rc, bootstrap;
+	int c, rc, bootstrap = 0;
 	enum evcpe_log_level level;
 	struct sigaction action;
 	const char *repo_model, *repo_data;
@@ -124,7 +126,7 @@ int main(int argc, char **argv)
 
 	repo_model = repo_data = NULL;
 	level = EVCPE_LOG_INFO;
-	while ((c = getopt(argc, argv, "m:d:sv")) != -1)
+	while ((c = getopt(argc, argv, "m:d:bsv")) != -1) {
 		switch (c) {
 		case 'm':
 			repo_model = optarg;
@@ -139,24 +141,17 @@ int main(int argc, char **argv)
 			if (level > EVCPE_LOG_TRACE)
 				level --;
 			break;
+		case 'b':
+			bootstrap = 1;
+			break;
 		}
+	}
 	argv += optind;
 	argc -= optind;
 
-	if (argc == 0 ) {
+	if (argc != 0 ) {
 		help(stderr);
 		exit(EINVAL);
-	} else if (!strcmp("start", argv[0])) {
-		bootstrap = 0;
-	} else if (!strcmp("bootstrap", argv[0])) {
-		bootstrap = 1;
-	} else {
-		help(stderr);
-		exit(EINVAL);
-	}
-
-	if (bootstrap) {
-		//FIXME: notify '0 BOOTSTRAP' Event to ACS
 	}
 
 	if (!repo_model || !repo_data) {

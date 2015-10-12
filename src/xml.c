@@ -57,17 +57,17 @@ int evcpe_xml_add_int(struct evbuffer *buffer,
 	return evcpe_add_buffer(buffer, "<%s>%d</%s>\n", node, value, node);
 }
 
-//int evcpe_xml_add_datetime(struct evbuffer *buffer,
-//		const char *node, struct tm *datetime)
-//{
-//	int len;
-//	char buf[32];
-//
-//	DEBUG("adding date time node <%s>", node);
-//	// TODO: timezone
-//	len = strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", datetime);
-//	return evcpe_xml_add_string(buffer, node, buf);
-//}
+int evcpe_xml_add_datetime(struct evbuffer *buffer,
+		const char *node, struct tm *datetime)
+{
+	int len;
+	char buf[32];
+
+	DEBUG("adding date time node <%s>", node);
+	// TODO: timezone
+	len = strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", datetime);
+	return evcpe_xml_add_string(buffer, node, buf);
+}
 
 int evcpe_xml_add_xsd_string(struct evbuffer *buffer,
 		const char *node, const char *string)

@@ -26,6 +26,9 @@
 #ifndef EVCPE_CHANGE_DU_STATE_H_
 #define EVCPE_CHANGE_DU_STATE_H_
 
+#include "url.h"
+#include "tqueue.h"
+
 typedef enum {
 	EVCPE_CHANGE_DU_STATE_INSTALL,
 	EVCPE_CHANGE_DU_STATE_UPDATE,

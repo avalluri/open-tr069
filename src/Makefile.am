@@ -7,6 +7,7 @@ libevcpe_la_SOURCES = \
 	attr.c \
 	attr_schema.c \
 	attr_xml.c \
+	change_du_state.c change_du_state.h \
 	class.c \
 	class_xml.c \
 	cookie.c \
@@ -14,6 +15,7 @@ libevcpe_la_SOURCES = \
 	data.c data.h \
 	data_xml.c data_xml.h \
 	delete_object.c \
+	download.c download.h \
 	dns_cache.c \
 	evcpe.c evcpe.h \
 	fault.c \

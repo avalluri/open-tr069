@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <model>
 	<schema name="InternetGatewayDevice" type="object"
-		description="The top-level object for an Internet Gateway Device">
+		description="The top-level object for an Internet Gateway Device" plugin="worker">
 		<extension name="Event" type="multipleObject">
 			<extension name="EventCode" type="string" />
 			<extension name="CommandKey" type="string" />

@@ -1,4 +1,4 @@
-SUBDIRS = src
+SUBDIRS = src src/plugins
 
 if ENABLE_TESTS
 SUBDIRS += embunit tests

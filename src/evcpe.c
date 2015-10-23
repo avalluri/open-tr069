@@ -514,6 +514,7 @@ int evcpe_start(evcpe *cpe, int bootstrap)
 		goto finally;
 	}
 	evtimer_set(&cpe->retry_ev, evcpe_start_session_cb, cpe);
+	event_base_set(cpe->evbase, &cpe->retry_ev);
 	if ((rc = evcpe_start_session(cpe))) {
 		ERROR("failed to start session");
 		goto finally;
@@ -566,7 +567,7 @@ int evcpe_start_session(evcpe *cpe)
 		INFO("hostname not resolved: %s", hostname);
 		cpe->retry_count ++;
 		if ((rc = evcpe_retry_session(cpe)))
-			ERROR("failed to schedule session retry");
+			ERROR("failed to schedule session retry :%d", rc);
 		goto finally;
 	}
 	if (!(msg = evcpe_msg_new())) {

@@ -44,6 +44,7 @@ static struct {
 	evcpe_obj *obj;
 	struct evcpe_persister *persist;
 	evcpe_repo *repo;
+	int return_code;
 } this;
 
 static
@@ -84,28 +85,30 @@ finally:
 }
 
 static
-int shutdown_cpe(int code)
+int shutdown_cpe()
 {
-	INFO("shuting down with code: %d (%s)", code, strerror(code));
+	TRACE("Shutting down cpe...");
 	event_base_loopbreak(this.evbase);
-	evcpe_free(this.cpe);
-	evdns_shutdown(0);
-	evcpe_persister_free(this.persist);
 	event_base_free(this.evbase);
+	evcpe_free(this.cpe);
+	evcpe_persister_free(this.persist);
 	evcpe_repo_free(this.repo);
 	evcpe_obj_free(this.obj);
 	evcpe_class_free(this.cls);
 
 	muntrace();
-	exit(code);
+
+	TRACE("Shutdown complete");
 }
 
 static
 void sig_handler(int signal)
 {
 	INFO("signal caught: %d", signal);
-	if (signal == SIGINT)
-		shutdown_cpe(0);
+	if (signal == SIGINT || signal == SIGTERM) {
+		shutdown_cpe();
+		exit(0);
+	}
 }
 
 static
@@ -113,7 +116,9 @@ void error_cb(evcpe *cpe, evcpe_error_type_t type, int code,
 		const char *reason, void *cbarg)
 {
 	ERROR("type: %d, code: %d, reason: %s", type, code, reason);
-	shutdown_cpe(code);
+	this.return_code = code;
+	event_base_loopbreak(this.evbase);
+	//shutdown_cpe(code);
 }
 
 int main(int argc, char **argv)
@@ -154,7 +159,7 @@ int main(int argc, char **argv)
 		exit(EINVAL);
 	}
 
-	if (!repo_model || !repo_data) {
+	if (!repo_model) {
 		help(stderr);
 		rc = EINVAL;
 		goto finally;
@@ -174,7 +179,7 @@ int main(int argc, char **argv)
 		goto finally;
 	}
 
-	bzero(&this, sizeof(this));
+	memset(&this, 0, sizeof(this));
 
 	if ((rc = load_file(repo_model, buffer))) {
 		ERROR("failed to load model: %s", repo_model);
@@ -199,20 +204,22 @@ int main(int argc, char **argv)
 		goto finally;
 	}
 
-	if ((rc = load_file(repo_data, buffer))) {
-		ERROR("failed to load data: %s", repo_data);
-		goto finally;
-	}
-	if ((rc = evcpe_obj_from_xml(this.obj, buffer))) {
-		ERROR("failed to parse data: %s", repo_data);
-		goto finally;
+	if (repo_data) {
+		if ((rc = load_file(repo_data, buffer))) {
+			ERROR("failed to load data: %s", repo_data);
+			goto finally;
+		}
+		if ((rc = evcpe_obj_from_xml(this.obj, buffer))) {
+			ERROR("failed to parse data: %s", repo_data);
+			goto finally;
+		}
 	}
 	if (!(this.repo = evcpe_repo_new(this.obj))) {
 		ERROR("failed to create repo");
 		rc = ENOMEM;
 		goto finally;
 	}
-	if ((this.evbase = event_init()) == NULL) {
+	if (!(this.evbase = event_base_new_with_config(NULL))) {
 		ERROR("failed to init event");
 		rc = ENOMEM;
 		goto finally;
@@ -239,14 +246,19 @@ int main(int argc, char **argv)
 		ERROR("failed to set evcpe");
 		goto finally;
 	}
+
 	INFO("configuring signal action");
 	action.sa_handler = sig_handler;
 	sigemptyset (&action.sa_mask);
 	action.sa_flags = 0;
 	if ((rc = sigaction(SIGINT, &action, NULL)) != 0) {
-		ERROR("failed to configure signal action");
+		ERROR("failed to configure signal action for SIGINT");
 		goto finally;
 	}
+	if ((rc = sigaction(SIGTERM, &action, NULL)) != 0) {
+			ERROR("failed to configure signal action for SIGTERM");
+			goto finally;
+		}
 
 	INFO("starting evcpe");
 	if ((rc = evcpe_start(this.cpe, bootstrap))) {
@@ -255,10 +267,16 @@ int main(int argc, char **argv)
 	}
 
 	INFO("dispatching event base");
-	if ((rc = event_dispatch()) != 0) {
+	if ((rc = event_base_dispatch(this.evbase)) != 0) {
 		ERROR("failed to dispatch event base");
 		goto finally;
 	}
+
+	shutdown_cpe();
+
+	DEBUG("Safe Shutdown");
+
+	return this.return_code;
 
 finally:
 	if (buffer) evbuffer_free(buffer);

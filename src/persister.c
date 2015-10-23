@@ -59,7 +59,7 @@ void evcpe_persister_free(struct evcpe_persister *persist)
 {
 	if (!persist) return;
 
-	DEBUG("destructing evcpe_persister");
+	TRACE("destructing evcpe_persister");
 
 	if (event_initialized(&persist->timer_ev) && evtimer_pending(
 			&persist->timer_ev, NULL)) {

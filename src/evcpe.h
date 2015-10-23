@@ -87,6 +87,8 @@ typedef struct _evcpe {
 
 	struct event periodic_ev;
 	struct timeval periodic_tv;
+
+	tqueue* pending_downloads;
 } evcpe;
 
 evcpe *evcpe_new(struct event_base *evbase,

@@ -324,6 +324,16 @@ typedef enum {
 	NODE_MaxEnvelopes,
 	NODE_ObjectName,
 	NODE_Download,
+	NODE_CommandKey,
+	NODE_FileType,
+	NODE_URL,
+	NODE_Username,
+	NODE_Passwrod,
+	NODE_FileSize,
+	NODE_TargetFileName,
+	NODE_DelaySeconds,
+	NODE_SuccessURL,
+	NODE_FailureURL,
 } node_type_t;
 
 typedef struct _msg_node {
@@ -389,6 +399,16 @@ void _msg_tree_init()
 		{ NODE_MaxEnvelopes, "MaxEnvelopes" },
 		{ NODE_ObjectName, "ObjectName" },
 		{ NODE_Download, "Download" },
+		{ NODE_CommandKey, "CommandKey" },
+		{ NODE_FileType, "FileType" },
+		{ NODE_URL, "URL" },
+		{ NODE_Username, "Username" },
+		{ NODE_Passwrod, "Password" },
+		{ NODE_FileSize, "FileSize" },
+		{ NODE_TargetFileName, "TargetFileName" },
+		{ NODE_DelaySeconds, "DelaySeconds" },
+		{ NODE_SuccessURL, "SuccessURL" },
+		{ NODE_FailureURL, "FailureURL" }
 	};
 	size_t i, max = sizeof(msg_nodes) / sizeof(*msg_nodes);
 	RB_INIT(&_tree);
@@ -676,6 +696,18 @@ int evcpe_msg_xml_elm_begin_cb(void *data, const char *ns, unsigned nslen,
 			return ENOMEM;
 		parser->msg->type = EVCPE_MSG_REQUEST;
 		parser->msg->method_type = EVCPE_DOWNLOAD;
+	} else if (type == NODE_FileType ||
+			   type == NODE_URL ||
+			   type == NODE_Username ||
+			   type == NODE_Passwrod ||
+			   type == NODE_FileSize ||
+			   type == NODE_TargetFileName ||
+			   type == NODE_DelaySeconds ||
+			   type == NODE_SuccessURL ||
+			   type == NODE_FailureURL) {
+		if (parent_type != NODE_Download) {
+			goto unexpected_parent;
+		}
 	}
 
 	if (!(elm = calloc(1, sizeof(evcpe_xml_element)))) {
@@ -774,6 +806,7 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 	evcpe_inform_response *inform_resp;
 	evcpe_add_object *add_obj;
 	evcpe_delete_object *delete_obj;
+	evcpe_download* download = NULL;
 
 	if (!(elm = evcpe_xml_stack_peek(&parser->stack))) return -1;
 
@@ -1031,8 +1064,81 @@ int evcpe_msg_xml_data_cb(void *data, const char *text, unsigned len)
 			rc = EOVERFLOW;
 			goto finally;
 		}
-		memcpy(key_holder, text, len);
-		key_holder[len] = '\0';
+		strncpy(key_holder, text, len);
+	} else if (elm_type == 	NODE_FileType) {
+		download = parser->msg->data;
+		if (len > sizeof(download->file_type_str)) {
+			rc = EOVERFLOW;
+			goto finally;
+		}
+		if ((download->file_type = evcpe_file_type_from_string(text, len))
+				== EVCPE_FILE_TYPE_UNKNOWN) {
+			ERROR("unexpected file type: %.*s", len, text);
+			goto syntax_error;
+		}
+		strncpy(download->file_type_str, text, len);
+	} else if(elm_type == NODE_URL) {
+		char url_str[257];
+		if (len > 256) {
+			rc = EOVERFLOW;
+			goto finally;
+		}
+		strncpy(url_str, text, len);
+		download = parser->msg->data;
+		download->url = evcpe_url_new();
+		evcpe_url_from_str(download->url, url_str);
+	} else if (elm_type == NODE_SuccessURL) {
+		char url_str[257];
+		if (len > 256) {
+			rc = EOVERFLOW;
+			goto finally;
+		}
+		strncpy(url_str, text, len);
+		download = parser->msg->data;
+		download->success_url = evcpe_url_new();
+		evcpe_url_from_str(download->success_url, url_str);
+	} else if (elm_type == NODE_FailureURL) {
+		char url_str[257];
+		if (len > 256) {
+			rc = EOVERFLOW;
+			goto finally;
+		}
+		strncpy(url_str, text, len);
+		download = parser->msg->data;
+		download->failure_url = evcpe_url_new();
+		evcpe_url_from_str(download->failure_url, url_str);
+	} else if(elm_type == NODE_Username) {
+		download = parser->msg->data;
+		if (len > sizeof(download->username)) {
+			rc = EOVERFLOW;
+			goto finally;
+		}
+		strncpy(download->username, text, len);
+	} else if(elm_type == NODE_Passwrod) {
+		download = parser->msg->data;
+		download = parser->msg->data;
+		if (len > sizeof(download->password)) {
+			rc = EOVERFLOW;
+			goto finally;
+		}
+		strncpy(download->password, text, len);
+	} else if (elm_type == NODE_FileSize) {
+		download = parser->msg->data;
+		if ((rc = evcpe_atol(text, len, &val)) || val < 0)
+			goto syntax_error;
+		download->file_size = val;
+	} else if (elm_type == NODE_TargetFileName) {
+		download = parser->msg->data;
+		if (len > sizeof(download->target_filename)) {
+			rc = EOVERFLOW;
+			goto finally;
+		}
+		strncpy(download->target_filename, text, len);
+	} else if (elm_type == NODE_DelaySeconds) {
+		download = parser->msg->data;
+		if ((rc = evcpe_atol(text, len, &val)) || val < 0)
+			goto syntax_error;
+		download->delay = val;
 	} else if (len > 0) {
 		ERROR("unexpected element: %.*s", elm->len, elm->name);
 		goto syntax_error;

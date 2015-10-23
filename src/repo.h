@@ -27,9 +27,13 @@
 #include "tqueue.h"
 
 typedef struct _evcpe_repo evcpe_repo;
+typedef struct _evcpe_download evcpe_download;
 
 typedef void (*evcpe_repo_listen_cb_t)(evcpe_repo *repo,
 		enum evcpe_attr_event event, const char *param_name, void *cbarg);
+
+typedef void (*evcpe_repo_download_cb_t)(evcpe_download* download,
+		evcpe_download_state_info* info, void* arg);
 
 typedef struct _evcpe_repo_listener {
 	evcpe_repo_listen_cb_t cb;
@@ -38,10 +42,15 @@ typedef struct _evcpe_repo_listener {
 
 struct _evcpe_repo {
 	evcpe_obj* root;
+	evcpe_plugin* root_plugin;
 	tqueue* forced_inform_attrs;
 	tqueue* changed_atts;
 	tqueue* pending_events;
 	tqueue* listeners;
+
+	tqueue* active_downloads;
+	evcpe_repo_download_cb_t download_cb;
+	void*   download_cb_data;
 };
 
 evcpe_repo *evcpe_repo_new(evcpe_obj *root);
@@ -95,5 +104,11 @@ int evcpe_repo_to_param_value_list(evcpe_repo *repo, const char *name,
 		tqueue *list);
 
 void evcpe_repo_clear_pending_events(evcpe_repo* repo);
+
+void evcpe_repo_set_download_cb(evcpe_repo* repo, evcpe_repo_download_cb_t cb,
+		void* cb_data);
+
+int evcpe_repo_download(evcpe_repo* repo, evcpe_download* details);
+
 
 #endif /* EVCPE_REPO_H_ */

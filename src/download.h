@@ -29,32 +29,9 @@
 #include <time.h>
 #include <event.h>
 
-#include "url.h"
+#include "plugin.h"
 
-typedef enum _FileType {
-	EVCPE_FILE_TYPE_UNKNOWN,
-	EVCPE_FILE_TYPE_FIRMWARE_UPGRADE = 1,
-	EVCPE_FILE_TYPE_WEB_CONTENT,
-	EVCPE_FILE_TYPE_VENDOR_CONFIGURATION_FILE,
-	EVCPE_FILE_TYPE_TONE_FILE,
-	EVCPE_FILE_TYPE_RINGER_FILE,
-	EVCPE_FILE_TYPE_VENDOR_SPECIFIC,
-	EVCPE_FILE_TYPE_MAX
-} evcpe_file_type_t;
-
-typedef struct _evcpe_download
-{
-	char command_key[32];
-	evcpe_url url;
-	evcpe_file_type_t file_type;
-	char username[256];
-	char password[256];
-	unsigned file_size;
-	char target_filename[256];
-	unsigned delay;
-	evcpe_url success_url;
-	evcpe_url failure_url;
-} evcpe_download;
+evcpe_file_type_t evcpe_file_type_from_string(const char* type, unsigned len);
 
 evcpe_download* evcpe_download_new();
 
@@ -64,8 +41,8 @@ void evcpe_download_free(evcpe_download* req);
 typedef struct _evcpe_download_response
 {
 	int status;
-	struct tm* start_time;
-	struct tm* end_time;
+	struct tm start_time;
+	struct tm end_time;
 } evcpe_download_response;
 
 evcpe_download_response* evcpe_download_response_new();

@@ -25,7 +25,7 @@
 
 #include "type.h"
 #include "data.h"
-#include "plugin.h"
+#include "plugin-priv.h"
 
 
 typedef struct _evcpe_attr evcpe_attr;

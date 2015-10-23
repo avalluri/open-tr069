@@ -43,6 +43,7 @@
 #include "delete_object.h"
 #include "set_param_values.h"
 #include "set_param_attrs.h"
+#include "download.h"
 
 #include "evcpe.h"
 
@@ -99,13 +100,48 @@ static inline int evcpe_handle_set_param_values(evcpe *cpe,
 static inline int evcpe_handle_inform_response(evcpe *cpe,
 		evcpe_inform *req, evcpe_inform_response *resp);
 
+static inline int evcpe_handle_download(evcpe *cpe,
+		evcpe_download *req, evcpe_msg *msg);
+
 static int evcpe_retry_session(evcpe *cpe);
 
 static void evcpe_start_session_cb(int fd, short event, void *arg);
 
 static int evcpe_start_session(evcpe *cpe);
 
+static void _on_download_complete(evcpe_download* req,
+		evcpe_download_state_info* info, void* arg);
 
+
+typedef struct _download_timer_cb_data {
+	struct event* ev;
+	evcpe_download* req;
+	evcpe *cpe;
+} download_timer_cb_data;
+
+static
+download_timer_cb_data* _download_timer_cb_data_new(struct event* ev,
+		evcpe_download* req, evcpe *cpe) {
+	download_timer_cb_data *info = calloc(1, sizeof(download_timer_cb_data));
+	if (info) {
+		info->ev = ev;
+		info->req = req;
+		info->cpe = cpe;
+	}
+
+	return info;
+}
+
+static
+void _download_timer_cb_data_free(download_timer_cb_data* info)
+{
+	if (!info) return;
+
+	if (info->ev) {
+		if (evtimer_pending(info->ev, NULL)) evtimer_del(info->ev);
+		event_free(info->ev);
+	}
+}
 
 evcpe *evcpe_new(struct event_base *evbase,
 		evcpe_request_cb_t cb, evcpe_error_cb_t error_cb, void *cbarg)
@@ -124,6 +160,8 @@ evcpe *evcpe_new(struct event_base *evbase,
 	cpe->cb = cb;
 	cpe->error_cb = error_cb;
 	cpe->cbarg = cbarg;
+	cpe->pending_downloads = tqueue_new(NULL,
+			(tqueue_free_func_t)_download_timer_cb_data_free);
 
 	return cpe;
 }
@@ -132,7 +170,9 @@ void evcpe_free(evcpe *cpe)
 {
 	if (cpe == NULL) return;
 
-	DEBUG("destructing evcpe");
+	evcpe_repo_set_download_cb(cpe->repo, NULL, NULL);
+
+	TRACE("destructing evcpe");
 
 	if (event_initialized(&cpe->retry_ev) &&
 			evtimer_pending(&cpe->retry_ev, NULL)) {
@@ -142,6 +182,11 @@ void evcpe_free(evcpe *cpe)
 			evtimer_pending(&cpe->periodic_ev, NULL)) {
 		event_del(&cpe->periodic_ev);
 	}
+
+	if (cpe->pending_downloads) {
+		tqueue_free(cpe->pending_downloads);
+	}
+
 	if (cpe->session) evcpe_session_free(cpe->session);
 	if (cpe->http) evhttp_free(cpe->http);
 	if (cpe->acs_url) evcpe_url_free(cpe->acs_url);
@@ -161,6 +206,8 @@ int evcpe_set(evcpe *cpe, evcpe_repo *repo)
 	evcpe_obj *server_obj = NULL;
 	unsigned i = 0;
 
+	evcpe_repo_set_download_cb(repo, _on_download_complete, cpe);
+
 	if ((rc = evcpe_repo_get_obj(repo, ".ManagementServer.", &server_obj))) {
 		ERROR("Failed to locate ManagementServer object");
 		return rc;
@@ -168,7 +215,7 @@ int evcpe_set(evcpe *cpe, evcpe_repo *repo)
 
 	if (!(rc = evcpe_obj_get_attr_value(server_obj, "Authentication", &value,
 			&len))) {
-		if (!strcmp("NONE", value))
+		if (!value || !len || !strcmp("NONE", value))
 			cpe->acs_auth = EVCPE_AUTH_NONE;
 		else if (!strcmp("BASIC", value))
 			cpe->acs_auth = EVCPE_AUTH_NONE;
@@ -682,7 +729,8 @@ int evcpe_handle_request(evcpe *cpe, evcpe_session *session,
 		rc = evcpe_handle_delete_object(cpe, request, reply);
 		break;
 	case EVCPE_DOWNLOAD:
-		//TODO: Handle Download
+		rc = evcpe_handle_download(cpe, request, reply);
+		break;
 	case EVCPE_REBOOT:
 		//TODO: Handle Reboot
 
@@ -937,6 +985,7 @@ int evcpe_handle_add_object(evcpe *cpe,
 	return 0;
 }
 
+static
 int evcpe_handle_delete_object(evcpe* cpe, evcpe_delete_object* req,
 		evcpe_msg* reply)
 {
@@ -958,6 +1007,69 @@ int evcpe_handle_delete_object(evcpe* cpe, evcpe_delete_object* req,
 	 */
 	resp->status = 0;
 
+	reply->data = resp;
+
+	return 0;
+}
+
+static
+void _on_download_complete(evcpe_download* req, evcpe_download_state_info* info,
+		void* arg)
+{
+	evcpe* cpe = arg;
+
+	if (info->state == EVCPE_DOWNLOAD_APPLIED) {
+	//TODO: Start new session if not already open, and send TransferComplete
+	}
+}
+
+static
+void _start_delayed_download(evutil_socket_t fd, short event, void *arg)
+{
+	download_timer_cb_data *info = arg;
+	evcpe* cpe = info->cpe;
+	evcpe_download* req = info->req;
+	int rc = 0;
+
+	tqueue_remove_data(cpe->pending_downloads, arg);
+
+	if ((rc = evcpe_repo_download(cpe->repo, req)) > 1) {
+		ERROR("Failed to download ");
+	}
+}
+
+static
+int evcpe_handle_download(evcpe* cpe, evcpe_download* req, evcpe_msg* reply)
+{
+	int rc = 0;
+	evcpe_download_response* resp = NULL;
+
+	if (tqueue_size(cpe->pending_downloads) == 3) {
+		reply->data = NULL;
+		return EVCPE_CPE_RESOUCES_EXCEEDS;
+	}
+
+	if (req->delay != 0) {
+		struct timeval timeout = { req->delay, 0 };
+		struct event* ev = evtimer_new(cpe->evbase, _start_delayed_download,
+				(void*)cpe);
+		download_timer_cb_data *info =
+				_download_timer_cb_data_new(ev, req, cpe);
+		tqueue_insert(cpe->pending_downloads, info);
+
+		event_base_set(cpe->evbase, ev);
+		evtimer_set(ev, _start_delayed_download, cpe);
+		evtimer_add(ev, &timeout);
+	} else {
+		if((rc = evcpe_repo_download(cpe->repo, req)) > 1) {
+			ERROR("Failed to download: %s", req->url->host);
+			return rc;
+		}
+	}
+
+	if (!(resp = evcpe_download_response_new())) return ENOMEM;
+
+	resp->status = rc;
 	reply->data = resp;
 
 	return 0;

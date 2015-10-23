@@ -27,6 +27,7 @@
 #include "fault.h"
 
 #include "repo.h"
+#include "download.h"
 
 static int evcpe_repo_get_attr(evcpe_repo *repo, const char *name,
 		evcpe_attr **attr);
@@ -57,6 +58,9 @@ evcpe_repo *evcpe_repo_new(evcpe_obj *root)
 	repo->changed_atts = tqueue_new(NULL, NULL);
 	repo->pending_events = evcpe_event_list_new();
 	repo->root = root;
+	repo->root_plugin = NULL;
+	repo->active_downloads = tqueue_new(NULL, 
+                  (tqueue_free_func_t)evcpe_download_free);
 
 	evcpe_repo_init(repo);
 
@@ -67,10 +71,13 @@ void evcpe_repo_free(evcpe_repo *repo)
 {
 	if (!repo) return;
 
+	TRACE("destructing repo");
+
 	tqueue_free(repo->forced_inform_attrs);
 	tqueue_free(repo->changed_atts);
 	tqueue_free(repo->listeners);
 	tqueue_free(repo->pending_events);
+	evcpe_plugin_unref(repo->root_plugin);
 
 	free(repo);
 }
@@ -78,6 +85,15 @@ void evcpe_repo_free(evcpe_repo *repo)
 int evcpe_repo_init(evcpe_repo* repo) {
 
 	tqueue_element* elm = NULL;
+	const char* device_node = "InternetGatewayDevice";
+	int         device_node_len = strlen(device_node);
+	evcpe_attr_schema* device_schema = NULL;
+
+	if (!(device_schema = evcpe_class_find(repo->root->class, device_node,
+				device_node_len))) {
+		ERROR("%s schema not found", device_node);
+	} else if (device_schema->plugin)
+		repo->root_plugin = evcpe_plugin_ref(device_schema->plugin);
 
 	/* Gather all Force Inform attributes */
 	TQUEUE_FOREACH(elm, repo->root->class->inform_attrs) {
@@ -149,6 +165,14 @@ int evcpe_repo_unlisten(evcpe_repo *repo, evcpe_repo_listen_cb_t cb)
 		tqueue_remove(repo->listeners, node);
 
 	return 0;
+}
+
+void evcpe_repo_set_download_cb(evcpe_repo* repo, evcpe_repo_download_cb_t cb,
+		void* cb_data) {
+	if (!repo) return;
+
+	repo->download_cb = cb;
+	repo->download_cb_data = cb_data;
 }
 
 static
@@ -491,6 +515,9 @@ int evcpe_repo_add_event(evcpe_repo *repo,
 {
 	DEBUG("adding event: %s - %s", evcpe_event_code_to_str(code), command_key);
 
+	// FIXME: Let CPE know about this event, so that if not in session, then
+	//         starts a new session to send this event to ACS
+
 	return (evcpe_event_list_add(repo->pending_events, code,
 			command_key ? command_key : "") == NULL) ? -1: 0;
 }
@@ -708,4 +735,36 @@ int evcpe_repo_set_param_atts(evcpe_repo* repo, tqueue* list) {
 	}
 
 	return 0;
+}
+
+static
+void _download_state_change_cb(evcpe_download* details,
+		evcpe_download_state_info* state_info, void* arg)
+{
+	evcpe_repo* repo = arg;
+
+	if (state_info->state == EVCPE_DOWNLOAD_APPLIED ||
+		state_info->state == EVCPE_DOWNLOAD_FAILED) {
+		if (state_info->state == EVCPE_DOWNLOAD_APPLIED) {
+			evcpe_repo_add_event(repo, EVCPE_EVENT_M_DOWNLOAD,
+					details->command_key);
+
+		}
+		if (repo->download_cb)
+			repo->download_cb(details, state_info, repo->download_cb_data);
+
+		tqueue_remove_data(repo->active_downloads, details);
+	}
+}
+
+
+int evcpe_repo_download(evcpe_repo* repo, evcpe_download* details)
+{
+	if(!repo->root_plugin || !repo->root_plugin->download) {
+		ERROR("No plugin found to handle download");
+		return EVCPE_CPE_INTERNAL_ERROR;
+	}
+
+	return repo->root_plugin->download(repo->root_plugin, details,
+			_download_state_change_cb, repo);
 }

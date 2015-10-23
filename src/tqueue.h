@@ -28,6 +28,8 @@ tqueue_element* tqueue_insert(tqueue* q, void* data);
 
 void tqueue_remove(tqueue* q, tqueue_element* elm);
 
+void tqueue_remove_data(tqueue* q, void* data);
+
 void tqueue_remove_all(tqueue* q);
 
 tqueue_element* tqueue_find(tqueue* q, const void* data);

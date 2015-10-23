@@ -19,13 +19,18 @@ struct _tqueue
 	size_t size;
 };
 
+static
+int _tqueu_compare_func_default(void *elm_data, const void* data) {
+	return elm_data == data;
+}
+
 tqueue* tqueue_new(tqueue_compare_func_t compare_func,
 		tqueue_free_func_t free_func)
 {
 	tqueue* q = calloc(1, sizeof(*q));
 	if (!q) return NULL;
 
-	q->compare = compare_func;
+	q->compare = compare_func ? compare_func :_tqueu_compare_func_default ;
 	q->free = free_func;
 	TAILQ_INIT(&q->head);
 
@@ -54,6 +59,17 @@ void tqueue_remove(tqueue* q, tqueue_element* elm)
 	}
 }
 
+void tqueue_remove_data(tqueue* q, void* data)
+{
+	tqueue_element* elm = NULL;
+	if (q && (elm = tqueue_find(q, data))) {
+		TAILQ_REMOVE(&(q->head), elm, entry);
+		if (q->free) q->free(elm->data);
+		free(elm);
+		q->size--;
+	}
+}
+
 void tqueue_remove_all(tqueue* q) {
 	if (q) {
 		tqueue_element* elm = NULL;
@@ -68,10 +84,11 @@ void tqueue_remove_all(tqueue* q) {
 
 tqueue_element* tqueue_find(tqueue* q, const void* data) {
 	tqueue_element* elm = NULL;
-	if (!q || !q->compare) return NULL;
+	if (!q) return NULL;
 
 	TAILQ_FOREACH(elm, &q->head, entry) {
-		if (q->compare(elm->data, data) == 0) return elm;
+		if ((q->compare ? q->compare(elm->data, data) : elm->data != data) == 0)
+			return elm;
 	}
 
 	return elm;

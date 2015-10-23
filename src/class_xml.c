@@ -128,8 +128,7 @@ int evcpe_class_xml_elm_begin_cb(void *data,
 			goto finally;
 		}
 		evcpe_attr_schema_set_extension(schema, extension);
-		schema->plugin = ! parent_schema->plugin ? NULL:
-						  	  evcpe_plugin_ref(parent_schema->plugin);
+		schema->plugin = evcpe_plugin_ref(parent_schema->plugin);
 		elm->data = schema;
 	} else {
 		ERROR("unexpected element: %.*s", len, name);

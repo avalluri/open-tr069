@@ -17,4 +17,3 @@ void evcpe_plugin_emit_value_change(evcpe_plugin* p, const char* name,
 	if (node && (info = node->data) && info->listener)
 		info->listener(p, name, value, value_len, info->data);
 }
-

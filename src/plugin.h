@@ -64,7 +64,7 @@ typedef union _evcpe_download_satate_info {
 } evcpe_download_state_info;
 
 
-typedef void (*download_state_change_cb_t)(evcpe_download* details,
+typedef void (*evcpe_download_state_change_cb_t)(evcpe_download* details,
 		evcpe_download_state_info* info, void* userdata);
 
 struct _evcpe_plugin
@@ -80,8 +80,8 @@ struct _evcpe_plugin
 	int  (*get_paramter_value)(evcpe_plugin* p, const char* name,
 			const char** value_out, unsigned* len_out);
 
-	int (*download)(evcpe_plugin* p, evcpe_download *details,
-			download_state_change_cb_t cb, void* userdata);
+	int (*download)(evcpe_plugin* p, const evcpe_download *details,
+			evcpe_download_state_change_cb_t cb, void* userdata);
 
 	int (*reboot)(evcpe_plugin* p);
 };
@@ -90,20 +90,20 @@ void evcpe_plugin_emit_value_change(evcpe_plugin* p, const char* name,
 		const char* value, unsigned value_len);
 
 #define EVCPE_PLUGIN_REGISTER(\
-                 _name, _version, _init, _spv, _gpv, _download, _reboot) \
+       _name, _version, _init, _uninit, _spv, _gpv, _download, _reboot) \
 	evcpe_plugin* evcpe_plugin_get_object() {   \
 		static evcpe_plugin _p = {            \
-			.name = _name,                      \
-			.version = _version,                \
-			.init = _init,                      \
-			.uninit = _uninit,                  \
-			.set_parameter_value = _spv,        \
-			.get_paramter_value = _gpv,         \
-      .download = _download,              \
-      .reboot = _rboot                    \
+			.name = _name,                    \
+			.version = _version,              \
+			.init = _init,                    \
+			.uninit = _uninit,                \
+			.set_parameter_value = _spv,      \
+			.get_paramter_value = _gpv,       \
+			.download = _download,            \
+			.reboot = _reboot                 \
 		};                                    \
 		return &_p;                           \
-	}                                       \
+	}                                         \
 	struct _unused_
 
 

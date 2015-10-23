@@ -38,12 +38,12 @@ u_short evcpe_url_default_port(const char *protocol);
 
 evcpe_url *evcpe_url_new(void);
 
+evcpe_url* evcpe_url_new_from_str(const char* str);
+
 void evcpe_url_free(evcpe_url *url);
 
 void evcpe_url_reset(evcpe_url *url);
 
 int evcpe_url_from_str(evcpe_url *url, const char *str);
-
-void evcpe_print_buffer(FILE *file, const char *msg, struct evbuffer *buffer);
 
 #endif /* EVCPE_URL_H_ */

@@ -64,7 +64,7 @@ evcpe_url *evcpe_url_new(void)
 void evcpe_url_free(evcpe_url *url)
 {
 	if (!url) return;
-	DEBUG("destructing evcpe_url");
+	TRACE("destructing evcpe_url");
 	evcpe_url_reset(url);
 	free(url);
 }
@@ -76,7 +76,7 @@ void evcpe_url_reset(evcpe_url *url)
 	if (url->password) free(url->password);
 	if (url->host) free(url->host);
 	if (url->uri) free(url->uri);
-	bzero(url, sizeof(evcpe_url));
+	memset(url, 0, sizeof(evcpe_url));
 }
 
 static int evcpe_url_set(char **ptr, const char *str, unsigned len)
@@ -87,46 +87,6 @@ static int evcpe_url_set(char **ptr, const char *str, unsigned len)
 	*(*ptr + len) = '\0';
 	return 0;
 }
-
-//int evcpe_url_from_str(evcpe_url *url, const char *str)
-//{
-//	int rc;
-//	enum evcpe_url_state state;
-//	const char *start, *ptr;
-//
-//	evcpe_url_reset(url);
-//	for (state = EVCPE_URL_PROTO, start = ptr = str; *ptr != '\0'; ptr ++) {
-//		switch(state) {
-//		case EVCPE_URL_PROTO:
-//			if (*ptr == ':') {
-//				if (*(ptr + 1) != '/')
-//					goto invalid;
-//				if (*(ptr + 2) != '/')
-//					goto invalid;
-//			}
-//		case EVCPE_URL_USER:
-//		case EVCPE_URL_PASS:
-//		case EVCPE_URL_HOST:
-//		case EVCPE_URL_PORT:
-//		case EVCPE_URL_PATH:
-//		default:
-//			rc = -1;
-//			goto finally;
-//		}
-//	}
-//	if (!url->protocol)
-//		goto invalid;
-//	if (!url->host && !url->uri)
-//		goto invalid;
-//	rc = 0;
-//	goto finally;
-//
-//invalid:
-//	rc = EINVAL;
-//
-//finally:
-//	return rc;
-//}
 
 int evcpe_url_from_str(evcpe_url *url, const char *str)
 {
@@ -190,4 +150,18 @@ invalid:
 
 finally:
 	return rc;
+}
+
+evcpe_url* evcpe_url_new_from_str(const char* str)
+{
+	int rc;
+	evcpe_url *url = evcpe_url_new();
+
+	if (url && (rc = evcpe_url_from_str(url, str))) {
+		ERROR("Failed to prase url: %d", rc);
+		evcpe_url_free(url);
+		url = NULL;
+	}
+
+	return url;
 }

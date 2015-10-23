@@ -18,11 +18,12 @@ test_suite_CPPFLAGS = \
 	-DTEST_DATA_DIR="\"$(abs_top_builddir)/data\""
 
 test_suite_LDFALGS = \
-	-L$(abs_top_builddir)/embunit/lib/
+	-L$(abs_top_builddir)/embunit/lib/ -rdynamic
 	
 test_suite_LDADD = \
 	$(abs_top_builddir)/embunit/lib/libembUnit.a \
 	$(abs_top_builddir)/embunit/lib/libtextui.a \
+	$(abs_top_builddir)/src/libevcpe-common.la \
 	$(abs_top_builddir)/src/libevcpe.la \
 	-ldl $(LIBEVENT_LIBS)
 endif

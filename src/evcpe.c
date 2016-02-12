@@ -963,7 +963,13 @@ int evcpe_handle_add_object(evcpe *cpe,
 	int rc = 0;
 	unsigned int index;
 	evcpe_add_object_response *resp;
+	size_t len = 0;
 
+	len = strlen(req->object_name);
+	if (!len || req->object_name[len-1] != '.') {
+		return -EINVAL;
+	}
+	INFO("Object name : '%s'", req->object_name);
 	if ((rc = evcpe_repo_add_obj(cpe->repo, req->object_name, &index))) {
 		ERROR("failed to add object: %s", req->object_name);
 		return rc;

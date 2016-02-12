@@ -28,7 +28,7 @@
 int evcpe_get_curtime(evcpe_attr *attr,
 		const char **value, unsigned int *len)
 {
-	char buf[32];
+	static char buf[32];
 	time_t curtime;
 
 	DEBUG("get current time");
@@ -38,8 +38,9 @@ int evcpe_get_curtime(evcpe_attr *attr,
 		return errno;
 	}
  	*len = strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", localtime(&curtime));
-	*value = buf;
-	return 0;
+ 	*value = buf;
+
+ 	return 0;
 }
 
 int evcpe_set_curtime(evcpe_attr *attr,

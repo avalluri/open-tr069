@@ -1,0 +1,603 @@
+<?xml version="1.0"?>
+<model>
+	<schema name="Device" type="object"
+		description="The top-level object for an CPE Device">
+		<extension name="Event" type="multipleObject">
+			<extension name="EventCode" type="string" />
+			<extension name="CommandKey" type="string" />
+		</extension>
+		<schema name="RootDataModelVersion" type="string" constraint="32" default="2.4"></schema>
+	  <schema name="InterfaceStackNumberOfEntries" type="unsignedInt"></schema>
+	  <!--schema name="Services" type="object" description="This object contains 
+      general services information"> </schema -->
+    
+		<schema name="DeviceInfo" type="object">
+			<schema name="DeviceCategory" type="string" />
+			<schema name="Manufacturer" type="string" constraint="64" />
+			<schema name="ManufacturerOUI" type="string" constraint="6" />
+			<schema name="ModelName" type="string" constraint="64" />
+			<schema name="ModelNumber" type="string" constraint="64" />
+			<schema name="Description" type="string" constraint="256" />
+			<schema name="ProductClass" type="string" constraint="64" />
+			<schema name="SerialNumber" type="string" constraint="64" />
+			<schema name="HardwareVersion" type="string" constraint="64"
+				inform="true" />
+			<schema name="SoftwareVersion" type="string" constraint="64"
+				inform="true" notification="active" description="Major.Minor.Build" />
+			<schema name="AdditionalHardwareVersion" type="string"
+				constraint="64" />
+			<schema name="AdditionalSoftwareVersion" type="string"
+				constraint="64" />
+			<schema name="ProvisioningCode" type="string" constraint="64"
+				write="W" inform="true" notification="active" />
+			<schema name="UpTime" type="unsignedInt" />
+			<schema name="FirstUseDate" type="dateTime" />
+			<schema name="VendorConfigFileNumberOfEntries" type="unsignedInt" />
+			<schema name="SupportedDataModelNumberOfEntries" type="unsignedInt" />
+			<schema name="ProcessorNumberOfEntries" type="unsignedInt" />
+			<schema name="VendorLogFileNumberOfEntries" type="unsignedInt" />
+			<schema name="LocationNumberOfEntries" type="unsignedInt" />
+			<schema name="VendorConfigFile" type="multipleObject" write="W"
+				number="VendorConfigFileNumberOfEntries">
+				<schema name="Alias" type="string" constraint="64" write="W" />
+				<schema name="Name" type="string" constraint="64" />
+				<schema name="Version" type="string" constraint="16" />
+				<schema name="Date" type="dateTime" />
+				<schema name="Description" type="string" constraint="256" />
+				<schema name="UseForBackupRestore" type="boolean"></schema>
+			</schema> <!-- Device.DeviceInfo.VendorConfigFile -->
+			<schema name="SupportedDataModel" type="multipleObject"
+        number="SupportedDataModelNumberOfEntries">
+        <schema name="Alias" type="string" constraint="64" write="W" />
+        <schema name="URL" type="string" constraint="256" />
+        <schema name="UUID" type="string" constraint="36" />
+        <schema name="URN" type="string" constraint="256" />
+        <schema name="Features" type="string" />
+      </schema> <!-- Device.DeviceInfo.SupportedDataModel -->
+			<schema name="MemoryStatus" type="object"
+				description="Status of the device's volatile physical memory">
+				<schema name="Total" type="unsignedInt"
+					description="The total physical RAM, in Kulobytes" />
+				<schema name="Free" type="unsignedInt"
+					description="The free physical RAM, currently available on the device" />
+			</schema> <!-- Device.DeviceInfo.MemoryStatus -->
+			<schema name="ProcessStatus" type="object">
+				<schema name="CPUUsage" type="unsignedInt" constraint=":100" />
+				<schema name="ProcessNumberOfEntries" type="unsignedInt" />
+				<schema name="Process" type="multipleObject" number="ProcessNumberOfEntries">
+					<schema name="PID" type="unsignedInt" />
+					<schema name="Command" type="string" constraint="256" />
+					<schema name="Size" type="unsignedInt" />
+					<schema name="Priority" type="unsignedInt" constraint=":99" />
+					<schema name="CPUTime" type="unsignedInt"
+						description="The amount of time in milliseconds that the process has spent taking up CPU time since the process was started" />
+					<schema name="State" type="string"
+						constraint="Running|Sleeping|Stopped|Idle|Uninterruptible|Zombie" />
+				</schema> <!-- Device.DeviceInfo.ProcessStatus.Process -->
+			</schema> <!-- Device.DeviceInfo.ProcessStatus -->
+			<schema name="NetworkProperties" type="object">
+				<schema name="MaxTCPWindowSize" type="unsignedInt" />
+				<schema name="TCPImplementation" type="string"
+					constraint="Tahoe|Reno|New Reno|Vegas" />
+			</schema> <!-- Device.DeviceInfo.NetworkProperties -->
+			<schema name="Processor" type="multipleObject" number="ProcessorNumberOfEntries">
+				<schema name="Alias" type="string" constraint="64" write="W" />
+				<schema name="Architecture" type="string"
+					constraint="arm|i386|m68010|m68k|mipseb|mipsel|powepc|sh3eb|sh3el|x86_64" />
+			</schema> <!-- Device.DeviceInfo.Processor -->
+			<schema name="VendorLogFile" type="multipleObject"
+				number="VendorLogFileNumberOfEntries">
+				<schema name="Alias" type="string" constraint="64" write="W" />
+				<schema name="Name" type="string" constraint="64" />
+				<schema name="MaximumSize" type="unsignedInt" />
+				<schema name="Presistent" type="boolean" />
+			</schema>
+			<schema name="ProxierInfo" type="object">
+				<schema name="ManufacturerOUI" type="string" constraint="6" />
+				<schema name="ProductClass" type="string" constraint="64" />
+				<schema name="SerialNumber" type="string" constraint="64" />
+				<schema name="ProxyProtocol" type="string"
+					constraint="Z-Wave|ZigBee|UPnP-DM|ETSI-M2M" />
+			</schema> <!-- Device.DeviceInfo.ProxierInfo -->
+			<schema name="Location" type="multipleObject" number="LocationNumberOfEntries">
+				<schema name="Source" type="string" constraint="GPS|AGPS|Manual|External"
+					default="External" />
+				<schema name="AcquiredTime" type="dateTime" />
+				<schema name="ExternalSource" type="string" />
+				<schema name="ExternalProtocol" type="string"
+					constraint="|CWMP|OMA-DM|SNMP|UPnP|HELD|DHCPv4|LLDP-MED|MLP|Other" />
+				<schema name="DataObject" type="string" write="W" constraint="1200" />
+			</schema> <!-- Device.DeviceInfo.Location -->
+		</schema> <!-- Device.DeviceInfo -->
+		<schema name="ManagementServer" type="object">
+			<schema name="EnableCWMP" type="boolean" write="W" default="true"/>
+			<schema name="URL" type="string" constraint="256" write="W" />
+			<extension name="Timeout" type="unsignedInt" />
+			<schema name="Username" type="string" constraint="256" write="W" />
+			<schema name="Password" type="string" constraint="256" write="W" />
+			<schema name="ScheduleReboot" type="dateTime" write="W" />
+			<schema name="DelayReboot" type="int" constraint="-1:" write="W" />
+			<schema name="PeriodicInformEnable" type="boolean" write="W" />
+			<schema name="PeriodicInformInterval" type="unsignedInt"
+				constraint="1:" write="W" />
+			<schema name="PeriodicInformTime" type="dateTime" write="W" />
+			<schema name="ParameterKey" type="string" constraint="32"
+				inform="true" />
+			<schema name="ConnectionRequestURL" type="string" constraint="256"
+				inform="true" notification="active" />
+			<schema name="ConnectionRequestUsername" type="string"
+				constraint="256" write="W" />
+			<schema name="ConnectionRequestPassword" type="string"
+				constraint="256" write="W" />
+			<extension name="ConnectionRequestInterval" type="unsignedInt" />
+			<schema name="UpgradesManaged" type="boolean" write="W" />
+			<schema name="KickURL" type="string" constraint="256" />
+			<schema name="DownloadProgressURL" type="string" constraint="256" />
+			<schema name="DefaultActiveNotificationThrottle" type="unsignedInt"
+				write="W" />
+			<schema name="CWMPRetryMinimumWaitInterval" type="unsignedInt" constraint="1:65535" write="W" />
+			<schema name="CWMPRetryIntervalMultiplier" type="unsignedInt" constraint="1000:65535" write="W" />
+			<schema name="UDPConnectionRequestAddress" type="string"
+				constraint="256" />
+			<!--schema name="UDPConnectionRequestAddressNotificationLimit"
+				type="unsignedInt" write="W" /-->
+			<schema name="STUNEnable" type="boolean" write="W" />
+			<schema name="STUNServerAddress" type="string" write="W"
+				constraint="256" />
+			<schema name="STUNServerPort" type="unsignedInt" write="W"
+				constraint="0:65535" default="3478" />
+			<schema name="STUNUsername" type="string" constraint="256"
+				write="W" />
+			<schema name="STUNPassword" type="string" constraint="256"
+				write="W" />
+			<schema name="STUNMaximumKeepAlivePeriod" type="int"
+				constraint="-1:" write="W" />
+			<schema name="STUNMinimumKeepAlivePeriod" type="unsignedInt"
+				write="W" />
+			<schema name="NATDetected" type="boolean" />
+			<schema name="ManageableDeviceNotificationLimit" type="unsignedInt"
+				write="W" />
+			<schema name="AliasBasedAddressing" type="boolean" inform="true" />
+			<schema name="InstanceMode" type="string"
+				constraint="InstanceNumber|InstanceAlias" write="W" />
+			<schema name="AutoCreateInstances" type="boolean" write="W"
+				default="false" />
+			<schema name="ManageableDeviceNumbeOfEntries" type="unsignedInt" />
+			<schema name="EmbeddedDeviceNumberOfEntries" type="unsignedInt" />
+			<schema name="VirtualDeviceNumberOfEntries" type="unsignedInt" />
+			<schema name="SupportedConnReqMethods" type="string"
+				constraint="HTTP|STUN|XMPP" />
+			<schema name="ConnReqXMPPConnection" type="string" write="W" />
+			<schema name="ConnReqAllowedJabberIDs" type="string"
+				constraint="256" />
+			<schema name="ConnReqJabberID" type="string" notification="active" />
+			<schema name="HTTPCompressionSupported" type="string"
+				constraint="GZIP|Compress|Deflate" />
+			<schema name="HTTPCompression" type="string" write="W"
+				default="Disabled" />
+			<schema name="LightweightNotificationProtocolsSupported" type="string" />
+			<schema name="LightweightNotificationProtocolsUsed" type="string"
+				write="W" />
+			<schema name="UDPLightweightNotificationHost" type="string"
+				constraint="256" write="W" />
+			<schema name="UDPLightweightNotificationPort" type="unsignedInt"
+				write="W" />
+			<schema name="InformParameterNumberOfEntries" type="unsignedInt" />
+			<schema name="ManageableDevice" type="multipleObject"
+				number="ManageableDeviceNumbeOfEntries">
+				<schema name="Alias" type="string" constraint="64" write="W"/>
+				<schema name="ManufacturerOUI" type="string" constraint="6" />
+				<schema name="SerialNumber" type="string" constraint="64" />
+				<schema name="ProductClass" type="string" constraint="64" />
+				<schema name="Host" type="string" constraint="1024" />
+			</schema> <!-- Device.ManagementServer.ManageableDevice -->
+			<schema name="AutonomousTransferCompletePolicy" type="object">
+				<schema name="Enable" type="boolean" write="W" />
+				<schema name="TransferTypeFilter" type="string" constraint="Upload|Download|Both"
+					write="W" />
+				<schema name="ResultTypeFilter" type="string" constraint="Success|Failure|Both"
+					write="W" />
+				<schema name="FileTypeFilter" type="string" constraint="1024"
+					write="W" />
+			</schema> <!-- Device.ManagementServer.AutonomousTransferCompletePolicy -->
+			<schema name="DUStateChangeComplPolicy" type="object">
+				<schema name="Enable" type="boolean" write="W" />
+				<schema name="OperationTypeFilter" type="string"
+					constraint="Install|Update|Uninstall" write="W" />
+				<schema name="ResultTypeFilter" type="string" constraint="Success|Failure|Both"
+					write="W" />
+				<schema name="FaultCodeFilter" type="string" write="W" />
+			</schema> <!-- Device.ManagementServer.DUStateChangeComplPolicy -->
+			<schema name="EmbeddedDevice" type="multipleObject"
+				number="EmbeddedDeviceNumberOfEntries">
+				<schema name="ControllerID" type="string" constraint="256" />
+				<schema name="ProxiedDeviceID" type="string" constraint="256" />
+				<schema name="Reference" type="string" />
+				<schema name="SupportedDataModel" type="string" />
+				<schema name="Host" type="string" />
+				<schema name="ProxyProtocol" type="string"
+					constraint="Z-Wave|ZigBee|UPnP-DM|ETSI-M2M" />
+				<schema name="ProxyProtocolReference" type="string" />
+				<schema name="DiscoveryProtocol" type="string"
+					constraint="Z-Wave|ZigBee|UPnP|ETSI-M2M" />
+				<!--schema name="DiscoveryProtocolReference" type="string" constraint="Pending|Retrying|Success|Error"/ -->
+				<schema name="CommandProcessingErrMsg" type="string"
+					constraint="1024" />
+				<schema name="LastSyncTime" type="dateTime" />
+			</schema> <!-- Device.ManagementServer.EmbeddedDevice -->
+			<schema name="VirtualDevice" type="multipleObject"
+				number="VirtualDeviceNumberOfEntries">
+				<schema name="ManufacturerOUI" type="string" constraint="6" />
+				<schema name="ProductClass" type="string" constraint="64" />
+				<schema name="SerialNumber" type="string" constraint="64" />
+				<schema name="Host" type="string" />
+				<schema name="ProxyProtocol" type="string"
+					constraint="Z-Wave|ZigBee|UPnP-DM|ETSI-M2M" />
+				<schema name="ProxyProtocolReference" type="string" />
+				<schema name="DiscoveryProtocol" type="string"
+					constraint="Z-Wave|ZigBee|UPnP|ETSI-M2M" />
+				<schema name="DiscoveryProtocolReference" type="string"
+					constraint="Pending|Retrying|Success|Error" />
+			</schema> <!-- Device.ManagementServer.VirtualDevice -->
+			<schema name="StandbyPolicy" type="object">
+				<schema name="CRUnawarenessMaxDuration" type="int" write="W"
+					constraint="-1:" default="-1" />
+				<schema name="MaxMissedPeriodic" type="int" write="W"
+					constraint="-1:" default="-1" />
+				<schema name="NotifyMissedScheduled" type="boolean" write="W"
+					default="0" />
+				<schema name="NetworkAwarenessCapable" type="boolean" />
+				<schema name="SelfTimerCapable" type="boolean" />
+				<schema name="CRAwarenessRequested" type="boolean" write="W"
+					default="0" />
+				<schema name="PeriodicAwarenessRequested" type="boolean"
+					write="W" default="0" />
+				<schema name="ScheduledAwarenessRequested" type="boolean"
+					write="W" default="0" />
+			</schema> <!-- Device.ManagementServer.StandbyPolicy -->
+			<schema name="InformParameter" type="multipleObject"
+				number="InformParameterNumberOfEntries">
+				<schema name="Enable" type="boolean" write="W" default="0" />
+				<schema name="Alias" type="string" write="W" constraint="64" />
+				<schema name="ParameterName" type="string" constraint="256"
+					write="W" default="" />
+				<schema name="EventList" type="string" write="W" default="" />
+			</schema> <!-- Device.ManagementServer.InformParameter -->
+			<schema name="GatewayInfo" type="object">
+			  <schema name="ManufacturerOUI" type="string" constraint="6" />
+			  <schema name="ProductClass" type="string" constraint="64" />
+			  <schema name="SerialNumber" type="string" constraint="64" />
+			</schema> <!-- Device.ManagementServer.GatewayInfo -->
+			<extension name="Authentication" type="string" constraint="NONE|BASIC|DIGEST" />
+			<extension name="ProxyURL" type="string" constraint="256" />
+			<extension name="ProxyUsername" type="string" constraint="256" />
+			<extension name="ProxyPassword" type="string" constraint="256" />
+		</schema> <!-- Device.ManagementServer -->
+		<schema name="Time" type="object">
+			<schema name="Enabled" type="boolean" write="W" />
+			<schema name="Status" type="string"
+				constraint="Disabled|Unsynchronized|Synchronized|Error_FailedToSynchronoized|Error" />
+			<schema name="NTPServer1" type="string" constraint="64" write="W" />
+			<schema name="NTPServer2" type="string" constraint="64" write="W" />
+			<schema name="NTPServer3" type="string" constraint="64" write="W" />
+			<schema name="NTPServer4" type="string" constraint="64" write="W" />
+			<schema name="NTPServer5" type="string" constraint="64" write="W" />
+			<schema name="CurrentLocalTime" type="dateTime" notification="passive"
+				getter="evcpe_get_curtime" setter="evcpe_set_curtime" />
+			<schema name="LocalTimeZone" type="string" constraint="6"
+				write="W" />
+			<schema name="LocalTimeZoneName" type="string" constraint="64"
+				write="W" />
+		</schema> <!-- Device.Time -->
+		<schema name="UserInterface" type="object">
+			<schema name="PasswordRequired" type="boolean" write="W" />
+			<schema name="PasswordUserSelectable" type="boolean" write="W" />
+			<schema name="PasswordReset" type="boolean" write="" />
+			<schema name="UpgradeAvailable" type="boolean" write="W" />
+			<schema name="WarrantyDate" type="dateTime" write="W" />
+			<schema name="ISPName" type="string" constraint="64" write="W" />
+			<schema name="ISPHelpDesk" type="string" constraint="32"
+				write="W" />
+			<schema name="ISPHomePage" type="string" constraint="256"
+				write="W" />
+			<schema name="ISPHelpPage" type="string" constraint="256"
+				write="W" />
+			<schema name="ISPLogo" type="base64" constraint="4095" write="W" />
+			<schema name="ISPLogoSize" type="unsignedInt" constraint="0:4095"
+				write="W" />
+			<schema name="ISPMailServer" type="string" constraint="256"
+				write="W" />
+			<schema name="ISPNewsServer" type="string" constraint="256"
+				write="W" />
+			<schema name="TextColor" type="string" constraint="6" write="W" />
+			<schema name="BackgroundColor" type="string" constraint="6"
+				write="W" />
+			<schema name="ButtonColor" type="string" constraint="6" write="W" />
+			<schema name="ButtonTextColor" type="string" constraint="6"
+				write="W" />
+			<schema name="AutoUpdateServer" type="string" constraint="256"
+				write="W" />
+			<schema name="UserUpdateServer" type="string" constraint="256"
+				write="W" />
+			<schema name="AvailableLanguages" type="string" constraint="256" />
+			<schema name="CurrentLanguage" type="string" constraint="16"
+				write="W" />
+			<schema name="RemoteAccess" type="object">
+				<schema name="Enable" type="boolean" write="W" />
+				<schema name="Port" type="unsignedInt" write="W" constraint=":65535" />
+				<schema name="SupportedProtocols" type="string" constraint="HTTP|HTTPS" />
+				<schema name="Protocol" type="string" write="W" />
+			</schema> <!-- Device.UserInterface.RemoteAccess -->
+			<schema name="LocalDisplay" type="object">
+				<schema name="Movable" type="boolean" write="W" />
+				<schema name="Resizable" type="boolean" write="W" />
+				<schema name="PosX" type="int" write="W" />
+				<schema name="PosY" type="int" write="W" />
+				<schema name="Width" type="unsignedInt" write="W" />
+				<schema name="Height" type="unsignedInt" write="W" />
+				<schema name="DisplayWidth" type="unsignedInt" />
+				<schema name="DisplayHeight" type="unsignedInt" />
+			</schema> <!-- Device.UserInterface.LocalDisplay -->
+		</schema> <!-- Device.UserInterface -->
+		<schema name="WiFi" type="object">
+			<schema name="RadioNumberOfEntries" type="unsignedInt" />
+			<schema name="SSIDNumberOfEntries" type="unsignedInt" />
+			<schema name="AccessPointNumberOfEntries" type="unsignedInt" />
+			<schema name="EndPointNumberOfEntries" type="unsignedInt" />
+			<schema name="Radio" type="multipleObject" number="RadioNumberOfEntries">
+				<schema name="Enable" type="boolean" write="W" />
+				<schema name="Status" type="string"
+					constraint="Up|Down|Dormant|NotPresent|LowerLayerDown|Error" />
+				<schema name="Alias" type="string" constraint="64" write="W" />
+				<schema name="Name" type="string" constraint="16" />
+				<schema name="LastChange" type="unsignedInt" />
+				<schema name="LowerLayers" type="string" constraint="1024"
+					write="W" />
+				<schema name="Upstream" type="boolean" />
+				<schema name="MaxBitRate" type="unsignedInt" />
+				<schema name="SupportedFrequencyBands" type="string"
+					constraint="2.4GHz|5GHz" />
+				<schema name="OperatingFrequencyBand" type="string" write="W"
+					constraint="2.4GHz|5GHz" />
+				<schema name="SupportedStandards" type="string" constraint="a|b|g|n|ac" />
+				<schema name="OperatingStandards" type="string" constraint="a|b|g|n|ac" />
+				<schema name="PossibleChannels" type="string" constraint="1024" />
+				<schema name="ChannelsInUse" type="string" constraint="W" />
+				<schema name="Channel" type="unsignedInt" constraint="1:255"
+					write="W" />
+				<schema name="AutoChannelSupported" type="boolean" />
+				<schema name="AutoChannelEnable" type="boolean" write="W" />
+				<schema name="AutoChannelRefreshPeriod" type="unsignedInt"
+					write="W" />
+				<schema name="OperatingChannelBandwidth" type="string"
+					constraint="20MHz|40MHz|80MHz|160MHz|Auto" write="W" />
+				<schema name="ExtensionChannel" type="string"
+					constraint="AboveControlChannel|BelowControlChannel|Auto" write="W" />
+				<schema name="GaurdInterval" type="string" constraint="400nsec|800nsec|Auto"
+					write="W" />
+				<schema name="MCS" type="int" constraint="-1:31" write="W" />
+				<schema name="TransmitPowerSupported" type="string" />
+				<schema name="IEEE80211hSupported" type="boolean" />
+				<schema name="IEEE80211hEnabled" type="boolean" write="W" />
+				<schema name="RegulatoryDomain" type="string" write="W" />
+				<schema name="RetryLimit" type="unsignedInt" constraint="0:7"
+					write="W" />
+				<schema name="CCARequest" type="string" write="W" />
+				<schema name="CCAReport" type="string" />
+				<schema name="RPIHistogramRequest" type="string" write="W" />
+				<schema name="RPIHistogramReport" type="string" />
+				<schema name="FragmentationThreshold" type="unsignedInt"
+					write="W" />
+				<schema name="RTSThreshold" type="unsignedInt" write="W" />
+				<schema name="LongRetryLimit" type="unsignedInt" write="W" />
+				<schema name="BeaconPeriod" type="unsignedInt" write="W" />
+				<schema name="DTIMPeriod" type="unsignedInt" write="W" />
+				<schema name="PacketAggregationEnable" type="boolean" write="W" />
+				<schema name="PreambleType" type="string" constraint="short|long|auto"
+					write="W" />
+				<schema name="BasicDataTransmitRates" type="string" write="W" />
+				<schema name="SupportedDataTransmitRates" type="string" />
+				<schema name="Stats" type="object">
+			    <schema name="BytesSent" type="unsignedInt" />
+			    <schema name="BytesReceived" type="unsignedInt" />
+			    <schema name="PacketsSent" type="unsignedInt" />
+			    <schema name="PacketsReceived" type="unsignedInt" />
+			    <schema name="ErrorsSent" type="unsignedInt" />
+			    <schema name="ErrorsReceived" type="unsignedInt" />
+          <schema name="DiscardPacketsSent" type="unsignedInt" />
+          <schema name="DiscardPacketsReceived" type="unsignedInt" />
+          <schema name="PLCPErrorCount" type="unsignedInt" />
+          <schema name="FCSErrorCount" type="unsignedInt" />
+          <schema name="InvalidMACCount" type="unsignedInt" />
+          <schema name="PacketsOtherReceived" type="unsignedInt" />
+          <schema name="Nosie" type="int" />
+				</schema> <!-- Device.WiFi.Radio.Stats -->
+			</schema> <!-- Device.WiFi.Radio -->
+			<schema name="SSID" type="multipleObject" number="SSIDNumberOfEntries">
+			  <schema name="Enable" type="boolean" write="W" default="false"></schema>
+			  <schema name="Status" type="string" constraint="Up|Down|Unknown|Dormant|NotPresent|LowerLayerDown|Error" default="Down"></schema>
+			  <schema name="Alias" type="string" write="W" constraint="64"></schema>
+			  <schema name="LastChange" type="unsignedInt"></schema>
+			  <schema name="LowerLayers" type="string" constraint="1024" write="W"></schema>
+			  <schema name="BSSID" type="string" constraint="17"></schema>
+			  <schema name="MACAddress" type="string" constraint="17"></schema>
+			  <schema name="SSID" type="string" constraint="32"></schema>
+			  <schema name="Stats" type="object">
+			    <schema name="BytesSent" type="unsignedInt" />
+          <schema name="BytesReceived" type="unsignedInt" />
+          <schema name="PacketsSent" type="unsignedInt" />
+          <schema name="PacketsReceived" type="unsignedInt" />
+          <schema name="ErrorsSent" type="unsignedInt" />
+          <schema name="RetransCount" type="unsignedInt" />
+          <schema name="FailedRetransCount" type="unsignedInt" />
+          <schema name="RetryCount" type="unsignedInt" />
+          <schema name="MultipleRetryCount" type="unsignedInt" />
+          <schema name="ACKFailureCount" type="unsignedInt" />
+          <schema name="AggregatedPacketCount" type="unsignedInt" />
+          <schema name="ErrorsReceived" type="unsignedInt" />
+          <schema name="UnicastPacketsSent" type="unsignedInt" />
+          <schema name="UnicastPacketsReceived" type="unsignedInt" />
+          <schema name="DiscardPacketsSent" type="unsignedInt" />
+          <schema name="DiscardPacketsReceived" type="unsignedInt" />
+          <schema name="MulticastPacketsSent" type="unsignedInt" />
+          <schema name="MulticastPacketsReceived" type="unsignedInt" />
+          <schema name="BroadcastPacketsSent" type="unsignedInt" />
+          <schema name="BroadcastPacketsReceived" type="unsignedInt" />
+          <schema name="UnknownProtoPacketsReceived" type="unsignedInt" />
+			  </schema> <!--  Device.WiFi.SSID.Stats -->
+			</schema> <!-- Device.WiFi.SSID -->
+			<schema name="AccessPoint" type="multipleObject" number="AccessPointNumberOfEntries">
+        <schema name="Enable" type="boolean" write="W" default="false"></schema>
+        <schema name="Status" type="string" constraint="Disabled|Enabled|Error_Misconfigured|Error" default="Disabled"></schema>
+        <schema name="Alias" type="string" constraint="64" write="W"></schema>
+        <schema name="SSIDReference" type="string" constraint="256" write="W"></schema>
+        <schema name="SSIDAdvertisementEnabled" type="boolean" write="W"></schema>
+        <schema name="RetryLimit" type="unsignedInt" constraint="0:7" write="W"></schema>
+        <schema name="WMMCapability" type="boolean"></schema>
+        <schema name="UAPSDCapability" type="boolean"></schema>
+        <schema name="WMMEnable" type="boolean" write="W"></schema>
+        <schema name="UAPSDEnable" type="boolean" write="W"></schema>
+        <schema name="AssociatedDeviceNumberOfEntries" type="unsignedInt"></schema>
+        <schema name="MaxAssociatedDevices" type="unsignedInt" default="0" write="W"></schema>
+        <schema name="IsolationEnable" type="boolean" write="W"></schema>
+        <schema name="MACAddressControlEnabled" type="boolean" write="W"></schema>
+        <schema name="AllowedMACAddress" type="string" write="W"></schema>
+        <schema name="Security" type="object">
+          <schema name="Reset" type="boolean" write="W"></schema>
+          <schema name="ModesSupported" type="string" constraint="None|WEP-64|WEP-128|WPA-Personal|WPA2-Personal|WPA-WAP2-Personal|WPA-Enterprise|WPA2-Enterprise|WPA-WPA2-Enterprise"></schema>
+          <schema name="ModeEnabled" type="string" write="W"></schema>
+          <schema name="WEPKey" type="string" write="W"></schema>
+          <schema name="PreSharedKey" type="string" constraint="32" write="W"></schema>
+          <schema name="KeyPassphrase" type="string" constraint="63" write="W"></schema>
+          <schema name="RekeyingInterval" type="unsignedInt" default="3600" write="W"></schema>
+          <schema name="RadiusServerIPAddr" type="string" constraint="45" write="W"></schema>
+          <schema name="SecondaryRadiusServerIPAddr" type="string" constraint="45" write="W"></schema>
+          <schema name="RadiusServerPort" type="unsignedInt" default="1812" write="W"></schema>
+          <schema name="SecondaryRadiusServerPort" type="unsignedInt" default="1812" write="W"></schema>
+          <schema name="RadiusSecret" type="string" write="W"></schema>
+          <schema name="SecondaryRadiusSecret" type="string" write="W"></schema>
+        </schema> <!--  Device.WiFi.AccessPoint.Security -->
+        <schema name="Accounting" type="object">
+          <schema name="Enable" type="boolean" write="W"></schema>
+          <schema name="ServerIPAddr" type="string" constraint="45" write="W"></schema>
+          <schema name="SecondaryServerIPAddr" type="string" constraint="45" write="W"></schema>
+          <schema name="ServerPort" type="unsignedInt" default="1813" write="W"></schema>
+          <schema name="SecondaryServerPort" type="unsignedInt" default="1813" write="W"></schema>
+          <schema name="Secret" type="string" write="W"></schema>
+          <schema name="SecondarySecret" type="string" write="W"></schema>
+          <schema name="InterimInterval" type="unsignedInt" constraint="0:60" default="0" write="W"></schema>
+        </schema> <!-- Device.WiFi.AccessPoint.Accounting -->
+        <schema name="WPS" type="object">
+          <schema name="Enable" type="boolean" default="true" write="W"></schema>
+          <schema name="ConfigMethodsSupported" type="string" constraint="USBFlashDrive|Ethernet|EthernetNFCToken|IntegratedNFCToken|NFCInterface|PushButton|PIN"></schema>
+          <schema name="ConfigMethodsEnabled" type="string" write="W"></schema>
+        </schema> <!-- Device.WiFi.AccessPoint.WPS -->
+        <schema name="AssociatedDevice" type="multipleObject" number="AssociatedDeviceNumberOfEntries">
+          <schema name="MACAddress" type="string" constraint="17"></schema>
+          <schema name="OperatingStandard" type="string" constraint="a|b|g|n|ac"></schema>
+          <schema name="AuthenticationState" type="boolean"></schema>
+          <schema name="LastDataDownlinkRate" type="unsignedInt" constraint="1000:600000"></schema>
+          <schema name="LastDataUplinkRate" type="unsignedInt" constraint="1000:600000"></schema>
+          <schema name="SignalStrength" type="int" constraint="-200:0"></schema>
+          <schema name="Retransmissions" type="unsignedInt" constraint="0:100"></schema>
+          <schema name="Active" type="boolean"></schema>
+	        <schema name="Stats" type="object">
+	          <schema name="BytesSent" type="unsignedInt" />
+	          <schema name="BytesReceived" type="unsignedInt" />
+	          <schema name="PacketsSent" type="unsignedInt" />
+	          <schema name="PacketsReceived" type="unsignedInt" />
+	          <schema name="ErrorsSent" type="unsignedInt" />
+	          <schema name="RetransCount" type="unsignedInt" />
+	          <schema name="FailedRetransCount" type="unsignedInt" />
+	          <schema name="RetryCount" type="unsignedInt" />
+            <schema name="MultipleRetryCount" type="unsignedInt" />
+	        </schema> <!--  Device.WiFi.AccessPoint.AssociatedDevice.Stats -->
+          <schema name="ACNumberOfEntries" type="unsignedInt" default="4" />
+          <schema name="AC" type="multipleObject" number="ACNumberOfEntries">
+            <schema name="AccessCategory" type="string" constraint="BE|BK|VI|VO"></schema>
+            <schema name="Alias" type="string" constraint="64" write="W"></schema>
+            <schema name="AIFSN" type="unsignedInt" constraint="2:15" write="W"></schema>
+            <schema name="ECWMin" type="unsignedInt" constraint="0:15" write="W"></schema>
+            <schema name="ECWMax" type="unsignedInt" constraint="0:15" write="W"></schema>
+            <schema name="TxOpMax" type="unsignedInt" constraint="0:255" write="W"></schema>
+            <schema name="AckPolicy" type="boolean" write="W"></schema>
+            <schema name="OutQLenHistogramIntervals" type="string" write="W"></schema>
+            <schema name="OutQLenHistogramSampleInterval" type="unsignedInt" write="W"></schema>
+            <schema name="Stats" type="object">
+	            <schema name="BytesSent" type="unsignedInt" />
+	            <schema name="BytesReceived" type="unsignedInt" />
+	            <schema name="PacketsSent" type="unsignedInt" />
+	            <schema name="PacketsReceived" type="unsignedInt" />
+	            <schema name="ErrorsSent" type="unsignedInt" />
+	            <schema name="ErrorsReceived" type="unsignedInt" />
+	            <schema name="DiscardPacketSent" type="unsignedInt" />
+	            <schema name="DiscardPacketReceived" type="unsignedInt" />
+	            <schema name="RetransCount" type="unsignedInt" />
+	            <schema name="OutQLenHistogram" type="unsignedInt" />
+	          </schema> <!--  Device.WiFi.AccessPoint.AssociatedDevice.AC.Stats -->
+          </schema> <!-- Device.WiFi.AccessPoint.AssociatedDevice.AC -->
+        </schema> <!-- Device.WiFi.AccessPoint.AssociatedDevice -->
+      </schema> <!-- Device.WiFi.AccessPoint -->
+      <schema name="EndPoint" type="object" write="W">
+        <schema name="Enable" type="boolean" default="true" write="W"></schema>
+        <schema name="Status" type="string" constraint="Disabled|Enabled|Error_Misconfigured|Error" default="Disabled"></schema>
+        <schema name="Alias" type="string" constraint="64" write="W"></schema>
+        <schema name="ProfileReference" type="string" constraint="256" write="W"></schema>
+        <schema name="SSIDReference" type="string" constraint="256" write="W"></schema>
+        <schema name="ProfileNumberOfEntries" type="unsignedInt"></schema>
+        <schema name="Stats" type="object">
+          <schema name="LastDataDownlinkRate" type="unsignedInt" constraint="1000:600000" />
+          <schema name="LastDataUplinkRate" type="unsignedInt" constraint="1000:600000" />
+          <schema name="SignalStrength" type="unsignedInt" constraint="-200:0" />
+          <schema name="Retransmissions" type="unsignedInt" constraint="0:100" />
+        </schema> <!--  Device.WiFi.EndPoint.Stats -->
+        <schema name="Security" type="object">
+          <schema name="ModelsSupported" type="string" constraint="None|WEP-64|WEP-128|WPA-Personal|WPA2-Personal|WPA-WAP2-Personal|WPA-Enterprise|WPA2-Enterprise|WPA-WPA2-Enterprise"></schema>
+        </schema> <!-- Device.WiFi.EndPoint.Security -->
+        <schema name="Profile" type="multipleObject" number="ProfileNumberOfEntries">
+          <schema name="Enable" type="boolean" default="false" write="W" />
+          <schema name="Status" type="string" constraint="Active|Available|Error|Disabled"></schema>
+          <schema name="Alias" type="string" constraint="64" write="W"></schema>
+          <schema name="SSID" type="string" constraint="32" write="W"></schema>
+          <schema name="Location" type="string" write="W"></schema>
+          <schema name="Priority" type="unsignedInt" constraint="0:255"></schema>
+          <schema name="Security" type="object">
+            <schema name="ModeEnabled" type="string" write="W"></schema>
+            <schema name="WEPKey" type="string" write="W"></schema>
+            <schema name="PreSharedKey" type="string" write="W"></schema>
+            <schema name="KeyPassphrase" type="string" constraint="63" write="W"></schema>
+          </schema> <!-- Device.WiFi.EndPoint.Profile.Security -->
+        </schema> <!-- Device.WiFi.EndPoint.Profile -->
+        <schema name="WPS" type="object">
+          <schema name="Enable" type="boolean" default="true" write="W"></schema>
+          <schema name="ConfigMethodsSupported" type="string" constraint="USBFlashDrive|Ethernet|EthernetNFCToken|IntegratedNFCToken|NFCInterface|PushButton|PIN"></schema>
+          <schema name="ConfigMethodsEnabled" type="string" write="W"></schema>
+        </schema> <!-- Device.WiFi.EndPoint.WPS -->
+        <schema name="ACNumberOfEntries" type="unsignedInt" default="4" />
+        <schema name="AC" type="multipleObject" number="ACNumberOfEntries">
+          <schema name="AccessCategory" type="string" constraint="BE|BK|VI|VO"></schema>
+          <schema name="Alias" type="string" constraint="64" write="W"></schema>
+          <schema name="AIFSN" type="unsignedInt" constraint="2:15" write="W"></schema>
+          <schema name="ECWMin" type="unsignedInt" constraint="0:15" write="W"></schema>
+          <schema name="ECWMax" type="unsignedInt" constraint="0:15" write="W"></schema>
+          <schema name="TxOpMax" type="unsignedInt" constraint="0:255" write="W"></schema>
+          <schema name="AckPolicy" type="boolean" write="W"></schema>
+          <schema name="OutQLenHistogramIntervals" type="string" write="W"></schema>
+          <schema name="OutQLenHistogramSampleInterval" type="unsignedInt" write="W"></schema>
+          <schema name="Stats" type="object">
+            <schema name="BytesSent" type="unsignedInt" />
+            <schema name="BytesReceived" type="unsignedInt" />
+            <schema name="PacketsSent" type="unsignedInt" />
+            <schema name="PacketsReceived" type="unsignedInt" />
+            <schema name="ErrorsSent" type="unsignedInt" />
+            <schema name="ErrorsReceived" type="unsignedInt" />
+            <schema name="DiscardPacketSent" type="unsignedInt" />
+            <schema name="DiscardPacketReceived" type="unsignedInt" />
+            <schema name="RetransCount" type="unsignedInt" />
+            <schema name="OutQLenHistogram" type="unsignedInt" />
+          </schema> <!--  Device.WiFi.EndPoint.AC.Stats -->
+        </schema> <!-- Device.WiFi.EndPoint.AC -->
+      </schema> <!-- Device.WiFi.EndPoint -->
+		</schema> <!-- Device.WiFi -->
+	</schema> <!-- Device -->
+</model>

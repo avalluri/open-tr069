@@ -85,7 +85,8 @@ void evcpe_repo_free(evcpe_repo *repo)
 int evcpe_repo_init(evcpe_repo* repo) {
 
 	tqueue_element* elm = NULL;
-	const char* device_node = "InternetGatewayDevice";
+        //FIXME: find a way to support both data modles :(
+	const char* device_node = "Device"; //"InternetGatewayDevice";
 	int         device_node_len = strlen(device_node);
 	evcpe_attr_schema* device_schema = NULL;
 
@@ -195,7 +196,8 @@ int evcpe_repo_locate(evcpe_repo* repo, const char* name,
 			*attr = RB_ROOT(&repo->root->attrs);
 			*obj = (*attr)->value.object;
 		} else if ((*attr) && (*attr)->schema->type == EVCPE_TYPE_MULTIPLE) {
-			if (!(index = atoi(start)) && errno) {
+			errno = 0;
+			if (!(index = strtoul(start, NULL, 10)) && errno) {
 				ERROR("failed to convert to integer: %.*s",
 						(int)(end - start), start);
 				return EVCPE_CPE_INVALID_PARAM_NAME;
@@ -324,7 +326,7 @@ int evcpe_repo_getcpy(evcpe_repo *repo, const char *name,
 		rc = EOVERFLOW;
 		goto finally;
 	}
-	memcpy(value, ptr, ptrlen);
+	memcpy(value, ptr, ptrlen > len ? len : ptrlen);
 	value[ptrlen] = '\0';
 
 finally:
@@ -379,12 +381,12 @@ int evcpe_repo_add_obj(evcpe_repo *repo, const char *name,
 
 	DEBUG("adding object: %s", name);
 
-	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr))) {
+	if ((rc = evcpe_repo_locate(repo, name, &obj, &attr)) && !attr) {
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
-	if (!attr || attr->schema->type != EVCPE_TYPE_MULTIPLE) {
-		ERROR("not a multiple object attribute: %s", name);
+	if (attr->schema->type != EVCPE_TYPE_MULTIPLE) {
+		ERROR("not a multiple object attribute: %s", attr->schema->name);
 		rc = EINVAL;
 		goto finally;
 	}
@@ -410,7 +412,8 @@ int evcpe_repo_del_obj(evcpe_repo *repo, const char *name)
 		ERROR("failed to locate object: %s", name);
 		goto finally;
 	}
-	if (!attr || attr->schema->type != EVCPE_TYPE_OBJECT) {
+	if (!attr || (attr->schema->type != EVCPE_TYPE_OBJECT &&
+			      attr->schema->type != EVCPE_TYPE_MULTIPLE)) {
 		ERROR("not an object attribute: %s", name);
 		rc = EINVAL;
 		goto finally;
@@ -674,10 +677,16 @@ int evcpe_repo_to_param_info_list(evcpe_repo *repo, const char *name,
 	}
 	if (next_level && attr->schema->type != EVCPE_TYPE_OBJECT &&
 			attr->schema->type != EVCPE_TYPE_MULTIPLE) {
+		WARN("Invalid next_level for non object node: %s", attr->path);
 		rc = EVCPE_CPE_INVALID_ARGUMENTS;
 		goto finally;
 	}
 
+	DEBUG("Found Node: %s(%s)", attr->path, name);
+
+#if 0
+	//NOTE: Even for top node we should return all its child
+	// Hence, commenting this part of code
 	// No idea why this speical condition.!!!
 	if (*name == '\0') {
 		if (!(param = evcpe_param_info_list_add(list,
@@ -686,7 +695,9 @@ int evcpe_repo_to_param_info_list(evcpe_repo *repo, const char *name,
 			ERROR("failed to add param info");
 			goto finally;
 		}
-	} else	if ((rc = evcpe_attr_to_param_info_list(attr, list, next_level))) {
+	} else
+#endif
+		if ((rc = evcpe_attr_to_param_info_list(attr, list, next_level))) {
 		ERROR("failed to add attribute to param info list: %s", name);
 		goto finally;
 	}

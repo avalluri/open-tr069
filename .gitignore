@@ -44,6 +44,11 @@ stamp-h1
 tests/.deps/
 tests/.libs/
 tests/test_suite
+.autotools
+*~
+src/plugins/.deps/
+src/plugins/.libs/
+src/plugins/lib*.la
 
 
 # 

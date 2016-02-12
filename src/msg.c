@@ -122,6 +122,9 @@ void evcpe_msg_free(evcpe_msg *msg)
 			case EVCPE_ADD_OBJECT:
 				evcpe_add_object_response_free(msg->data);
 				break;
+			case EVCPE_DELETE_OBJECT:
+				evcpe_delete_object_response_free(msg->data);
+				break;
 			case EVCPE_GET_PARAMETER_NAMES:
 				evcpe_get_param_names_response_free(msg->data);
 				break;
@@ -217,6 +220,12 @@ int evcpe_msg_to_xml(evcpe_msg *msg, struct evbuffer *buffer)
 				goto finally;
 			}
 			break;
+		case EVCPE_DELETE_OBJECT:
+			if ((rc = evcpe_delete_object_response_to_xml(msg->data, buffer))) {
+				ERROR("failed to marshal delete_object_response");
+				goto finally;
+			}
+			break;
 		case EVCPE_GET_PARAMETER_VALUES:
 			if ((rc = evcpe_get_param_values_response_to_xml(msg->data, buffer))) {
 				ERROR("failed to marshal get_param_values_response");
@@ -236,7 +245,7 @@ int evcpe_msg_to_xml(evcpe_msg *msg, struct evbuffer *buffer)
 			}
 			break;
 		default:
-			ERROR("unexpected response type: %d", msg->method_type);
+			ERROR("unexpected response type : %s", method);
 			rc = EINVAL;
 			goto finally;
 		}

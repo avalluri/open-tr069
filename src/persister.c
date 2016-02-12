@@ -61,15 +61,13 @@ void evcpe_persister_free(struct evcpe_persister *persist)
 
 	TRACE("destructing evcpe_persister");
 
-	if (event_initialized(&persist->timer_ev) && evtimer_pending(
-			&persist->timer_ev, NULL)) {
-		event_del(&persist->timer_ev);
-	}
 	if (evtimer_initialized(&persist->timer_ev) && evtimer_pending(
-			&persist->timer_ev, NULL)) {
+			&persist->timer_ev, NULL))
+		{
 		event_del(&persist->timer_ev);
-	    if (evcpe_persister_persist(persist))
-		    ERROR("failed to write buffer");
+	    if (evcpe_persister_persist(persist)) {
+	       ERROR("failed to write buffer");
+	    }
 	}
 	if (persist->buffer)
 	  evbuffer_free(persist->buffer);
@@ -141,8 +139,8 @@ int evcpe_persister_persist(struct evcpe_persister *persist)
 		ERROR("failed to marshal root object");
 		goto finally;
 	}
-	DEBUG("%.*s", (int)evbuffer_get_length(persist->buffer),
-			evbuffer_pullup(persist->buffer ,-1));
+	//DEBUG("%.*s", (int)evbuffer_get_length(persist->buffer),
+	//		evbuffer_pullup(persist->buffer ,-1));
     while (evbuffer_get_length(persist->buffer)) {
     	if (evbuffer_write(persist->buffer, fd) < 0) {
 			ERROR("failed to write buffer");

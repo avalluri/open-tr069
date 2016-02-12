@@ -261,8 +261,8 @@ int evcpe_attr_get(evcpe_attr *attr, const char **value, unsigned int *len)
 	if (attr->schema->getter) {
 		if ((rc = (*attr->schema->getter)(attr, value, len))) {
 			ERROR("failed to get value by getter: %s", attr->path);
-			goto finally;
 		}
+		goto finally;
 	} else if (attr->schema->plugin &&
 			   attr->schema->plugin->get_paramter_value) {
 		if ((rc = attr->schema->plugin->get_paramter_value(
@@ -291,10 +291,11 @@ int evcpe_attr_get_obj(evcpe_attr *attr, evcpe_obj **child)
 }
 
 int evcpe_attr_add_obj(evcpe_attr *attr,
-		evcpe_obj **child, unsigned int *index)
+		evcpe_obj **child, unsigned int *index_out)
 {
 	tqueue_element *iter = NULL, *item = NULL;
 	evcpe_obj* obj = NULL;
+	unsigned int index;
 	int rc = 0;
 
 	if (!attr) return EINVAL;
@@ -314,31 +315,34 @@ int evcpe_attr_add_obj(evcpe_attr *attr,
 		goto finally;
 	}
 	item = NULL;
-	*index = 0;
+	index = 1;
 	TQUEUE_FOREACH(iter, attr->value.multiple.list) {
 		if (!iter->data) {
 			item = iter;
 			break;
 		}
-		(*index) ++;
-	}
-	if (!item && !(item = tqueue_insert(attr->value.multiple.list, NULL))) {
-		ERROR("failed to calloc evcpe_obj_item");
-		rc = ENOMEM;
-		goto finally;
+		index++;
 	}
 
-	if (!(item->data = obj = evcpe_obj_new(attr->schema->class, attr))) {
+	if (!(obj = evcpe_obj_new(attr->schema->class, attr))) {
 		ERROR("failed to create evcpe_obj");
 		rc = ENOMEM;
 		goto finally;
 	}
-	obj->index = *index;
+	obj->index = index - 1;
 	if ((rc = evcpe_obj_init(obj))) {
+		evcpe_obj_free(obj);
 		ERROR("failed to init obj: %s", attr->schema->name);
 		goto finally;
 	}
+	if (!item && !(item = tqueue_insert(attr->value.multiple.list, obj))) {
+		evcpe_obj_free(obj);
+		ERROR("failed to calloc evcpe_obj_item");
+		rc = ENOMEM;
+		goto finally;
+	}
 	attr->value.multiple.size ++;
+
 	if (attr->schema->number &&
 		(rc = evcpe_obj_set_int(attr->owner, attr->schema->number,
 				strlen(attr->schema->number), attr->value.multiple.size))) {
@@ -347,6 +351,7 @@ int evcpe_attr_add_obj(evcpe_attr *attr,
 		goto finally;
 	}
 	*child = obj;
+	*index_out = index;
 	if (attr->cb)
 		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_ADDED, 0, obj, attr->cbarg);
 
@@ -386,6 +391,8 @@ int evcpe_attr_del_obj(evcpe_attr *attr, unsigned int index)
 {
 	evcpe_obj* obj = NULL;
 	tqueue_element* item = NULL;
+	evcpe_attr_schema* number_schema = NULL;
+	evcpe_attr* number_attr = NULL;
 	int rc = 0;
 
 	if (!attr) return EINVAL;
@@ -404,8 +411,18 @@ int evcpe_attr_del_obj(evcpe_attr *attr, unsigned int index)
 		goto finally;
 	}
 	attr->value.multiple.size --;
+
+	if (attr->schema->number &&
+		(rc = evcpe_obj_set_int(attr->owner, attr->schema->number,
+				strlen(attr->schema->number), attr->value.multiple.size))) {
+		ERROR("failed to set number of entries attribute: %s",
+				attr->schema->number);
+		goto finally;
+	}
+
 	obj = (evcpe_obj*)item->data;
 	item->data = NULL;
+	tqueue_remove(attr->value.multiple.list, item);
 	if (attr->cb)
 		(*attr->cb)(attr, EVCPE_ATTR_EVENT_OBJ_DELETED, 0, obj, attr->cbarg);
 	evcpe_obj_free(obj);

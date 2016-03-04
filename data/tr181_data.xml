@@ -77,12 +77,18 @@
         </LocalDisplay>
     </UserInterface>
     <WiFi>
-        <RadioNumberOfEntries>0</RadioNumberOfEntries>
+        <RadioNumberOfEntries>1</RadioNumberOfEntries>
         <SSIDNumberOfEntries>1</SSIDNumberOfEntries>
         <AccessPointNumberOfEntries>0</AccessPointNumberOfEntries>
+        <Radio>
+            <Enable>true</Enable>
+            <Status>Up</Status>
+        </Radio>
         <SSID>
-            <Enable>false</Enable>
-            <Status>Down</Status>
+            <Enable>true</Enable>
+            <Status>Up</Status>
+            <LowerLayers>Device.WiFi.Radio.1.</LowerLayers>
+            <Name>WiFi Radio</Name>
             <Stats>
             </Stats>
         </SSID>
@@ -99,5 +105,9 @@
             </WPS>
             <ACNumberOfEntries>0</ACNumberOfEntries>
         </EndPoint>
+        <AccessPoint>
+            <Enable>false</Enable>
+            <Status>Disabled</Status>
+        </AccessPoint>
     </WiFi>
 </Device>

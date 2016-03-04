@@ -390,6 +390,11 @@ int evcpe_repo_add_obj(evcpe_repo *repo, const char *name,
 		rc = EINVAL;
 		goto finally;
 	}
+	if (!attr->schema->write) {
+		ERROR("Object is not writable by ACS: %s", attr->schema->name);
+		rc = EINVAL;
+		goto finally;
+	}
 	if ((rc = evcpe_attr_add_obj(attr, &obj, index))) {
 		ERROR("failed to add object: %s", name);
 		goto finally;
